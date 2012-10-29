@@ -141,6 +141,8 @@ int main()
 		param.WindowId = reinterpret_cast<void*>(hIrrlichtWindow);
 
 	irr::IrrlichtDevice* device = irr::createDeviceEx(param);
+	if (!device)
+		return 1;
 
 	// setup a simple 3d scene
 
