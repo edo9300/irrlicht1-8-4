@@ -1739,8 +1739,7 @@ void CBurningVideoDriver::drawVertexPrimitiveList(const void* vertices, u32 vert
 	// These calls would lead to crashes due to wrong index usage.
 	// The vertex cache needs to be rewritten for these primitives.
 	if (pType==scene::EPT_POINTS || pType==scene::EPT_LINE_STRIP ||
-		pType==scene::EPT_LINE_LOOP || pType==scene::EPT_LINES ||
-		pType==scene::EPT_TRIANGLE_FAN || pType==scene::EPT_POLYGON ||
+		pType==scene::EPT_LINE_LOOP || pType==scene::EPT_LINES || pType==scene::EPT_POLYGON ||
 		pType==scene::EPT_POINT_SPRITES)
 		return;
 
