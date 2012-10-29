@@ -681,6 +681,10 @@ bool CD3D9Driver::queryFeature(E_VIDEO_DRIVER_FEATURE feature) const
 		return (Caps.RasterCaps & (D3DPRASTERCAPS_DEPTHBIAS|D3DPRASTERCAPS_SLOPESCALEDEPTHBIAS)) != 0;
 	case EVDF_BLEND_OPERATIONS:
 	case EVDF_TEXTURE_MATRIX:
+#ifdef _IRR_COMPILE_WITH_CG_
+	// available iff. define is present
+	case EVDF_CG:
+#endif
 		return true;
 	default:
 		return false;

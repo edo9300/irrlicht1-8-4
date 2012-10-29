@@ -146,16 +146,21 @@ int main()
 	}
 
 	// create device
-
 	device = createDevice(driverType, core::dimension2d<u32>(640, 480));
 
 	if (device == 0)
 		return 1; // could not create selected driver.
 
-
 	video::IVideoDriver* driver = device->getVideoDriver();
 	scene::ISceneManager* smgr = device->getSceneManager();
 	gui::IGUIEnvironment* gui = device->getGUIEnvironment();
+
+	// Make sure we don't try Cg without support for it
+	if (UseCgShaders && !driver->queryFeature(video::EVDF_CG))
+	{
+		printf("Warning: No Cg support, disabling.\n");
+		UseCgShaders=false;
+	}
 
 	/*
 	Now for the more interesting parts. If we are using Direct3D, we want
