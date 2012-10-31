@@ -858,12 +858,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{
 			if ((wParam&0xFF)==WA_INACTIVE)
 			{
+				if (dev->isFullscreen())
+					ShowWindow(hWnd,SW_MINIMIZE);
+
 				dev->switchToFullScreen(true);
 			}
 			else
 			{
-				SetForegroundWindow(hWnd);
-				ShowWindow(hWnd, SW_RESTORE);
+				if (dev->isFullscreen())
+				{
+					SetForegroundWindow(hWnd);
+					ShowWindow(hWnd, SW_RESTORE);
+				}
+
 				dev->switchToFullScreen();
 			}
 		}
