@@ -854,23 +854,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_ACTIVATE:
 		// we need to take care for screen changes, e.g. Alt-Tab
 		dev = getDeviceFromHWnd(hWnd);
-		if (dev)
+		if (dev && dev->isFullscreen())
 		{
 			if ((wParam&0xFF)==WA_INACTIVE)
 			{
-				if (dev->isFullscreen())
-					ShowWindow(hWnd,SW_MINIMIZE);
-
+				// If losing focus we minimize the app to show other one
+				ShowWindow(hWnd,SW_MINIMIZE);
+				// and switch back to default resolution
 				dev->switchToFullScreen(true);
 			}
 			else
 			{
-				if (dev->isFullscreen())
-				{
-					SetForegroundWindow(hWnd);
-					ShowWindow(hWnd, SW_RESTORE);
-				}
-
+				// Otherwise we retore the fullscreen Irrlicht app
+				SetForegroundWindow(hWnd);
+				ShowWindow(hWnd, SW_RESTORE);
+				// and set the fullscreen resolution again
 				dev->switchToFullScreen();
 			}
 		}
