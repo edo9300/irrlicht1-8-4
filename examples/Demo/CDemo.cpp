@@ -322,6 +322,7 @@ void CDemo::switchToNextScene()
 
 			camera = sm->addCameraSceneNodeFPS(0, 100.0f, .4f, -1, keyMap, 9, false, 3.f);
 			camera->setPosition(core::vector3df(108,140,-140));
+			camera->setFarValue(5000.0f);
 
 			scene::ISceneNodeAnimatorCollisionResponse* collider =
 				sm->createCollisionResponseAnimator(

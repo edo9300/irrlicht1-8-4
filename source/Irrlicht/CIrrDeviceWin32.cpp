@@ -928,6 +928,13 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 	// get handle to exe file
 	HINSTANCE hInstance = GetModuleHandle(0);
 
+	// Store original desktop mode.
+
+	memset(&DesktopMode, 0, sizeof(DesktopMode));
+	DesktopMode.dmSize = sizeof(DesktopMode);
+
+	EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &DesktopMode);
+
 	// create the window if we need to and we do not use the null device
 	if (!CreationParams.WindowId && CreationParams.DriverType != video::EDT_NULL)
 	{
@@ -1342,22 +1349,23 @@ bool CIrrDeviceWin32::switchToFullScreen(bool reset)
 	if (!CreationParams.Fullscreen)
 		return true;
 
-	DEVMODE dm;
-	memset(&dm, 0, sizeof(dm));
-	dm.dmSize = sizeof(dm);
-	// use default values from current setting
-	EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dm);
-
 	if (reset)
 	{
 		if (ChangedToFullScreen)
 		{
-			return (ChangeDisplaySettings(&dm,0)==DISP_CHANGE_SUCCESSFUL);
+			return (ChangeDisplaySettings(&DesktopMode,0)==DISP_CHANGE_SUCCESSFUL);
 		}
 		else
 			return true;
 	}
 
+	// use default values from current setting
+
+	DEVMODE dm;
+	memset(&dm, 0, sizeof(dm));
+	dm.dmSize = sizeof(dm);
+
+	EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &dm);
 	dm.dmPelsWidth = CreationParams.WindowSize.Width;
 	dm.dmPelsHeight = CreationParams.WindowSize.Height;
 	dm.dmBitsPerPel = CreationParams.Bits;
