@@ -12,7 +12,6 @@
 				<Option compiler="gcc" />
 				<Option projectResourceIncludeDirsRelation="1" />
 				<Compiler>
-					<Add option="-W" />
 					<Add option="-g" />
 					<Add option="-D_IRR_STATIC_LIB_" />
 				</Compiler>
@@ -27,7 +26,6 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
-					<Add option="-W" />
 					<Add option="-D_IRR_STATIC_LIB_" />
 				</Compiler>
 				<Linker>
@@ -39,10 +37,9 @@
 			</Target>
 		</Build>
 		<VirtualTargets>
-			<Add alias="All" targets="Windows;Linux" />
+			<Add alias="All" targets="Windows;Linux;" />
 		</VirtualTargets>
 		<Compiler>
-			<Add option="-W" />
 			<Add option="-g" />
 			<Add directory="../../include" />
 		</Compiler>
