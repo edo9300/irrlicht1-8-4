@@ -622,6 +622,7 @@
 		<Unit filename="CBSPMeshFileLoader.h" />
 		<Unit filename="CBillboardSceneNode.cpp" />
 		<Unit filename="CBillboardSceneNode.h" />
+		<Unit filename="CBlit.h" />
 		<Unit filename="CBoneSceneNode.cpp" />
 		<Unit filename="CBoneSceneNode.h" />
 		<Unit filename="CBurningShader_Raster_Reference.cpp" />
