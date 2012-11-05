@@ -67,14 +67,14 @@ namespace irr
 // ----------------------- Generic ----------------------------------
 
 //! a more useful memset for pixel
-inline void memset32 ( void * dest, const u32 value, u32 bytesize )
+inline void memset32(void * dest, const u32 value, u32 bytesize)
 {
 	u32 * d = (u32*) dest;
 
 	u32 i;
 
-	i = bytesize >> ( 2 + 3 );
-	while( i )
+	i = bytesize >> (2 + 3);
+	while (i)
 	{
 		d[0] = value;
 		d[1] = value;
@@ -91,13 +91,45 @@ inline void memset32 ( void * dest, const u32 value, u32 bytesize )
 	}
 
 	i = (bytesize >> 2 ) & 7;
-	while( i )
+	while (i)
 	{
 		d[0] = value;
 		d += 1;
 		i -= 1;
 	}
+}
 
+//! a more useful memset for pixel
+inline void memset16(void * dest, const u16 value, u32 bytesize)
+{
+	u16 * d = (u16*) dest;
+
+	u32 i;
+
+	i = bytesize >> (1 + 3);
+	while (i)
+	{
+		d[0] = value;
+		d[1] = value;
+		d[2] = value;
+		d[3] = value;
+
+		d[4] = value;
+		d[5] = value;
+		d[6] = value;
+		d[7] = value;
+
+		d += 8;
+		--i;
+	}
+
+	i = (bytesize >> 1 ) & 7;
+	while (i)
+	{
+		d[0] = value;
+		++d;
+		--i;
+	}
 }
 
 /*
