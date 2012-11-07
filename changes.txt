@@ -1,4 +1,4 @@
-Changes in 1.8 (??.11.2012)
+Changes in 1.8 (7.11.2012)
 
  - Let sphere mesh use full opaque color, just as all the other ones do
 
