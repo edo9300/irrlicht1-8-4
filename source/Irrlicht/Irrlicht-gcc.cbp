@@ -74,6 +74,7 @@
 					<Add directory="zlib" />
 				</Compiler>
 				<Linker>
+					<Add option="-s" />
 					<Add library="kernel32" />
 					<Add library="user32" />
 					<Add library="gdi32" />
