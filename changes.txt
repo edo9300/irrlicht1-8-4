@@ -1,5 +1,7 @@
 Changes in 1.8.1 (not yet released)
 
+ - Fix the clipping in the listbox drawing which was only showing the right line of the sunken pane (reported by Mloren and Abraxas).
+ - Initialize slider in example 05 correct (reported by Zerochen)
  - Fix crash in CMeshSceneNode::clone when the mesh had no shadow (reported by  christianclavet, bug-fix found by Nadro)
 
 --------------------------
