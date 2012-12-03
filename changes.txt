@@ -583,7 +583,9 @@ The following names can be queried for the given types:
  - Support new OpenGL 2.x shader creation
 
 -----------------------------
-Changes in 1.7.4
+Changes in 1.7.4 (not yet released)
+
+ - fixed getDepthFunction in IQ3Shader which always returned ECFN_EQUAL due to missing break (found by the cppcheck tool)
 
  - STL loader improved to handle arbitrary file starts
 
