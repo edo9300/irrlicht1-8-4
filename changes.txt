@@ -1,5 +1,6 @@
 Changes in 1.8.1 (not yet released)
 
+ - Initialized IColladaMeshWriter::GeometryWriting which was uninitialized.
  - Fix linker trouble with irr::core::equalsByUl when compiling Irrlicht as managed code (thx @  Memorial76 for a report + testcase)
  - Fix crashes in CCubeSceneNode::clone and CSphereSceneNode::clone (reported by  marsupial)
  - Fix the clipping in the listbox drawing which was only showing the right line of the sunken pane (reported by Mloren and Abraxas).
