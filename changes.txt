@@ -1,5 +1,6 @@
 Changes in 1.8.1 (not yet released)
 
+ - Fix iszero for s64 (Thanks @chronologicaldot for reporting)
  - Fix crash in SoftwareDriver2 when Material was EMT_DETAIL_MAP but texture[1] was not set (Thanks for fix by chronologicaldot)
  - Fix buffer overrun in x-loader (Thanks for fix by Otaka)
  - Fix cursor visibility update problem under Windows 8 (Thanks @luthyr for reporting)
