@@ -1,5 +1,9 @@
 Changes in 1.8.1 (not yet released)
 
+ - For speed improvement the following attributes accessible by ISceneManager::getParameters() are no longer updated in release: 
+   "culled", "calls", "drawn_solid", "drawn_transparent", "drawn_transparent_effect".
+   They can be enabled by compiling Irrlicht with the define _IRR_SCENEMANAGER_DEBUG. 
+   Thanks @hendu for reporting, see http://irrlicht.sourceforge.net/forum/viewtopic.php?f=2&t=48211 for the discussion.
  - Fix compile problem with CIrrDeviceSDL on VS2008 (and maybe other systems). Thanks @HellFlip for reporting.
  - Fix quaternion::rotationFromTo() (Thanks @takamoto for reporting)
  - Fix iszero for s64 (Thanks @chronologicaldot for reporting)
