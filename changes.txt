@@ -1,4 +1,4 @@
-Changes in 1.8.1 (not yet released)
+Changes in 1.8.1 (11.11.2013)
 
  - For speed improvement the following attributes accessible by ISceneManager::getParameters() are no longer updated in release: 
    "culled", "calls", "drawn_solid", "drawn_transparent", "drawn_transparent_effect".
@@ -11,7 +11,7 @@ Changes in 1.8.1 (not yet released)
  - Fix buffer overrun in x-loader (Thanks for fix by Otaka)
  - Fix cursor visibility update problem under Windows 8 (Thanks @luthyr for reporting)
  - Fix irredit links in loadScene/saveScene docs.
- - Fix issue in CAnimatedMeshSceneNode::clone which cause crash. (reported and fixed by luthyr)
+ - Fix issue in CAnimatedMeshSceneNode::clone which caused a crash. (reported and fixed by luthyr)
  - Fix compiling errors for c++ builder (thx @Greatwolf for many patches and @cfanderek for reminding)
  - Initialized IColladaMeshWriter::GeometryWriting which was uninitialized.
  - Fix linker trouble with irr::core::equalsByUl when compiling Irrlicht as managed code (thx @  Memorial76 for a report + testcase)
