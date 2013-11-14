@@ -1,5 +1,8 @@
 Changes in 1.8.1 (11.11.2013)
 
+ - Improved OpenGL performance under OSX (Thanks devonsoft for reporting).
+ - Fixed OSX compilation issues.
+ - [KNOWN BUG] Software drivers doesn't work properly under OSX 10.9.
  - For speed improvement the following attributes accessible by ISceneManager::getParameters() are no longer updated in release: 
    "culled", "calls", "drawn_solid", "drawn_transparent", "drawn_transparent_effect".
    They can be enabled by compiling Irrlicht with the define _IRR_SCENEMANAGER_DEBUG. 
