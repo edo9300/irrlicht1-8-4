@@ -1,4 +1,6 @@
-Change in 1.8.2
+--------------------------
+Changes in 1.8.2
+
  - Makefile for the new IrrFontTool links now correctly to libfontconfig
 
 --------------------------
