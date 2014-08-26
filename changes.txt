@@ -1,6 +1,7 @@
 --------------------------
 Changes in 1.8.2
 
+ - Fix crash in CGUIListBox when users pressed end key folled by any other key in an empty, focused list box (thanks at porcus for report and patch).
  - Example 22 no longer select a random texture after loading a new texture (thanks at mongoose7 for reporting).
  - Fix bug in IGUISkin serialization which messed up serialization of the button-pressed offsets (thanks at Midnight for reporting).
  - IGUIStaticText::getTextHeight returns now the correct height for texts with newlines even WordWrap is not set.
