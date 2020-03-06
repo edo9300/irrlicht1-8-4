@@ -378,6 +378,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 			}
 			break;
 		case KEY_HOME:
+		case KEY_UP:
 			// move/highlight to start of text
 			if (event.KeyInput.Shift)
 			{
@@ -393,6 +394,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 			}
 			break;
 		case KEY_END:
+		case KEY_DOWN:
 			// move/highlight to end of text
 			if (event.KeyInput.Shift)
 			{
@@ -407,6 +409,59 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				newMarkEnd = 0;
 			}
 			break;
+		case KEY_LEFT:
+		{
+			// move/highlight to begin of word
+			auto pos = CursorPos - 1;
+			do {
+				pos = Text.findLast(L' ', pos - 1);
+			} while(pos != -1 && Text[pos + 1] == L' ');
+			if(pos > CursorPos) {
+				pos = 0;
+			}
+			if(event.KeyInput.Shift) {
+				if(CursorPos > 0) {
+					if(MarkBegin == MarkEnd)
+						newMarkBegin = CursorPos;
+
+					newMarkEnd = pos + 1;
+				}
+			} else {
+				newMarkBegin = 0;
+				newMarkEnd = 0;
+			}
+
+			if(pos > 0) CursorPos = pos + 1;
+			else CursorPos = 0;
+			BlinkStartTime = os::Timer::getTime();
+			break;
+		}
+		case KEY_RIGHT:
+		{
+			auto pos = CursorPos - 1;
+			do {
+				pos = Text.findNext(L' ', pos + 1);
+			} while(pos != -1 && Text[pos + 1] == L' ');
+			if(event.KeyInput.Shift) {
+				if(Text.size() > (u32)CursorPos) {
+					if(MarkBegin == MarkEnd)
+						newMarkBegin = CursorPos;
+
+					newMarkEnd = pos + 1;
+					if(!newMarkEnd || newMarkEnd > Text.size()) {
+						newMarkEnd = Text.size();
+					}
+				}
+			} else {
+				newMarkBegin = 0;
+				newMarkEnd = 0;
+			}
+
+			if(Text.size() > pos) CursorPos = pos + 1;
+			else CursorPos = Text.size();
+			BlinkStartTime = os::Timer::getTime();
+			break;
+		}
 		default:
 			return false;
 		}
@@ -417,6 +472,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 	{
 	case KEY_END:
 		{
+			end:
 			s32 p = Text.size();
 			if (WordWrap || MultiLine)
 			{
@@ -444,7 +500,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 		break;
 	case KEY_HOME:
 		{
-
+		home:
 			s32 p = 0;
 			if (WordWrap || MultiLine)
 			{
@@ -548,7 +604,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 		}
 		else
 		{
-			return false;
+			goto home;
 		}
 		break;
 	case KEY_DOWN:
@@ -579,7 +635,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 		}
 		else
 		{
-			return false;
+			goto end;
 		}
 		break;
 
@@ -664,6 +720,16 @@ bool CGUIEditBox::processKey(const SEvent& event)
 	case KEY_ESCAPE:
 	case KEY_TAB:
 	case KEY_SHIFT:
+	case KEY_LSHIFT:
+	case KEY_RSHIFT:
+	case KEY_MENU:
+	case KEY_LMENU:
+	case KEY_RMENU:
+	case KEY_LWIN:
+	case KEY_RWIN:
+	case KEY_CAPITAL:
+	case KEY_NUMLOCK:
+	case KEY_SCROLL:
 	case KEY_F1:
 	case KEY_F2:
 	case KEY_F3:
@@ -1026,16 +1092,25 @@ bool CGUIEditBox::processMouse(const SEvent& event)
 			}
 			else
 			{
-				// move cursor
-				CursorPos = getCursorPos(event.MouseInput.X, event.MouseInput.Y);
+				if(event.MouseInput.Shift) {
+					if(MarkBegin == MarkEnd)
+						MarkBegin = CursorPos;
+					CursorPos = getCursorPos(event.MouseInput.X, event.MouseInput.Y);
+					MouseMarking = true;
+					setTextMarkers(MarkBegin, CursorPos);
+					calculateScrollPos();
+				} else {
+					// move cursor
+					CursorPos = getCursorPos(event.MouseInput.X, event.MouseInput.Y);
 
-				s32 newMarkBegin = MarkBegin;
-				if (!MouseMarking)
-					newMarkBegin = CursorPos;
+					s32 newMarkBegin = MarkBegin;
+					if(!MouseMarking)
+						newMarkBegin = CursorPos;
 
-				MouseMarking = true;
-				setTextMarkers( newMarkBegin, CursorPos);
-				calculateScrollPos();
+					MouseMarking = true;
+					setTextMarkers(newMarkBegin, CursorPos);
+					calculateScrollPos();
+				}
 				return true;
 			}
 		}
