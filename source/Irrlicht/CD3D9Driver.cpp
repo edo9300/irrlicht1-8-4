@@ -1961,6 +1961,58 @@ void CD3D9Driver::draw2DRectangle(const core::rect<s32>& position,
 		D3DFMT_INDEX16, &vtx[0], sizeof(S3DVertex));
 }
 
+//!Draws a 2d rectangle with a gradient and proper clip.
+void CD3D9Driver::draw2DRectangleClip(const core::rect<s32>& position,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp, const core::rect<s32>* clipRect)
+{
+	core::rect<s32> pos(position);
+
+	if (clamp)
+		pos.clipAgainst(*clamp);
+
+	if (!pos.isValid())
+		return;
+
+	S3DVertex vtx[4];
+	vtx[0] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.UpperLeftCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorLeftUp, 0.0f, 0.0f);
+	vtx[1] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.UpperLeftCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorRightUp, 0.0f, 1.0f);
+	vtx[2] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.LowerRightCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorRightDown, 1.0f, 0.0f);
+	vtx[3] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.LowerRightCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorLeftDown, 1.0f, 1.0f);
+
+	s16 indices[6] = {0,1,2,0,2,3};
+
+	setRenderStates2DMode(
+		colorLeftUp.getAlpha() < 255 ||
+		colorRightUp.getAlpha() < 255 ||
+		colorLeftDown.getAlpha() < 255 ||
+		colorRightDown.getAlpha() < 255, false, false);
+
+	setActiveTexture(0,0);
+
+	setVertexShader(EVT_STANDARD);
+
+	if(clipRect) {
+		pID3DDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
+		RECT scissor;
+		scissor.left = clipRect->UpperLeftCorner.X;
+		scissor.top = clipRect->UpperLeftCorner.Y;
+		scissor.right = clipRect->LowerRightCorner.X;
+		scissor.bottom = clipRect->LowerRightCorner.Y;
+		pID3DDevice->SetScissorRect(&scissor);
+	}
+
+	pID3DDevice->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, &indices[0],
+		D3DFMT_INDEX16, &vtx[0], sizeof(S3DVertex));
+
+	if(clipRect)
+		pID3DDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+}
+
 
 //! Draws a 2d line.
 void CD3D9Driver::draw2DLine(const core::position2d<s32>& start,

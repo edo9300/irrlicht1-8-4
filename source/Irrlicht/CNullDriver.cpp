@@ -808,8 +808,16 @@ void CNullDriver::draw2DRectangle(SColor color, const core::rect<s32>& pos, cons
 //! Draws a 2d rectangle with a gradient.
 void CNullDriver::draw2DRectangle(const core::rect<s32>& pos,
 	SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
-	const core::rect<s32>* clip)
+	const core::rect<s32>* clamp)
 {
+}
+
+//! Draws a 2d rectangle with a gradient.
+void CNullDriver::draw2DRectangleClip(const core::rect<s32>& pos,
+	SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+	const core::rect<s32>* clamp, const core::rect<s32>* clip)
+{
+	draw2DRectangle(pos, colorLeftUp, colorRightUp, colorLeftDown, colorRightDown, clip);
 }
 
 

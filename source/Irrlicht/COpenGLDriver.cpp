@@ -2379,6 +2379,60 @@ void COpenGLDriver::draw2DRectangle(const core::rect<s32>& position,
 }
 
 
+void COpenGLDriver::draw2DRectangleClip(const core::rect<s32>& position,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp, const core::rect<s32>* clipRect)
+{
+	core::rect<s32> pos = position;
+
+	if (clamp)
+		pos.clipAgainst(*clamp);
+
+	if (!pos.isValid())
+		return;
+
+	disableTextures();
+
+	if (clipRect)
+	{
+		if (!clipRect->isValid())
+			return;
+
+		glEnable(GL_SCISSOR_TEST);
+		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
+		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
+			clipRect->getWidth(), clipRect->getHeight());
+	}
+
+	setRenderStates2DMode(colorLeftUp.getAlpha() < 255 ||
+		colorRightUp.getAlpha() < 255 ||
+		colorLeftDown.getAlpha() < 255 ||
+		colorRightDown.getAlpha() < 255, false, false);
+
+	glBegin(GL_QUADS);
+	glColor4ub(colorLeftUp.getRed(), colorLeftUp.getGreen(),
+		colorLeftUp.getBlue(), colorLeftUp.getAlpha());
+	glVertex2f(GLfloat(pos.UpperLeftCorner.X), GLfloat(pos.UpperLeftCorner.Y));
+
+	glColor4ub(colorRightUp.getRed(), colorRightUp.getGreen(),
+		colorRightUp.getBlue(), colorRightUp.getAlpha());
+	glVertex2f(GLfloat(pos.LowerRightCorner.X), GLfloat(pos.UpperLeftCorner.Y));
+
+	glColor4ub(colorRightDown.getRed(), colorRightDown.getGreen(),
+		colorRightDown.getBlue(), colorRightDown.getAlpha());
+	glVertex2f(GLfloat(pos.LowerRightCorner.X), GLfloat(pos.LowerRightCorner.Y));
+
+	glColor4ub(colorLeftDown.getRed(), colorLeftDown.getGreen(),
+		colorLeftDown.getBlue(), colorLeftDown.getAlpha());
+	glVertex2f(GLfloat(pos.UpperLeftCorner.X), GLfloat(pos.LowerRightCorner.Y));
+
+	glEnd();
+
+	if(clipRect)
+		glDisable(GL_SCISSOR_TEST);
+}
+
+
 //! Draws a 2d line.
 void COpenGLDriver::draw2DLine(const core::position2d<s32>& start,
 				const core::position2d<s32>& end, SColor color)
