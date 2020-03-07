@@ -7,6 +7,7 @@
 
 #ifdef _IRR_COMPILE_WITH_OSX_DEVICE_
 
+#import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #ifndef __MAC_10_6
@@ -496,7 +497,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 		{
 			[[NSAutoreleasePool alloc] init];
 			[NSApplication sharedApplication];
-			[NSApp setDelegate:(id<NSFileManagerDelegate>)[[[AppDelegate alloc] initWithDevice:this] autorelease]];
+			[NSApp setDelegate:[[[[AppDelegate alloc] initWithDevice:this] initWithFrame:NSZeroRect] autorelease]];
 			[NSBundle loadNibNamed:@"MainMenu" owner:[NSApp delegate]];
 			[NSApp finishLaunching];
 		}
@@ -590,6 +591,38 @@ void CIrrDeviceMacOSX::closeDevice()
 	IsFullscreen = false;
 	IsActive = false;
 	CGLContext = NULL;
+}
+
+void CIrrDeviceMacOSX::processKeyEvent()
+{
+	irr::SEvent ievent;
+	NSEvent *event = [[NSApplication sharedApplication] currentEvent];
+	postKeyEvent(event, ievent, true);
+}
+
+void CIrrDeviceMacOSX::handleInputEvent(const char *cStr)
+{
+	SEvent ievent;
+
+	// TODO: we should have such a function in core::string
+	size_t lenOld = strlen(cStr);
+	wchar_t *ws = new wchar_t[lenOld + 1];
+	size_t len = mbstowcs(ws,cStr,lenOld);
+	ws[len] = 0;
+	irr::core::stringw widep(ws);
+	delete[] ws;
+
+	ievent.EventType = irr::EET_KEY_INPUT_EVENT;
+	ievent.KeyInput.Key = (irr::EKEY_CODE)0;
+	ievent.KeyInput.PressedDown = true;
+	ievent.KeyInput.Shift = false;
+	ievent.KeyInput.Control = false;
+
+	for (int i = 0; i < widep.size(); ++i)
+	{
+		ievent.KeyInput.Char = widep[i];
+		postEventFromUser(ievent);
+	}
 }
 
 bool CIrrDeviceMacOSX::createWindow()
@@ -881,6 +914,8 @@ bool CIrrDeviceMacOSX::createWindow()
 			newSwapInterval = (CreationParams.Vsync) ? 1 : 0;
 			CGLSetParameter(CGLContext,kCGLCPSwapInterval,&newSwapInterval);
 		}
+
+		[[Window contentView] addSubview:(AppDelegate*)[NSApp delegate]];
 	}
 
 	return (result);
@@ -901,6 +936,8 @@ void CIrrDeviceMacOSX::setResize(int width, int height)
 	{
 		NSRect driverFrame = [Window contentRectForFrameRect:[Window frame]];
 		getVideoDriver()->OnResize(core::dimension2d<u32>( (s32)driverFrame.size.width, (s32)driverFrame.size.height));
+		DeviceWidth = (s32)driverFrame.size.width;
+		DeviceHeight = (s32)driverFrame.size.height;
 	}
 	else
 		getVideoDriver()->OnResize(core::dimension2d<u32>( (s32)width, (s32)height));
@@ -971,6 +1008,21 @@ bool CIrrDeviceMacOSX::run()
 	os::Timer::tick();
 	storeMouseLocation();
 
+	auto focusElement = getGUIEnvironment()->getFocus();
+	bool editing = focusElement && focusElement->getType() == irr::gui::EGUIET_EDIT_BOX;
+	auto textView = (NSTextView*)[NSApp delegate];
+	// Fix mouse up events not being raised as a side effect of the IME workaround changing the frame
+	[textView setFrame:NSRect()]; // This sets the NSWindow frame to 0 via the delegate
+	if (!editing)
+	{
+		[Window makeFirstResponder:nil];
+	}
+	else
+	{
+		// Send input events to fake NSTextView that is also the AppDelegate
+		[Window makeFirstResponder:textView];
+	}
+
 	event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES];
 	if (event != nil)
 	{
@@ -979,6 +1031,23 @@ bool CIrrDeviceMacOSX::run()
 		switch([(NSEvent *)event type])
 		{
 			case NSKeyDown:
+				if (editing)
+				{
+					auto crect = focusElement->getAbsolutePosition();
+					// Ensure font height is enough to fill the edit box so the IME window doesn't overlap it
+					[textView setFont:[NSFont userFontOfSize:crect.getHeight()]];
+					// Change origin from top left to bottom right
+					NSRect rect = {
+						crect.UpperLeftCorner.X,
+						[[textView superview] frame].size.height - crect.LowerRightCorner.Y,
+						crect.getWidth(), crect.getHeight(),
+					};
+					// Workaround for correct IME positioning below the edit box
+					[textView setFrame:rect]; // Reset to 0 at the start of the loop to not break other events
+					[NSApp sendEvent:event]; // Delegate to fake text edit control to handle text input
+					break;
+				}
+				[NSApp sendEvent:event]; // Fire the event normally for the app menu
 				postKeyEvent(event,ievent,true);
 				break;
 
@@ -1148,7 +1217,7 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 
 bool CIrrDeviceMacOSX::isWindowActive() const
 {
-	return (IsActive);
+	return IsActive && Window != NULL && [Window occlusionState] & NSWindowOcclusionStateVisible;
 }
 
 
@@ -1199,20 +1268,20 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 			}
 			else
 			{
-				cStr = (unsigned char *)[str cStringUsingEncoding:NSWindowsCP1252StringEncoding];
+				cStr = (unsigned char *)[str UTF8String];
 				if (cStr != NULL && strlen((char*)cStr) > 0)
 				{
 					mchar = cStr[0];
 					mkey = toupper(mchar);
-					if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
-					{
-						if (mkey == 'C' || mkey == 'V' || mkey == 'X')
-						{
-							mchar = 0;
-							skipCommand = true;
-						}
-					}
 				}
+			}
+		}
+		if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
+		{
+			if (mkey == 'A' || mkey == 'C' || mkey == 'V' || mkey == 'X')
+			{
+				mchar = 0;
+				skipCommand = true;
 			}
 		}
 
@@ -1225,8 +1294,6 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 
 		if (skipCommand)
 			ievent.KeyInput.Control = true;
-		else if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
-			[NSApp sendEvent:(NSEvent *)event];
 
 		postEventFromUser(ievent);
 	}
@@ -1257,6 +1324,9 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 		if (ievent.MouseInput.Y < 0)
 			post = false;
 	}
+
+	ievent.MouseInput.Shift = ([(NSEvent *)event modifierFlags] & NSShiftKeyMask) != 0;
+	ievent.MouseInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
 
 	if (post)
 		postEventFromUser(ievent);

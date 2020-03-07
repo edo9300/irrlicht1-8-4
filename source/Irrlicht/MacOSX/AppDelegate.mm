@@ -13,6 +13,7 @@
 {
 	self = [super init];
 	if (self) _device = device;
+	_dockMenu = [[[NSMenu alloc] init] autorelease];
 	return (self);
 }
 
@@ -72,6 +73,34 @@
 - (BOOL)isQuit
 {
 	return (_quit);
+}
+
+- (void)keyDown:(NSEvent *)event
+{
+	[self interpretKeyEvents:@[event]];
+}
+
+- (void)insertText:(id)string
+{
+	[self setString: @""];
+	if ([string isKindOfClass:[NSAttributedString class]])
+	{
+		_device->handleInputEvent([[string string] UTF8String]);
+	}
+	else
+	{
+		_device->handleInputEvent([string UTF8String]);
+	}
+}
+
+- (void)doCommandBySelector:(SEL)selector
+{
+	_device->processKeyEvent();
+}
+
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender
+{
+	return _dockMenu;
 }
 
 @end

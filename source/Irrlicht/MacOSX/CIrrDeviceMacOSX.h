@@ -95,6 +95,8 @@ namespace irr
 		void setMouseLocation(int x, int y);
 		void setResize(int width, int height);
 		void setCursorVisible(bool visible);
+		void handleInputEvent(const char *str);
+		void processKeyEvent();
 
 	private:
 

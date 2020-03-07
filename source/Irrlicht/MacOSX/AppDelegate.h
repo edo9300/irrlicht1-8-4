@@ -10,14 +10,16 @@
 #import <Cocoa/Cocoa.h>
 #import "CIrrDeviceMacOSX.h"
 
-@interface AppDelegate : NSObject
+@interface AppDelegate : NSTextView <NSApplicationDelegate>
 {
 	BOOL			_quit;
 	irr::CIrrDeviceMacOSX	*_device;
+	NSMenu *_dockMenu;
 }
 
 - (id)initWithDevice:(irr::CIrrDeviceMacOSX *)device;
 - (BOOL)isQuit;
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender;
 
 @end
 
