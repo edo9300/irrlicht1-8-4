@@ -52,29 +52,50 @@ const core::stringc& COSOperator::getOperatingSystemVersion() const
 
 
 //! copies text to the clipboard
-void COSOperator::copyToClipboard(const c8* text) const
+void COSOperator::copyToClipboard(const wchar_t* _text) const
 {
-	if (strlen(text)==0)
+	if (wcslen(_text)==0)
 		return;
+#if !defined(_IRR_WCHAR_FILESYSTEM)
+	size_t lenOld = wcslen(_text);
+	char* text = new char[lenOld + 1];
+	size_t len = wcstombs(text, _text, lenOld);
+	text[len] = 0;
+#else
+	const wchar_t* text = _text;
+#endif
 
 // Windows version
 #if defined(_IRR_XBOX_PLATFORM_)
 #elif defined(_IRR_WINDOWS_API_)
-	if (!OpenClipboard(NULL) || text == 0)
+	if (!OpenClipboard(NULL) || _text == 0)
 		return;
 
 	EmptyClipboard();
 
 	HGLOBAL clipbuffer;
+#if defined(_IRR_WCHAR_FILESYSTEM)
+	wchar_t * buffer;
+
+	clipbuffer = GlobalAlloc(GMEM_DDESHARE, sizeof(wchar_t) * (wcslen(text) + 1));
+	buffer = (wchar_t*)GlobalLock(clipbuffer);
+
+	wcscpy(buffer, text);
+#else
 	char * buffer;
 
-	clipbuffer = GlobalAlloc(GMEM_DDESHARE, strlen(text)+1);
+	clipbuffer = GlobalAlloc(GMEM_DDESHARE, strlen(text) + 1);
 	buffer = (char*)GlobalLock(clipbuffer);
 
 	strcpy(buffer, text);
+#endif
 
 	GlobalUnlock(clipbuffer);
+#if defined(_IRR_WCHAR_FILESYSTEM)
+	SetClipboardData(CF_UNICODETEXT, clipbuffer);
+#else
 	SetClipboardData(CF_TEXT, clipbuffer);
+#endif
 	CloseClipboard();
 
 // MacOSX version
@@ -85,41 +106,59 @@ void COSOperator::copyToClipboard(const c8* text) const
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
     if ( IrrDeviceLinux )
         IrrDeviceLinux->copyToClipboard(text);
-#else
-
+#endif
+#if !defined(_IRR_WCHAR_FILESYSTEM)
+	if(text)
+		delete[] text;
 #endif
 }
 
 
 //! gets text from the clipboard
 //! \return Returns 0 if no string is in there.
-const c8* COSOperator::getTextFromClipboard() const
-{
+const wchar_t* COSOperator::getTextFromClipboard() const {
+#if !defined(_IRR_WCHAR_FILESYSTEM)
+	static core::stringw wstring;
+	char * cbuffer = 0;
+#endif
 #if defined(_IRR_XBOX_PLATFORM_)
-		return 0;
+	return 0;
 #elif defined(_IRR_WINDOWS_API_)
-	if (!OpenClipboard(NULL))
+	if(!OpenClipboard(NULL))
 		return 0;
 
-	char * buffer = 0;
-
-	HANDLE hData = GetClipboardData( CF_TEXT );
-	buffer = (char*)GlobalLock( hData );
-	GlobalUnlock( hData );
-	CloseClipboard();
+#if defined(_IRR_WCHAR_FILESYSTEM)
+	wchar_t * buffer = 0;
+	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+	buffer = (wchar_t*)GlobalLock(hData);
 	return buffer;
+#else
+	HANDLE hData = GetClipboardData(CF_TEXT);
+	cbuffer = (char*)GlobalLock(hData);
+	GlobalUnlock(hData);
+	CloseClipboard();
+#endif
 
 #elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-	return (OSXCopyFromClipboard());
+	cbuffer = OSXCopyFromClipboard();
 
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-    if ( IrrDeviceLinux )
-        return IrrDeviceLinux->getTextFromClipboard();
-    return 0;
-
+	if(IrrDeviceLinux)
+		cbuffer = IrrDeviceLinux->getTextFromClipboard();
 #else
-
 	return 0;
+#endif
+#if !defined(_IRR_WCHAR_FILESYSTEM)
+	if(cbuffer) {
+		size_t lenOld = strlen(cbuffer);
+		wchar_t *ws = new wchar_t[lenOld + 1];
+		size_t len = mbstowcs(ws, cbuffer, lenOld);
+		ws[len] = 0;
+		wstring = ws;
+		delete[] ws;
+		return wstring.c_str();
+	} else
+		return 0;
 #endif
 }
 
