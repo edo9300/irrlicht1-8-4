@@ -409,6 +409,7 @@ namespace irr
 		bool UseGLXWindow;
 		bool ExternalWindow;
 		int AutorepeatSupport;
+		bool ClipboardWaiting;
 
 		struct SKeyMap
 		{
