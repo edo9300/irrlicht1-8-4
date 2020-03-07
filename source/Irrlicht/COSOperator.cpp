@@ -57,7 +57,7 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 	if (wcslen(_text)==0)
 		return;
 #if !defined(_IRR_WCHAR_FILESYSTEM)
-	size_t lenOld = wcslen(_text);
+	size_t lenOld = wcslen(_text) * sizeof(wchar_t);
 	char* text = new char[lenOld + 1];
 	size_t len = wcstombs(text, _text, lenOld);
 	text[len] = 0;
