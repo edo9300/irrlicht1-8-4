@@ -1869,7 +1869,7 @@ bool CIrrDeviceLinux::getGammaRamp( f32 &red, f32 &green, f32 &blue, f32 &bright
 
 //! gets text from the clipboard
 //! \return Returns 0 if no string is in there.
-const c8* CIrrDeviceLinux::getTextFromClipboard() const
+const c8* CIrrDeviceLinux::getTextFromClipboard()
 {
 #if defined(_IRR_COMPILE_WITH_X11_)
 	Window ownerWindow = XGetSelectionOwner (display, X_ATOM_CLIPBOARD);
@@ -1882,15 +1882,15 @@ const c8* CIrrDeviceLinux::getTextFromClipboard() const
 	{
 		XConvertSelection (display, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, ownerWindow, CurrentTime);
 		ClipboardWaiting = true;
-		u32 startTime = Device->getTimer()->getRealTime();
+		u32 startTime = getTimer()->getRealTime();
 		u32 elapsedTime = 0;
 		while(ClipboardWaiting) {
-			this->run();
-			elapsedTime = Device->getTimer()->getRealTime() - startTime;
+			run();
+			elapsedTime = getTimer()->getRealTime() - startTime;
 			if(elapsedTime > 1000) {
 				ClipboardWaiting = false;
 				copyToClipboard("");
-				return Clipboard;
+				return Clipboard.c_str();
 			}
 		}
 

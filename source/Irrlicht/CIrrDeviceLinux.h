@@ -112,7 +112,7 @@ namespace irr
 
 		//! gets text from the clipboard
 		//! \return Returns 0 if no string is in there.
-		virtual const c8* getTextFromClipboard() const;
+		virtual const c8* getTextFromClipboard();
 
 		//! copies text to the clipboard
 		//! This sets the clipboard selection and _not_ the primary selection which you have on X on the middle mouse button.
@@ -400,6 +400,7 @@ namespace irr
 		GLXWindow glxWin;
 		GLXContext Context;
 		#endif
+		bool ClipboardWaiting;
 #endif
 		u32 Width, Height;
 		bool WindowHasFocus;
@@ -409,7 +410,6 @@ namespace irr
 		bool UseGLXWindow;
 		bool ExternalWindow;
 		int AutorepeatSupport;
-		bool ClipboardWaiting;
 
 		struct SKeyMap
 		{

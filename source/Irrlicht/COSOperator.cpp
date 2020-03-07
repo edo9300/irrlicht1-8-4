@@ -120,7 +120,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	const wchar_t* buffer = 0;
 #if !defined(_IRR_WCHAR_FILESYSTEM)
 	static core::stringw wstring;
-	char * cbuffer = 0;
+	const char * cbuffer = 0;
 #endif
 #if defined(_IRR_XBOX_PLATFORM_)
 	return 0;
