@@ -1887,6 +1887,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 		while(ClipboardWaiting) {
 			run();
 			elapsedTime = getTimer()->getRealTime() - startTime;
+			if(!ClipboardWaiting) break;
 			if(elapsedTime > 1000) {
 				ClipboardWaiting = false;
 				copyToClipboard("");
@@ -1910,6 +1911,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 				&numItems, // number items
 				&bytesLeft, // remaining bytes for partial reads
 				&data); // data
+		XFree(data);
 		if ( bytesLeft > 0 )
 		{
 			// there is some data to get
