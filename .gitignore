@@ -1,3 +1,5 @@
 *.d
 *.o
 *.a
+source/Irrlicht/MacOSX/build/
+.DS_Store
