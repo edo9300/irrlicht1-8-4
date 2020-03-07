@@ -1912,16 +1912,15 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 				&bytesLeft, // remaining bytes for partial reads
 				&data); // data
 		XFree(data);
-		if ( bytesLeft > 0 )
-		{
-			// there is some data to get
-			int result = XGetWindowProperty (display, ownerWindow, XA_PRIMARY, 0,
-										bytesLeft, 0, AnyPropertyType, &type, &format,
-										&numItems, &dummy, &data);
-			if (result == Success)
-				Clipboard = (irr::c8*)data;
-			XFree (data);
-		}
+
+		// there is some data to get
+		int result = XGetWindowProperty (display, ownerWindow, XA_PRIMARY, 0,
+									bytesLeft, 0, AnyPropertyType, &type, &format,
+									&numItems, &dummy, &data);
+		if (result == Success)
+			Clipboard = (irr::c8*)data;
+		XFree (data);
+
 	}
 
 	return Clipboard.c_str();
