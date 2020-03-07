@@ -117,6 +117,7 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 //! gets text from the clipboard
 //! \return Returns 0 if no string is in there.
 const wchar_t* COSOperator::getTextFromClipboard() const {
+	const wchar_t* buffer = 0;
 #if !defined(_IRR_WCHAR_FILESYSTEM)
 	static core::stringw wstring;
 	char * cbuffer = 0;
@@ -128,16 +129,14 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		return 0;
 
 #if defined(_IRR_WCHAR_FILESYSTEM)
-	wchar_t * buffer = 0;
 	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
 	buffer = (wchar_t*)GlobalLock(hData);
-	return buffer;
 #else
 	HANDLE hData = GetClipboardData(CF_TEXT);
 	cbuffer = (char*)GlobalLock(hData);
+#endif
 	GlobalUnlock(hData);
 	CloseClipboard();
-#endif
 
 #elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 	cbuffer = OSXCopyFromClipboard();
@@ -156,10 +155,10 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		ws[len] = 0;
 		wstring = ws;
 		delete[] ws;
-		return wstring.c_str();
-	} else
-		return 0;
+		buffer = wstring.c_str();
+	}
 #endif
+	return buffer;
 }
 
 
