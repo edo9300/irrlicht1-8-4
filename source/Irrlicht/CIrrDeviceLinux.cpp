@@ -1880,15 +1880,16 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 	Clipboard = "";
 	if (ownerWindow != None )
 	{
-		XConvertSelection (display, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, ownerWindow, CurrentTime);
+		XConvertSelection (display, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, window, CurrentTime);
 		ClipboardWaiting = true;
 		u32 startTime = getTimer()->getRealTime();
 		u32 elapsedTime = 0;
 		while(ClipboardWaiting) {
 			run();
-			elapsedTime = getTimer()->getRealTime() - startTime;
 			if(!ClipboardWaiting) break;
+			elapsedTime = getTimer()->getRealTime() - startTime;
 			if(elapsedTime > 1000) {
+				os::Printer::log("Error: Timeout while querying clipboard.", ELL_ERROR);
 				ClipboardWaiting = false;
 				copyToClipboard("");
 				return Clipboard.c_str();
@@ -1900,7 +1901,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 		int format;
 		unsigned long numItems, bytesLeft, dummy;
 		unsigned char *data;
-		XGetWindowProperty (display, ownerWindow,
+		XGetWindowProperty (display, window,
 				XA_PRIMARY, // property name
 				0, // offset
 				0, // length (we only check for data, so 0)
@@ -1911,16 +1912,17 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 				&numItems, // number items
 				&bytesLeft, // remaining bytes for partial reads
 				&data); // data
-		XFree(data);
-
-		// there is some data to get
-		int result = XGetWindowProperty (display, ownerWindow, XA_PRIMARY, 0,
-									bytesLeft, 0, AnyPropertyType, &type, &format,
-									&numItems, &dummy, &data);
-		if (result == Success)
-			Clipboard = (irr::c8*)data;
 		XFree (data);
-
+		if ( bytesLeft > 0 )
+		{
+			// there is some data to get
+			int result = XGetWindowProperty (display, window, XA_PRIMARY, 0,
+										bytesLeft, 0, AnyPropertyType, &type, &format,
+										&numItems, &dummy, &data);
+			if (result == Success)
+				Clipboard = (irr::c8*)data;
+			XFree (data);
+		}
 	}
 
 	return Clipboard.c_str();
