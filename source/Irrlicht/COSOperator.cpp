@@ -50,6 +50,76 @@ const core::stringc& COSOperator::getOperatingSystemVersion() const
 	return OperatingSystem;
 }
 
+// UTF-16/UTF-32 to UTF-8
+static int EncodeUTF8(char * dest, const wchar_t * src, int size) {
+	char* pstr = dest;
+	while(*src != 0 && (dest - pstr<size)) {
+		if(*src < 0x80) {
+			*dest = static_cast<char>(*src);
+			++dest;
+		} else if(*src < 0x800) {
+			dest[0] = ((*src >> 6) & 0x1f) | 0xc0;
+			dest[1] = ((*src) & 0x3f) | 0x80;
+			dest += 2;
+		} else if(*src < 0x10000 && (*src < 0xd800 || *src > 0xdfff)) {
+			dest[0] = ((*src >> 12) & 0xf) | 0xe0;
+			dest[1] = ((*src >> 6) & 0x3f) | 0x80;
+			dest[2] = ((*src) & 0x3f) | 0x80;
+			dest += 3;
+		} else {
+			if(sizeof(wchar_t) == 2) {
+				unsigned unicode = 0;
+				unicode |= (*src++ & 0x3ff) << 10;
+				unicode |= *src & 0x3ff;
+				unicode += 0x10000;
+				dest[0] = ((unicode >> 18) & 0x7) | 0xf0;
+				dest[1] = ((unicode >> 12) & 0x3f) | 0x80;
+				dest[2] = ((unicode >> 6) & 0x3f) | 0x80;
+				dest[3] = ((unicode) & 0x3f) | 0x80;
+			} else {
+				dest[0] = ((*src >> 18) & 0x7) | 0xf0;
+				dest[1] = ((*src >> 12) & 0x3f) | 0x80;
+				dest[2] = ((*src >> 6) & 0x3f) | 0x80;
+				dest[3] = ((*src) & 0x3f) | 0x80;
+			}
+			dest += 4;
+		}
+		src++;
+	}
+	*dest = 0;
+	return dest - pstr;
+}
+// UTF-8 to UTF-16/UTF-32
+static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
+	const char* p = src;
+	wchar_t* wp = dest;
+	while(*p != 0 && (wp - dest<size)) {
+		if((*p & 0x80) == 0) {
+			*wp = *p;
+			p++;
+		} else if((*p & 0xe0) == 0xc0) {
+			*wp = (((unsigned)p[0] & 0x1f) << 6) | ((unsigned)p[1] & 0x3f);
+			p += 2;
+		} else if((*p & 0xf0) == 0xe0) {
+			*wp = (((unsigned)p[0] & 0xf) << 12) | (((unsigned)p[1] & 0x3f) << 6) | ((unsigned)p[2] & 0x3f);
+			p += 3;
+		} else if((*p & 0xf8) == 0xf0) {
+			if(sizeof(wchar_t) == 2) {
+				unsigned unicode = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
+				unicode -= 0x10000;
+				*wp++ = (unicode >> 10) | 0xd800;
+				*wp = (unicode & 0x3ff) | 0xdc00;
+			} else {
+				*wp = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
+			}
+			p += 4;
+		} else
+			p++;
+		wp++;
+	}
+	*wp = 0;
+	return wp - dest;
+}
 
 //! copies text to the clipboard
 void COSOperator::copyToClipboard(const wchar_t* _text) const
@@ -59,7 +129,7 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 #if !defined(_IRR_WCHAR_FILESYSTEM)
 	size_t lenOld = wcslen(_text) * sizeof(wchar_t);
 	char* text = new char[lenOld + 1];
-	size_t len = wcstombs(text, _text, lenOld);
+	size_t len = EncodeUTF8(text, _text, lenOld);
 	text[len] = 0;
 #else
 	const wchar_t* text = _text;
@@ -151,7 +221,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	if(cbuffer) {
 		size_t lenOld = strlen(cbuffer);
 		wchar_t *ws = new wchar_t[lenOld + 1];
-		size_t len = mbstowcs(ws, cbuffer, lenOld);
+		size_t len = DecodeUTF8(ws, cbuffer, lenOld);
 		ws[len] = 0;
 		wstring = ws;
 		delete[] ws;
