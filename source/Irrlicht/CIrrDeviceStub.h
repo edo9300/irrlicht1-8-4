@@ -135,6 +135,9 @@ namespace irr
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages();
 
+		//! enable text and files drag and drop
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
+
 
 	protected:
 

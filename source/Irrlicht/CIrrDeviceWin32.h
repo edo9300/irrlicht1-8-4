@@ -23,6 +23,8 @@
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
+class edoproDropper;
+
 namespace irr
 {
 	struct SJoystickWin32Control;
@@ -96,6 +98,8 @@ namespace irr
 
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages();
+
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const
@@ -412,6 +416,8 @@ namespace irr
 		DEVMODE DesktopMode;
 
 		SJoystickWin32Control* JoyControl;
+
+		edoproDropper* dropper;
 	};
 
 } // end namespace irr

@@ -244,6 +244,10 @@ bool CGUIEditBox::OnEvent(const SEvent& event)
 			if (processMouse(event))
 				return true;
 			break;
+		case EET_DROP_EVENT:
+			if(processDrop(event))
+				return true;
+			break;
 		default:
 			break;
 		}
@@ -300,7 +304,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				const s32 realmend = MarkBegin < MarkEnd ? MarkEnd : MarkBegin;
 
 				// copy
-				core::stringw  sc;
+				core::stringw sc;
 				sc = Text.subString(realmbgn, realmend - realmbgn).c_str();
 				Operator->copyToClipboard(sc.c_str());
 
@@ -1113,6 +1117,34 @@ bool CGUIEditBox::processMouse(const SEvent& event)
 	}
 
 	return false;
+}
+
+bool CGUIEditBox::processDrop(const SEvent& event) {
+	switch(event.DropEvent.DropType) {
+		case DROP_START: {
+			CursorPos = getCursorPos(event.DropEvent.X, event.DropEvent.Y);
+			break;
+		}
+		case DROP_TEXT: {
+			core::stringw widep(event.DropEvent.Text);
+			core::stringw s = Text.subString(0, CursorPos);
+			s.append(widep);
+			s.append(Text.subString(CursorPos, Text.size() - CursorPos));
+
+			if(!Max || s.size() <= Max) // thx to Fish FH for fix
+			{
+				Text = s;
+				s = widep;
+				CursorPos += s.size();
+			}
+			break;
+		}
+		case DROP_FILE: 
+			return false;
+		default:
+			break;
+	}
+	return true;
 }
 
 

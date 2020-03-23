@@ -254,6 +254,9 @@ namespace irr
 		virtual bool getGammaRamp(f32 &red, f32 &green, f32 &blue,
 					f32 &brightness, f32 &contrast) =0;
 
+		//! enable text and files drag and drop
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) = 0;
+
 		//! Remove messages pending in the system message loop
 		/** This function is usually used after messages have been buffered for a longer time, for example
 		when loading a large scene. Clearing the message loop prevents that mouse- or buttonclicks which users

@@ -14,6 +14,7 @@
 #include "IEventReceiver.h"
 #include "irrList.h"
 #include "os.h"
+#include "win_drag_n_dropper.h"
 
 #include "CTimer.h"
 #include "irrString.h"
@@ -987,7 +988,7 @@ namespace irr
 //! constructor
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
-	ExternalWindow(false), Win32CursorControl(0), JoyControl(0)
+	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CIrrDeviceWin32");
@@ -1138,6 +1139,11 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 CIrrDeviceWin32::~CIrrDeviceWin32()
 {
 	delete JoyControl;
+
+	if(dropper) {
+		dropper->Release();
+		OleUninitialize();
+	}
 
 	// unregister environment
 
@@ -1877,6 +1883,27 @@ void CIrrDeviceWin32::handleSystemMessages()
 		else
 			DispatchMessage(&msg);
 
+		if(dropper && dropper->hasData()) {
+			bool isFile;
+			core::vector2di dropPos;
+			auto parameters = dropper->getData(&isFile, &dropPos);
+			irr::SEvent event;
+			event.EventType = irr::EET_DROP_EVENT;
+			event.DropEvent.DropType = DROP_START;
+			event.DropEvent.X = dropPos.X;
+			event.DropEvent.Y = dropPos.Y;
+			event.DropEvent.Text = nullptr;
+			postEventFromUser(event);
+			event.DropEvent.DropType = isFile ? DROP_FILE : DROP_TEXT;
+			for(const auto& obj : parameters) {
+				event.DropEvent.Text = obj.c_str();
+				postEventFromUser(event);
+			}
+			event.DropEvent.DropType = DROP_END;
+			event.DropEvent.Text = nullptr;
+			postEventFromUser(event);
+		}
+
 		if (msg.message == WM_QUIT)
 			Close = true;
 	}
@@ -1891,6 +1918,22 @@ void CIrrDeviceWin32::clearSystemMessages()
 	{}
 	while (PeekMessage(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_REMOVE))
 	{}
+}
+
+//register drag and drop support
+void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+	if((enable && dropper) || (!enable && !dropper))
+	   return;
+	if(enable) {
+		dropper = new edoproDropper(HWnd, dragCheck);
+		dropper->AddRef();
+		OleInitialize(NULL);
+		RegisterDragDrop(HWnd, dropper);
+	} else {
+		dropper->Release();
+		OleUninitialize();
+		dropper = nullptr;
+	}
 }
 
 // shows last error in a messagebox to help internal debugging.

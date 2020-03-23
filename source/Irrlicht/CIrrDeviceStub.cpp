@@ -423,6 +423,9 @@ void CIrrDeviceStub::clearSystemMessages()
 {
 }
 
+void CIrrDeviceStub::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+}
+
 
 
 } // end namespace irr
