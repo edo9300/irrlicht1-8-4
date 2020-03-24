@@ -1346,7 +1346,7 @@ bool CIrrDeviceLinux::run()
 						int y = event.xclient.data.l[2] & 0xffff;
 						int convx, convy;
 						Window child;
-						XTranslateCoordinates(display, RootWindow(display, visual->screen), window, x, y, &convx, &convy, &child))
+						XTranslateCoordinates(display, RootWindow(display, visual->screen), window, x, y, &convx, &convy, &child);
 						bool accept = 0;
 						drop_pos = core::vector2di(convx, convy);
 						if((xdnd_req != None) && (!dragAndDropCheck || dragAndDropCheck(drop_pos, draggingFile))) {
