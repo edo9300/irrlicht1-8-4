@@ -3330,6 +3330,8 @@ void CD3D9Driver::clearZBuffer()
 		os::Printer::log("CD3D9Driver clearZBuffer() failed.", ELL_WARNING);
 }
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 
 //! Returns an image created from the last rendered frame.
 IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target)
@@ -3337,104 +3339,41 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 	if (target != video::ERT_FRAME_BUFFER)
 		return 0;
 
-	// query the screen dimensions of the current adapter
-	D3DDISPLAYMODE displayMode;
-	pID3DDevice->GetDisplayMode(0, &displayMode);
-
 	if (format==video::ECF_UNKNOWN)
 		format=video::ECF_A8R8G8B8;
 
-	// create the image surface to store the front buffer image [always A8R8G8B8]
-	HRESULT hr;
-	LPDIRECT3DSURFACE9 lpSurface;
-	if (FAILED(hr = pID3DDevice->CreateOffscreenPlainSurface(displayMode.Width, displayMode.Height, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &lpSurface, 0)))
-		return 0;
-
-	// read the front buffer into the image surface
-	if (FAILED(hr = pID3DDevice->GetFrontBufferData(0, lpSurface)))
-	{
-		lpSurface->Release();
-		return 0;
-	}
-
-	RECT clientRect;
-	{
-		POINT clientPoint;
-		clientPoint.x = 0;
-		clientPoint.y = 0;
-
-		ClientToScreen((HWND)getExposedVideoData().D3D9.HWnd, &clientPoint);
-
-		clientRect.left   = clientPoint.x;
-		clientRect.top	= clientPoint.y;
-		clientRect.right  = clientRect.left + ScreenSize.Width;
-		clientRect.bottom = clientRect.top  + ScreenSize.Height;
-
-		// window can be off-screen partly, we can't take screenshots from that
-		clientRect.left = core::max_(clientRect.left, 0l);
-		clientRect.top = core::max_(clientRect.top, 0l);
-		clientRect.right = core::min_(clientRect.right, (long)displayMode.Width);
-		clientRect.bottom = core::min_(clientRect.bottom, (long)displayMode.Height );
-	}
-
-	// lock our area of the surface
-	D3DLOCKED_RECT lockedRect;
-	if (FAILED(lpSurface->LockRect(&lockedRect, &clientRect, D3DLOCK_READONLY)))
-	{
-		lpSurface->Release();
-		return 0;
-	}
-
-	irr::core::dimension2d<u32> shotSize;
-	shotSize.Width = core::min_( ScreenSize.Width, (u32)(clientRect.right-clientRect.left) );
-	shotSize.Height = core::min_( ScreenSize.Height, (u32)(clientRect.bottom-clientRect.top) );
-
-	// this could throw, but we aren't going to worry about that case very much
-	IImage* newImage = createImage(format, shotSize);
-
-	if (newImage)
-	{
-		// d3d pads the image, so we need to copy the correct number of bytes
-		u32* dP = (u32*)newImage->lock();
-		u8 * sP = (u8 *)lockedRect.pBits;
-
-		// If the display mode format doesn't promise anything about the Alpha value
-		// and it appears that it's not presenting 255, then we should manually
-		// set each pixel alpha value to 255.
-		if (D3DFMT_X8R8G8B8 == displayMode.Format && (0xFF000000 != (*dP & 0xFF000000)))
-		{
-			for (u32 y = 0; y < shotSize.Height; ++y)
-			{
-				for (u32 x = 0; x < shotSize.Width; ++x)
-				{
-					newImage->setPixel(x,y,*((u32*)sP) | 0xFF000000);
-					sP += 4;
-				}
-
-				sP += lockedRect.Pitch - (4 * shotSize.Width);
-			}
+	//// try to load dll
+	static HRESULT(WINAPI *D3DXSaveSurfaceToFileInmemory)(LPD3DXBUFFER*             ppDestBuf,
+								 D3DXIMAGE_FILEFORMAT      DestFormat,
+								 LPDIRECT3DSURFACE9        pSrcSurface,
+								 CONST PALETTEENTRY*       pSrcPalette,
+								 CONST RECT*               pSrcRect) = nullptr;
+	if(!D3DXSaveSurfaceToFileInmemory) {
+		HMODULE hMod = LoadLibrary(L"d3dx9_" STR(D3DX_SDK_VERSION) ".dll");
+		if(hMod) {
+			D3DXSaveSurfaceToFileInmemory = (decltype(D3DXSaveSurfaceToFileInmemory))GetProcAddress(hMod, "D3DXSaveSurfaceToFileInMemory");
 		}
-		else
-		{
-			for (u32 y = 0; y < shotSize.Height; ++y)
-			{
-				convertColor(sP, video::ECF_A8R8G8B8, shotSize.Width, dP, format);
-				sP += lockedRect.Pitch;
-				dP += shotSize.Width;
-			}
-		}
-
-		newImage->unlock();
 	}
-
-	// we can unlock and release the surface
-	lpSurface->UnlockRect();
-
-	// release the image surface
-	lpSurface->Release();
-
-	// return status of save operation to caller
-	return newImage;
+	IImage* retimage = nullptr;
+	LPDIRECT3DSURFACE9 back_buffer = nullptr;
+	pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
+	D3DLOCKED_RECT d3dlr;
+	D3DSURFACE_DESC desc;
+	back_buffer->GetDesc(&desc);
+	RECT rc{ 0, 0, desc.Width, desc.Height };
+	LPD3DXBUFFER outbuffer;
+	if(FAILED(D3DXSaveSurfaceToFileInmemory(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr))) {
+		goto end;
+	}
+	char* data = (char*)outbuffer->GetBufferPointer();
+	auto size = outbuffer->GetBufferSize();
+	auto file = io::createMemoryReadFile(data, size, L"", false);
+	retimage = createImageFromFile(file);
+	file->drop();
+	outbuffer->Release();
+	end:
+	back_buffer->Release();
+	return retimage;
 }
 
 
