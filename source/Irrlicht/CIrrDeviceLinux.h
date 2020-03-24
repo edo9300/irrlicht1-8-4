@@ -121,6 +121,8 @@ namespace irr
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages();
 
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
+
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const
 		{
@@ -385,6 +387,8 @@ namespace irr
 		XVisualInfo* visual;
 		int screennr;
 		Window window;
+		Window xdnd_source;
+		Atom xdnd_req;
 		XSetWindowAttributes attributes;
 		XSizeHints* StdHints;
 		XImage* SoftwareImage;
@@ -401,6 +405,9 @@ namespace irr
 		GLXContext Context;
 		#endif
 		bool ClipboardWaiting;
+		bool(*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		bool draggingFile;
+		irr::core::vector2di drop_pos;
 #endif
 		u32 Width, Height;
 		bool WindowHasFocus;
