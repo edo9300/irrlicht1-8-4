@@ -1883,27 +1883,6 @@ void CIrrDeviceWin32::handleSystemMessages()
 		else
 			DispatchMessage(&msg);
 
-		if(dropper && dropper->hasData()) {
-			bool isFile;
-			core::vector2di dropPos;
-			auto parameters = dropper->getData(&isFile, &dropPos);
-			irr::SEvent event;
-			event.EventType = irr::EET_DROP_EVENT;
-			event.DropEvent.DropType = DROP_START;
-			event.DropEvent.X = dropPos.X;
-			event.DropEvent.Y = dropPos.Y;
-			event.DropEvent.Text = nullptr;
-			postEventFromUser(event);
-			event.DropEvent.DropType = isFile ? DROP_FILE : DROP_TEXT;
-			for(const auto& obj : parameters) {
-				event.DropEvent.Text = obj.c_str();
-				postEventFromUser(event);
-			}
-			event.DropEvent.DropType = DROP_END;
-			event.DropEvent.Text = nullptr;
-			postEventFromUser(event);
-		}
-
 		if (msg.message == WM_QUIT)
 			Close = true;
 	}
@@ -1925,7 +1904,7 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 	if((enable && dropper) || (!enable && !dropper))
 	   return;
 	if(enable) {
-		dropper = new edoproDropper(HWnd, dragCheck);
+		dropper = new edoproDropper(HWnd, dragCheck, this);
 		dropper->AddRef();
 		OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
