@@ -4,6 +4,7 @@ copyright 2020 edo9300 see LICENSE
 #ifndef WIN_DRAG_N_DROPPER_H
 #define WIN_DRAG_N_DROPPER_H
 #include <oleidl.h>
+#include <vector2d.h>
 
 namespace irr {
 class IrrlichtDevice;
