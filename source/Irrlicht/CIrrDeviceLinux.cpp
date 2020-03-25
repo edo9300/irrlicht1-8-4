@@ -66,6 +66,7 @@ namespace
 	Atom X_ATOM_TEXT;
 	Atom X_ATOM_XDND_AWARE;
 	Atom X_ATOM_XDND_ENTER;
+	Atom X_ATOM_XDND_LEAVE;
 	Atom X_ATOM_XDND_POSITION;
 	Atom X_ATOM_XDND_STATUS;
 	Atom X_ATOM_XDND_TYPE_LIST;
@@ -1391,6 +1392,10 @@ bool CIrrDeviceLinux::run()
 							}
 						}
 					}
+					if(event.xclient.message_type == X_ATOM_XDND_LEAVE){
+						xdnd_req = None;
+						break;
+					}
 					else if (*atom == *wmDeleteWindow)
 					{
 						os::Printer::log("Quit message received.", ELL_INFORMATION);
@@ -1455,6 +1460,7 @@ bool CIrrDeviceLinux::run()
 				{
 					Atom target = event.xselection.target;
 					if(target == xdnd_req) {
+						xdnd_req = None;
 						/* read data */
 						x11Prop p;
 						X11_ReadProperty(&p, display, window, XA_PRIMARY);
@@ -2371,6 +2377,7 @@ void CIrrDeviceLinux::initXAtoms()
 	X_ATOM_TEXT = XInternAtom (display, "TEXT", False);
 	X_ATOM_XDND_AWARE = XInternAtom (display, "XdndAware", False);
 	X_ATOM_XDND_ENTER = XInternAtom(display, "XdndEnter", False);
+	X_ATOM_XDND_LEAVE = XInternAtom(display, "XdndLeave", False);
 	X_ATOM_XDND_POSITION = XInternAtom(display, "XdndPosition", False);
 	X_ATOM_XDND_STATUS = XInternAtom(display, "XdndStatus", False);
 	X_ATOM_XDND_TYPE_LIST = XInternAtom(display, "XdndTypeList", False);
