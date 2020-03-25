@@ -87,6 +87,8 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 		device->postEventFromUser(event);
 		event.DropEvent.Text = nullptr;
 	}
+	event.DropEvent.DropType = irr::DROP_END;
+	device->postEventFromUser(event);
 	GlobalUnlock(stg.hGlobal);
 	ReleaseStgMedium(&stg);
 	return S_OK;
