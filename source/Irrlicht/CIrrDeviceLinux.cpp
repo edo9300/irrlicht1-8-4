@@ -1476,17 +1476,17 @@ bool CIrrDeviceLinux::run()
 							irrevent.DropEvent.DropType = draggingFile ? DROP_FILE : DROP_TEXT;
 							char* saveptr = NULL;
 							char* name = XGetAtomName(display, target);
-							char *token = strtok_r((char *)p.data, "\r\n", &saveptr);
-							while(token != NULL) {
-								if(strcmp("text/plain", name) == 0) {
-									size_t lenOld = strlen(token);
-									wchar_t *ws = new wchar_t[lenOld + 1];
-									size_t len = DecodeUTF8(ws, token, lenOld);
-									ws[len] = 0;
-									irrevent.DropEvent.Text = ws;
-									postEventFromUser(irrevent);
-									delete[] ws;
-								} else if(strcmp("text/uri-list", name) == 0) {
+							if(strcmp("text/plain", name) == 0) {
+								size_t lenOld = strlen(token);
+								wchar_t *ws = new wchar_t[lenOld + 1];
+								size_t len = DecodeUTF8(ws, token, lenOld);
+								ws[len] = 0;
+								irrevent.DropEvent.Text = ws;
+								postEventFromUser(irrevent);
+								delete[] ws;
+							} else if(strcmp("text/uri-list", name) == 0) {
+								char *token = strtok_r((char *)p.data, "\r\n", &saveptr);
+								while(token != NULL) {
 									char *fn = X11_URIToLocal(token);
 									if(fn) {
 										size_t lenOld = strlen(fn);
