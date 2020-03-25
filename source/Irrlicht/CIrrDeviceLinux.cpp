@@ -1477,9 +1477,9 @@ bool CIrrDeviceLinux::run()
 							char* saveptr = NULL;
 							char* name = XGetAtomName(display, target);
 							if(strcmp("text/plain", name) == 0) {
-								size_t lenOld = strlen(token);
+								size_t lenOld = strlen((char *)p.data);
 								wchar_t *ws = new wchar_t[lenOld + 1];
-								size_t len = DecodeUTF8(ws, token, lenOld);
+								size_t len = DecodeUTF8(ws, (char *)p.data, lenOld);
 								ws[len] = 0;
 								irrevent.DropEvent.Text = ws;
 								postEventFromUser(irrevent);
