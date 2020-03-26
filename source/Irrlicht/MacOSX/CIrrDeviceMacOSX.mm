@@ -1,7 +1,8 @@
 // Copyright (C) 2005-2006 Etienne Petitjean
 // Copyright (C) 2007-2012 Christian Stehno
-// This file is part of the "Irrlicht Engine".
-// For conditions of distribution and use, see copyright notice in Irrlicht.h
+// Copyright (C) 2019-2020 Kevin Lu, Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Modified from the Irrlicht Engine 1.8.4. See LICENSE.
 
 #include "IrrCompileConfig.h"
 
@@ -506,7 +507,6 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 		chdir([path fileSystemRepresentation]);
 		[path release];
 	}
-    NSWindow* a;
 	uname(&name);
 	Operator = new COSOperator(name.version);
 	os::Printer::log(name.version,ELL_INFORMATION);
@@ -1891,6 +1891,22 @@ void CIrrDeviceMacOSX::pollJoysticks()
 			postEventFromUser(ActiveJoysticks[joystick].persistentData);
 	}
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
+}
+
+void CIrrDeviceMacOSX::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile))
+{
+	if (enable) {
+		[Window registerForDraggedTypes:[NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil]];
+		dragAndDropCheck = dragCheck;
+	} else {
+		[Window unregisterDraggedTypes];
+		dragAndDropCheck = nullptr;
+	}
+}
+
+bool CIrrDeviceMacOSX::isDraggable(int x, int y, bool isFile) {
+    irr::core::vector2di pos(x, DeviceHeight - y);
+    return !dragAndDropCheck || dragAndDropCheck(pos, isFile);
 }
 
 video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()

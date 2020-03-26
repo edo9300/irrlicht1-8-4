@@ -1,7 +1,8 @@
 // Copyright (C) 2005-2006 Etienne Petitjean
 // Copyright (C) 2007-2012 Christian Stehno
-// This file is part of the "Irrlicht Engine".
-// For conditions of distribution and use, see copyright notice in Irrlicht.h
+// Copyright (C) 2019-2020 Kevin Lu, Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Modified from the Irrlicht Engine 1.8.4. See LICENSE.
 
 #ifndef __C_IRR_DEVICE_MACOSX_H_INCLUDED__
 #define __C_IRR_DEVICE_MACOSX_H_INCLUDED__
@@ -84,6 +85,10 @@ namespace irr
 		//! \return Returns a pointer to a list with all video modes
 		//! supported by the gfx adapter.
 		virtual video::IVideoModeList* getVideoModeList();
+
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
+
+        virtual bool isDraggable(int x, int y, bool isFile);
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const
@@ -237,12 +242,13 @@ namespace irr
 		int ScreenWidth;
 		int ScreenHeight;
 		u32 MouseButtonStates;
-        u32 SoftwareRendererType;
-        bool IsFullscreen;
+		u32 SoftwareRendererType;
+		bool IsFullscreen;
 		bool IsActive;
 		bool IsShiftDown;
 		bool IsControlDown;
 		bool IsResizable;
+        bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
 	};
 
 

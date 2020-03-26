@@ -1,7 +1,8 @@
 // Copyright (C) 2005-2006 Etienne Petitjean
 // Copyright (C) 2007-2012 Christian Stehno
-// This file is part of the "Irrlicht Engine".
-// For conditions of distribution and use, see copyright notice in Irrlicht.h
+// Copyright (C) 2019-2020 Kevin Lu, Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Modified from the Irrlicht Engine 1.8.4. See LICENSE.
 
 #include "IrrCompileConfig.h"
 
@@ -13,6 +14,7 @@
 @interface AppDelegate : NSTextView <NSApplicationDelegate>
 {
 	BOOL			_quit;
+	BOOL			_dropIsFile;
 	irr::CIrrDeviceMacOSX	*_device;
 	NSMenu *_dockMenu;
 }
