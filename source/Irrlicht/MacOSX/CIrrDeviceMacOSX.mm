@@ -1905,8 +1905,8 @@ void CIrrDeviceMacOSX::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::v
 }
 
 bool CIrrDeviceMacOSX::isDraggable(int x, int y, bool isFile) {
-    irr::core::vector2di pos(x, DeviceHeight - y);
-    return !dragAndDropCheck || dragAndDropCheck(pos, isFile);
+	irr::core::vector2di pos(x, DeviceHeight - y);
+	return !dragAndDropCheck || dragAndDropCheck(pos, isFile);
 }
 
 video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()

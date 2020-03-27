@@ -165,7 +165,7 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 	NSPasteboard *pasteboard = [sender draggingPasteboard];
 	NSArray *types = [NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil];
 	NSString *desiredType = [pasteboard availableTypeFromArray:types];
-	
+
 	if (desiredType == nil) {
 		return NO;  /* can't accept anything that's being dropped here. */
 	}
@@ -207,7 +207,7 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
     }
 
     NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
-	for (NSString *path in fileArray) {		
+	for (NSString *path in fileArray) {
 		NSURL *fileURL = [NSURL fileURLWithPath:path];
 		NSNumber *isAlias = nil;
 
@@ -230,7 +230,7 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 			}
 		}
 		irrevent.DropEvent.DropType = irr::DROP_FILE;
-		if (!dispatch(irrevent, [fileURL absoluteString]))
+		if (!dispatch(irrevent, [fileURL path]))
 			return NO;
 	}
 

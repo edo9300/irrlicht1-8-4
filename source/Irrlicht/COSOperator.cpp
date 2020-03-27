@@ -226,7 +226,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		delete[] ws;
 	} else {
 		return 0;
-	
+	}
 #endif
 #if defined(_IRR_WINDOWS_API_)
 	GlobalUnlock(hData);

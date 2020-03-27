@@ -88,7 +88,7 @@ namespace irr
 
 		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
 
-        virtual bool isDraggable(int x, int y, bool isFile);
+		virtual bool isDraggable(int x, int y, bool isFile);
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const
@@ -248,7 +248,7 @@ namespace irr
 		bool IsShiftDown;
 		bool IsControlDown;
 		bool IsResizable;
-        bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
 	};
 
 
