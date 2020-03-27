@@ -199,7 +199,10 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 
 #if defined(_IRR_WCHAR_FILESYSTEM)
 	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
-	wstring = (wchar_t*)GlobalLock(hData);
+	wchar_t* buffer = (wchar_t*)GlobalLock(hData);
+	if(!buffer)
+		return 0;
+	wstring = buffer;
 #else
 	HANDLE hData = GetClipboardData(CF_TEXT);
 	cbuffer = (char*)GlobalLock(hData);
@@ -221,7 +224,9 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		ws[len] = 0;
 		wstring = ws;
 		delete[] ws;
-	}
+	} else {
+		return 0;
+	
 #endif
 #if defined(_IRR_WINDOWS_API_)
 	GlobalUnlock(hData);
