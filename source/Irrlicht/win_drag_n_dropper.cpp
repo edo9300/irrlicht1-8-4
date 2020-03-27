@@ -1,5 +1,7 @@
 // Copyright (C) 2020 Edoardo Lolletti
 // SPDX-License-Identifier: AGPL-3.0-or-later
+
+#include <IrrCompileConfig.h>
 #ifdef _IRR_COMPILE_WITH_WINDOWS_DEVICE_
 #include "win_drag_n_dropper.h"
 
