@@ -1,6 +1,6 @@
-/*
-copyright 2020 edo9300 see LICENSE
-*/
+// Copyright (C) 2020 Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
+#ifdef _IRR_COMPILE_WITH_WINDOWS_DEVICE_
 #include "win_drag_n_dropper.h"
 
 #include <objidl.h>
@@ -93,3 +93,4 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 	ReleaseStgMedium(&stg);
 	return S_OK;
 }
+#endif
