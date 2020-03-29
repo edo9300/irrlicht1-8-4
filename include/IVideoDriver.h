@@ -1468,6 +1468,9 @@ namespace video
 		*/
 		virtual void convertColor(const void* sP, ECOLOR_FORMAT sF, s32 sN,
 				void* dP, ECOLOR_FORMAT dF) const =0;
+
+		//! Toggles vsync
+		virtual void toggleVsync(bool enabled) = 0;
 	};
 
 } // end namespace video

@@ -395,6 +395,9 @@ namespace video
 		//! Returns the maximum texture size supported.
 		virtual core::dimension2du getMaxTextureSize() const;
 
+		//! Toggles vsync
+		virtual void toggleVsync(bool enabled);
+
 		ITexture* createDepthTexture(ITexture* texture, bool shared=true);
 		void removeDepthTexture(ITexture* texture);
 

@@ -4619,6 +4619,13 @@ IImage* COpenGLDriver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RE
 	return newImage;
 }
 
+void COpenGLDriver::toggleVsync(bool enabled) {
+#ifndef _IRR_COMPILE_WITH_OSX_DEVICE_
+	if(Params.Vsync == enabled)
+		return;
+	extGlSwapInterval((Params.Vsync = enabled) ? 1 : 0);
+#endif
+}
 
 //! get depth texture for the given render target texture
 ITexture* COpenGLDriver::createDepthTexture(ITexture* texture, bool shared)

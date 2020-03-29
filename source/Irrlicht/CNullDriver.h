@@ -661,6 +661,9 @@ namespace video
 		virtual void convertColor(const void* sP, ECOLOR_FORMAT sF, s32 sN,
 				void* dP, ECOLOR_FORMAT dF) const;
 
+		//! Toggles vsync
+		virtual void toggleVsync(bool enabled);
+
 		//! deprecated method
 		virtual ITexture* createRenderTargetTexture(const core::dimension2d<u32>& size,
 				const c8* name=0);

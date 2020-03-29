@@ -2449,6 +2449,9 @@ void CNullDriver::convertColor(const void* sP, ECOLOR_FORMAT sF, s32 sN,
 	video::CColorConverter::convert_viaFormat(sP, sF, sN, dP, dF);
 }
 
+void CNullDriver::toggleVsync(bool enabled) {
+}
+
 
 } // end namespace
 } // end namespace

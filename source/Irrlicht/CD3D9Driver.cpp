@@ -3582,6 +3582,18 @@ core::dimension2du CD3D9Driver::getMaxTextureSize() const
 	return core::dimension2du(Caps.MaxTextureWidth, Caps.MaxTextureHeight);
 }
 
+void CD3D9Driver::toggleVsync(bool enabled) {
+	if(!pID3DDevice)
+		return;
+	if(Params.Vsync == enabled)
+		return;
+	if(Params.Vsync = enabled)
+		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+	else
+		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	reset();
+}
+
 #ifdef _IRR_COMPILE_WITH_CG_
 const CGcontext& CD3D9Driver::getCgContext()
 {

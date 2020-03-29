@@ -327,6 +327,9 @@ namespace video
 		//! Returns the maximum texture size supported.
 		virtual core::dimension2du getMaxTextureSize() const;
 
+		//! Toggles vsync
+		virtual void toggleVsync(bool enabled);
+
 		//! Get the current color format of the color buffer
 		/** \return Color format of the color buffer as D3D color value. */
 		D3DFORMAT getD3DColorFormat() const;
