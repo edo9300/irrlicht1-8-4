@@ -12,9 +12,6 @@
 #include <iostream>
 #include <IrrlichtDevice.h>
 
-constexpr FORMATETC textProperty = { CF_UNICODETEXT, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
-constexpr FORMATETC fileProperty = { CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
-
 HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
 	if(IsEqualIID(riid, IID_IUnknown)) {
 		*ppv = static_cast<IUnknown*>(this);
@@ -27,18 +24,31 @@ HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
 		return E_NOINTERFACE;
 	}
 }
+
+FORMATETC CheckFormat(IDataObject* pDataObj) {
+	IEnumFORMATETC* Enum;
+	FORMATETC type;
+	pDataObj->EnumFormatEtc(DATADIR_GET, &Enum);
+	while(Enum->Next(1, &type, 0) == S_OK) {
+		if(type.cfFormat == CF_UNICODETEXT || type.cfFormat == CF_HDROP) {
+			return type;
+		}
+	}
+	return { 0 };
+}
 #define checktarget (!dragCheck || (ScreenToClient(window, reinterpret_cast<LPPOINT>(&pt)) && dragCheck({ pt.x,pt.y }, isFile)))
 
 HRESULT __stdcall edoproDropper::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	auto checkType = [&pDataObj](FORMATETC type) -> bool {
 		return pDataObj->QueryGetData(&type) == S_OK;
 	};
-	isFile = checkType(fileProperty);
-	if(!checkType(textProperty) && !isFile) {
+	auto format = CheckFormat(pDataObj);
+	if(!format.cfFormat) {
 		isDragging = false;
 		*pdwEffect = DROPEFFECT_NONE;
 		return S_FALSE;
 	}
+	isFile = (format.cfFormat == CF_HDROP);
 	isDragging = true;
 	if(checktarget)
 		*pdwEffect = DROPEFFECT_COPY;
@@ -47,9 +57,10 @@ HRESULT __stdcall edoproDropper::DragEnter(IDataObject* pDataObj, DWORD grfKeySt
 
 HRESULT __stdcall edoproDropper::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	*pdwEffect = DROPEFFECT_NONE;
-	if(checktarget)
-		*pdwEffect = DROPEFFECT_MOVE;
-	return *pdwEffect == DROPEFFECT_MOVE ? S_OK : S_FALSE;
+	if(!checktarget)
+		return S_FALSE;
+	*pdwEffect = DROPEFFECT_COPY;
+	return S_OK;
 }
 
 HRESULT __stdcall edoproDropper::DragLeave(void) {
@@ -63,7 +74,7 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 	isDragging = false;
 	*pdwEffect = DROPEFFECT_COPY;
 	STGMEDIUM stg;
-	FORMATETC fe = (isFile ? fileProperty : textProperty);
+	FORMATETC fe = CheckFormat(pDataObj);
 	char* data = nullptr;
 	if(pDataObj->GetData(&fe, &stg) != S_OK || !(data = (char*)GlobalLock(stg.hGlobal)))
 		return S_FALSE;
