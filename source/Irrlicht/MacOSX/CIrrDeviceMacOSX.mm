@@ -921,6 +921,12 @@ bool CIrrDeviceMacOSX::createWindow()
 	return (result);
 }
 
+void CIrrDeviceMacOSX::setVsync(bool enabled)
+{
+	GLint newSwapInterval = enabled ? 1 : 0;
+	CGLSetParameter(CGLContext,kCGLCPSwapInterval,&newSwapInterval);
+}
+
 void CIrrDeviceMacOSX::setResize(int width, int height)
 {
 	// set new window size

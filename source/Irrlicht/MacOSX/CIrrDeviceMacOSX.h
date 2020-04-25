@@ -102,6 +102,7 @@ namespace irr
 		void setCursorVisible(bool visible);
 		void handleInputEvent(const char *str);
 		void processKeyEvent();
+		void setVsync(bool enabled);
 
 	private:
 

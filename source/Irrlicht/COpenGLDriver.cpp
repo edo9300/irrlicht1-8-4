@@ -4619,11 +4619,14 @@ IImage* COpenGLDriver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RE
 	return newImage;
 }
 
-void COpenGLDriver::toggleVsync(bool enabled) {
-#ifndef _IRR_COMPILE_WITH_OSX_DEVICE_
-	if(Params.Vsync == enabled)
+void COpenGLDriver::toggleVsync(bool enabled)
+{
+	if (Params.Vsync == enabled)
 		return;
+#ifndef _IRR_COMPILE_WITH_OSX_DEVICE_
 	extGlSwapInterval((Params.Vsync = enabled) ? 1 : 0);
+#else
+	OSXDevice->setVsync(Params.Vsync = enabled);
 #endif
 }
 
