@@ -328,7 +328,7 @@ namespace video
 		virtual core::dimension2du getMaxTextureSize() const;
 
 		//! Toggles vsync
-		virtual void toggleVsync(bool enabled);
+		virtual void setVsync(bool enabled);
 
 		//! Get the current color format of the color buffer
 		/** \return Color format of the color buffer as D3D color value. */

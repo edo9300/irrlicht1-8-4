@@ -1470,7 +1470,7 @@ namespace video
 				void* dP, ECOLOR_FORMAT dF) const =0;
 
 		//! Toggles vsync
-		virtual void toggleVsync(bool enabled) = 0;
+		virtual void setVsync(bool enabled) = 0;
 	};
 
 } // end namespace video

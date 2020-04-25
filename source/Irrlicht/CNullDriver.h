@@ -662,7 +662,7 @@ namespace video
 				void* dP, ECOLOR_FORMAT dF) const;
 
 		//! Toggles vsync
-		virtual void toggleVsync(bool enabled);
+		virtual void setVsync(bool enabled);
 
 		//! deprecated method
 		virtual ITexture* createRenderTargetTexture(const core::dimension2d<u32>& size,

@@ -396,7 +396,7 @@ namespace video
 		virtual core::dimension2du getMaxTextureSize() const;
 
 		//! Toggles vsync
-		virtual void toggleVsync(bool enabled);
+		virtual void setVsync(bool enabled);
 
 		ITexture* createDepthTexture(ITexture* texture, bool shared=true);
 		void removeDepthTexture(ITexture* texture);

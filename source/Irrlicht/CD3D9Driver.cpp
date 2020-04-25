@@ -3582,7 +3582,7 @@ core::dimension2du CD3D9Driver::getMaxTextureSize() const
 	return core::dimension2du(Caps.MaxTextureWidth, Caps.MaxTextureHeight);
 }
 
-void CD3D9Driver::toggleVsync(bool enabled) {
+void CD3D9Driver::setVsync(bool enabled) {
 	if(!pID3DDevice)
 		return;
 	if(Params.Vsync == enabled)

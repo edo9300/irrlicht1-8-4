@@ -4619,7 +4619,7 @@ IImage* COpenGLDriver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RE
 	return newImage;
 }
 
-void COpenGLDriver::toggleVsync(bool enabled)
+void COpenGLDriver::setVsync(bool enabled)
 {
 	if (Params.Vsync == enabled)
 		return;
