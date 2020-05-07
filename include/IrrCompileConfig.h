@@ -233,8 +233,8 @@ you will not be able to use anything provided by the GUI Environment, including 
 disable this feature, the engine behave as before (ansi). This is currently only supported
 for Windows based systems. You also have to set #define UNICODE for this to compile.
 */
-//#define _IRR_WCHAR_FILESYSTEM
-#ifdef NO_IRR_WCHAR_FILESYSTEM
+#define _IRR_WCHAR_FILESYSTEM
+#ifndef UNICODE
 #undef _IRR_WCHAR_FILESYSTEM
 #endif
 

@@ -3349,7 +3349,7 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 								 CONST PALETTEENTRY*       pSrcPalette,
 								 CONST RECT*               pSrcRect) = nullptr;
 	if(!D3DXSaveSurfaceToFileInmemory) {
-		HMODULE hMod = LoadLibrary(L"d3dx9_" STR(D3DX_SDK_VERSION) ".dll");
+		HMODULE hMod = LoadLibrary(__TEXT("d3dx9_" STR(D3DX_SDK_VERSION) ".dll"));
 		if(hMod) {
 			D3DXSaveSurfaceToFileInmemory = (decltype(D3DXSaveSurfaceToFileInmemory))GetProcAddress(hMod, "D3DXSaveSurfaceToFileInMemory");
 		}
