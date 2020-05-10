@@ -28,13 +28,16 @@ HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
 FORMATETC CheckFormat(IDataObject* pDataObj) {
 	IEnumFORMATETC* Enum;
 	FORMATETC type;
+	FORMATETC nonunicode{ 0 };
 	pDataObj->EnumFormatEtc(DATADIR_GET, &Enum);
 	while(Enum->Next(1, &type, 0) == S_OK) {
 		if(type.cfFormat == CF_UNICODETEXT || type.cfFormat == CF_HDROP) {
 			return type;
 		}
+		if(type.cfFormat == CF_TEXT)
+			nonunicode = type;
 	}
-	return { 0 };
+	return nonunicode;
 }
 #define checktarget (!dragCheck || (ScreenToClient(window, reinterpret_cast<LPPOINT>(&pt)) && dragCheck({ pt.x,pt.y }, isFile)))
 
@@ -96,9 +99,20 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 			files += wcslen(files) + 1;
 		}
 	} else {
-		event.DropEvent.Text = (wchar_t*)data;
-		device->postEventFromUser(event);
-		event.DropEvent.Text = nullptr;
+		if(fe.cfFormat == CF_TEXT) {
+			size_t lenOld = strlen(data);
+			wchar_t *ws = new wchar_t[lenOld + 1];
+			size_t len = mbstowcs(ws, data, lenOld);
+			ws[len] = 0;
+			event.DropEvent.Text = ws;
+			device->postEventFromUser(event);
+			event.DropEvent.Text = nullptr;
+			delete[] ws;
+		} else {
+			event.DropEvent.Text = (wchar_t*)data;
+			device->postEventFromUser(event);
+			event.DropEvent.Text = nullptr;
+		}
 	}
 	event.DropEvent.DropType = irr::DROP_END;
 	device->postEventFromUser(event);
