@@ -1905,7 +1905,6 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 	   return;
 	if(enable) {
 		dropper = new edoproDropper(HWnd, dragCheck, this);
-		dropper->AddRef();
 		OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
 	} else {

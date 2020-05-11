@@ -1,5 +1,6 @@
-// Copyright (C) 2020 Edoardo Lolletti
-// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+copyright 2020 edo9300 see LICENSE
+*/
 #ifndef WIN_DRAG_N_DROPPER_H
 #define WIN_DRAG_N_DROPPER_H
 #include <oleidl.h>
@@ -11,7 +12,7 @@ class IrrlichtDevice;
 
 class edoproDropper : public IDropTarget {
 public:
-	edoproDropper(HWND hwnd, bool(*callback)(irr::core::vector2di pos, bool isFile), irr::IrrlichtDevice* dev) :window(hwnd), dragCheck(callback), device(dev){};
+	edoproDropper(HWND hwnd, bool(*callback)(irr::core::vector2di pos, bool isFile), irr::IrrlichtDevice* dev) :window(hwnd), dragCheck(callback), device(dev), ref_count(1){};
 	~edoproDropper() = default;
 
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppv) override;
