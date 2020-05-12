@@ -1052,8 +1052,10 @@ bool CIrrDeviceMacOSX::run()
 					[textView setFrame:rect]; // Reset to 0 at the start of the loop to not break other events
 					[NSApp sendEvent:event]; // Delegate to fake text edit control to handle text input
 					break;
+				} else if (([(NSEvent *)event modifierFlags] & NSCommandKeyMask)) {
+					// Fire the event normally for the app menu
+					[NSApp sendEvent:event];
 				}
-				[NSApp sendEvent:event]; // Fire the event normally for the app menu
 				postKeyEvent(event,ievent,true);
 				break;
 
