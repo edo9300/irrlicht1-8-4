@@ -1053,8 +1053,13 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		const s32 realWidth = clientSize.right - clientSize.left;
 		const s32 realHeight = clientSize.bottom - clientSize.top;
 
-		s32 windowLeft = (GetSystemMetrics(SM_CXSCREEN) - realWidth) / 2;
-		s32 windowTop = (GetSystemMetrics(SM_CYSCREEN) - realHeight) / 2;
+		s32 windowLeft = CreationParams.WindowPosition.X;
+		s32 windowTop = CreationParams.WindowPosition.Y;
+
+		if(!CreationParams.OffsettedWindow) {
+			windowLeft = (GetSystemMetrics(SM_CXSCREEN) - realWidth) / 2;
+			windowTop = (GetSystemMetrics(SM_CYSCREEN) - realHeight) / 2;
+		}
 
 		if ( windowLeft < 0 )
 			windowLeft = 0;
@@ -1905,7 +1910,7 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 	   return;
 	if(enable) {
 		dropper = new edoproDropper(HWnd, dragCheck, this);
-		OleInitialize(NULL);
+		auto res = OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
 	} else {
 		dropper->Release();

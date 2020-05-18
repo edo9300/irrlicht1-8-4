@@ -8,6 +8,7 @@
 #include "EDriverTypes.h"
 #include "EDeviceTypes.h"
 #include "dimension2d.h"
+#include "vector2d.h"
 #include "ILogger.h"
 
 namespace irr
@@ -23,6 +24,8 @@ namespace irr
 			DeviceType(EIDT_BEST),
 			DriverType(video::EDT_BURNINGSVIDEO),
 			WindowSize(core::dimension2d<u32>(800, 600)),
+			OffsettedWindow(false),
+			WindowPosition(core::vector2d<s32>(0, 0)),
 			Bits(16),
 			ZBufferBits(16),
 			Fullscreen(false),
@@ -58,6 +61,8 @@ namespace irr
 			DeviceType = other.DeviceType;
 			DriverType = other.DriverType;
 			WindowSize = other.WindowSize;
+			OffsettedWindow = other.OffsettedWindow,
+			WindowPosition = other.WindowPosition,
 			Bits = other.Bits;
 			ZBufferBits = other.ZBufferBits;
 			Fullscreen = other.Fullscreen;
@@ -101,6 +106,12 @@ namespace irr
 
 		//! Size of the window or the video mode in fullscreen mode. Default: 800x600
 		core::dimension2d<u32> WindowSize;
+
+		//! If the engine shoudl consider WindowPosition when creating the window, otherwise the window is created centered
+		bool OffsettedWindow;
+		
+		//! Position of the top left corner of the window
+		core::vector2d<s32> WindowPosition;
 
 		//! Minimum Bits per pixel of the color buffer in fullscreen mode. Ignored if windowed mode. Default: 16.
 		u8 Bits;
