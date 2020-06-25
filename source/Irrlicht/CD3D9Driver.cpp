@@ -3347,7 +3347,8 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 	hr = pID3DDevice->CreateOffscreenPlainSurface(present.BackBufferWidth, present.BackBufferHeight, present.BackBufferFormat, D3DPOOL_SYSTEMMEM, &captureSurface, nullptr);
 	if(SUCCEEDED(hr)) {
 		IDirect3DSurface9* backBufferSurface = nullptr;
-		if(SUCCEEDED(hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface))) {
+		hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface);
+		if(SUCCEEDED(hr)) {
 			hr = pID3DDevice->GetRenderTargetData(backBufferSurface, captureSurface);
 			backBufferSurface->Release();
 			if(SUCCEEDED(hr)) {
