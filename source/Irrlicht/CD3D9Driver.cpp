@@ -3330,50 +3330,69 @@ void CD3D9Driver::clearZBuffer()
 		os::Printer::log("CD3D9Driver clearZBuffer() failed.", ELL_WARNING);
 }
 
-#define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
-
 //! Returns an image created from the last rendered frame.
-IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target)
-{
-	if (target != video::ERT_FRAME_BUFFER)
-		return 0;
+IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target) {
+	if(target != video::ERT_FRAME_BUFFER)
+		return nullptr;
 
-	if (format==video::ECF_UNKNOWN)
-		format=video::ECF_A8R8G8B8;
+	if(format == video::ECF_UNKNOWN)
+		format = video::ECF_A8R8G8B8;
 
-	//// try to load dll
-	static HRESULT(WINAPI *D3DXSaveSurfaceToFileInmemory)(LPD3DXBUFFER*             ppDestBuf,
-								 D3DXIMAGE_FILEFORMAT      DestFormat,
-								 LPDIRECT3DSURFACE9        pSrcSurface,
-								 CONST PALETTEENTRY*       pSrcPalette,
-								 CONST RECT*               pSrcRect) = nullptr;
-	if(!D3DXSaveSurfaceToFileInmemory) {
-		HMODULE hMod = LoadLibrary(__TEXT("d3dx9_" STR(D3DX_SDK_VERSION) ".dll"));
-		if(hMod) {
-			D3DXSaveSurfaceToFileInmemory = (decltype(D3DXSaveSurfaceToFileInmemory))GetProcAddress(hMod, "D3DXSaveSurfaceToFileInMemory");
+	IImage* newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
+	if(!newImage)
+		return nullptr;
+
+	HRESULT hr;
+	IDirect3DSurface9* captureSurface = nullptr;
+	hr = pID3DDevice->CreateOffscreenPlainSurface(present.BackBufferWidth, present.BackBufferHeight, present.BackBufferFormat, D3DPOOL_SYSTEMMEM, &captureSurface, nullptr);
+	if(SUCCEEDED(hr)) {
+		IDirect3DSurface9* backBufferSurface = nullptr;
+		if(SUCCEEDED(hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface))) {
+			hr = pID3DDevice->GetRenderTargetData(backBufferSurface, captureSurface);
+			backBufferSurface->Release();
+			if(SUCCEEDED(hr)) {
+				RECT rc{ 0, 0, present.BackBufferWidth, present.BackBufferHeight };
+				D3DLOCKED_RECT lockedRect;
+				if(FAILED(captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY))) {
+					captureSurface->Release();
+					return 0;
+				}
+				if(newImage) {
+					// d3d pads the image, so we need to copy the correct number of bytes
+					u32* dP = (u32*)newImage->lock();
+					u8 * sP = (u8 *)lockedRect.pBits;
+
+					// If the display mode format doesn't promise anything about the Alpha value
+					// and it appears that it's not presenting 255, then we should manually
+					// set each pixel alpha value to 255.
+					if(D3DFMT_X8R8G8B8 == present.BackBufferFormat && (0xFF000000 != (*dP & 0xFF000000))) {
+						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+							for(u32 x = 0; x < present.BackBufferWidth; ++x) {
+								newImage->setPixel(x, y, *((u32*)sP) | 0xFF000000);
+								sP += 4;
+							}
+
+							sP += lockedRect.Pitch - (4 * present.BackBufferWidth);
+						}
+					} else {
+						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+							convertColor(sP, video::ECF_A8R8G8B8, present.BackBufferWidth, dP, format);
+							sP += lockedRect.Pitch;
+							dP += present.BackBufferWidth;
+						}
+					}
+
+					newImage->unlock();
+				}
+				// we can unlock and release the surface
+				captureSurface->UnlockRect();
+
+				// release the image surface
+				captureSurface->Release();
+			}
 		}
 	}
-	IImage* retimage = nullptr;
-	LPDIRECT3DSURFACE9 back_buffer = nullptr;
-	pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
-	D3DLOCKED_RECT d3dlr;
-	D3DSURFACE_DESC desc;
-	back_buffer->GetDesc(&desc);
-	RECT rc{ 0, 0, desc.Width, desc.Height };
-	LPD3DXBUFFER outbuffer;
-	if(FAILED(D3DXSaveSurfaceToFileInmemory(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr))) {
-		goto end;
-	}
-	char* data = (char*)outbuffer->GetBufferPointer();
-	auto size = outbuffer->GetBufferSize();
-	auto file = io::createMemoryReadFile(data, size, L"", false);
-	retimage = createImageFromFile(file);
-	file->drop();
-	outbuffer->Release();
-	end:
-	back_buffer->Release();
-	return retimage;
+	return newImage;
 }
 
 
