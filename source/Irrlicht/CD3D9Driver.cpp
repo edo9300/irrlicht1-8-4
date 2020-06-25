@@ -3332,15 +3332,19 @@ void CD3D9Driver::clearZBuffer()
 
 //! Returns an image created from the last rendered frame.
 IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target) {
-	if(target != video::ERT_FRAME_BUFFER)
+	if(target != video::ERT_FRAME_BUFFER) {
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Target is not framebuffer", ELL_WARNING);
 		return nullptr;
+	}
 
 	if(format == video::ECF_UNKNOWN)
 		format = video::ECF_A8R8G8B8;
 
 	IImage* newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
-	if(!newImage)
+	if(!newImage) {
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Couldn't create return image", ELL_WARNING);
 		return nullptr;
+	}
 
 	HRESULT hr;
 	IDirect3DSurface9* captureSurface = nullptr;
@@ -3389,6 +3393,11 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 				captureSurface->Release();
 			}
 		}
+	}
+	if(FAILED(hr)) {
+		newImage->drop();
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", core::stringc((int)hr).c_str(), ELL_WARNING);
+		return nullptr;
 	}
 	return newImage;
 }
