@@ -3354,11 +3354,8 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 			if(SUCCEEDED(hr)) {
 				RECT rc{ 0, 0, present.BackBufferWidth, present.BackBufferHeight };
 				D3DLOCKED_RECT lockedRect;
-				if(FAILED(captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY))) {
-					captureSurface->Release();
-					return 0;
-				}
-				if(newImage) {
+				hr = captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY);
+				if(SUCCEEDED(hr)) {
 					// d3d pads the image, so we need to copy the correct number of bytes
 					u32* dP = (u32*)newImage->lock();
 					u8 * sP = (u8 *)lockedRect.pBits;
@@ -3384,9 +3381,9 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 					}
 
 					newImage->unlock();
+					// we can unlock and release the surface
+					captureSurface->UnlockRect();
 				}
-				// we can unlock and release the surface
-				captureSurface->UnlockRect();
 
 				// release the image surface
 				captureSurface->Release();
