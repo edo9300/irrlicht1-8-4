@@ -23,7 +23,8 @@ CGUIButton::CGUIButton(IGUIEnvironment* environment, IGUIElement* parent,
 	SpriteBank(0), OverrideFont(0), Image(0), PressedImage(0),
 	ClickTime(0), HoverTime(0), FocusTime(0), 
 	IsPushButton(false), Pressed(false),
-	UseAlphaChannel(false), DrawBorder(true), ScaleImage(false)
+	UseAlphaChannel(false), DrawBorder(true), ScaleImage(false),
+	ClickShiftState(false)
 {
 	#ifdef _DEBUG
 	setDebugName("CGUIButton");
@@ -140,6 +141,8 @@ bool CGUIButton::OnEvent(const SEvent& event)
 
 			if (Parent)
 			{
+				ClickShiftState = event.KeyInput.Shift;
+
 				SEvent newEvent;
 				newEvent.EventType = EET_GUI_EVENT;
 				newEvent.GUIEvent.Caller = this;
@@ -207,6 +210,8 @@ bool CGUIButton::OnEvent(const SEvent& event)
 			if ((!IsPushButton && wasPressed && Parent) ||
 				(IsPushButton && wasPressed != Pressed))
 			{
+				ClickShiftState = event.MouseInput.Shift;
+
 				SEvent newEvent;
 				newEvent.EventType = EET_GUI_EVENT;
 				newEvent.GUIEvent.Caller = this;

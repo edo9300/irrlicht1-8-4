@@ -99,6 +99,11 @@ namespace gui
 		//! Checks whether the button scales the used images
 		virtual bool isScalingImage() const;
 
+		//! Get if the shift key was pressed in last EGET_BUTTON_CLICKED event
+		virtual bool getClickShiftState() const {
+			return ClickShiftState;
+		}
+
 		//! Writes attributes of the element.
 		virtual void serializeAttributes(io::IAttributes* out, io::SAttributeReadWriteOptions* options) const;
 
@@ -132,6 +137,8 @@ namespace gui
 		bool UseAlphaChannel;
 		bool DrawBorder;
 		bool ScaleImage;
+
+		bool ClickShiftState;
 	};
 
 } // end namespace gui
