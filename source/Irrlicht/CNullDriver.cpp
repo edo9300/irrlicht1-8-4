@@ -672,8 +672,12 @@ void CNullDriver::draw3DLineW(const core::vector3df& start,
 
 void CNullDriver::draw3DShapeW(const core::vector3df* vertices,
 							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
-	if(vertexCount > 1)
-		draw3DLine(vertices[0], vertices[1], color);
+	if(vertexCount > 1 && pattern == 0xffff) {
+		for(int i = 0; i < (vertexCount - 1); i++) {
+			draw3DLineW(vertices[i], vertices[i + 1], color, width);
+		}
+		draw3DLineW(vertices[vertexCount - 1], vertices[0], color, width);
+	}
 }
 
 
