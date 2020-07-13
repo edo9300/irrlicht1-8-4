@@ -3024,44 +3024,17 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 		return;
 	}
 
-	auto transform = [&](const core::vector3df & pos3d) -> D3DXVECTOR2 {
-		core::dimension2d<u32> dim;
-		if(CurrentRendertargetSize.Width == 0)
-			dim = ScreenSize;
-		else
-			dim = CurrentRendertargetSize;
+	D3DXMATRIX transform = *(D3DMATRIX*)&(getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD));
 
-		dim.Width /= 2;
-		dim.Height /= 2;
-
-		core::matrix4 trans = getTransform(ETS_PROJECTION);
-		trans *= getTransform(ETS_VIEW);
-		trans *= getTransform(ETS_WORLD);
-
-		f32 transformedPos[4] = { pos3d.X, pos3d.Y, pos3d.Z, 1.0f };
-
-		trans.multiplyWith1x4Matrix(transformedPos);
-
-		if(transformedPos[3] < 0)
-			return D3DXVECTOR2(-10000, -10000);
-
-		const f32 zDiv = transformedPos[3] == 0.0f ? 1.0f :
-			core::reciprocal(transformedPos[3]);
-
-		return D3DXVECTOR2(
-			dim.Width + core::round32(dim.Width * (transformedPos[0] * zDiv)),
-			dim.Height - core::round32(dim.Height * (transformedPos[1] * zDiv)));
-	};
-
-	D3DXVECTOR2* points = new D3DXVECTOR2[vertexCount + 1];
+	D3DXVECTOR3* points = new D3DXVECTOR3[vertexCount + 1];
 	for(int i = 0; i < vertexCount; i++) {
-		points[i] = transform(vertices[i]);
+		points[i] = { vertices[i].X, vertices[i].Y, vertices[i].Z };
 	}
-	points[vertexCount] = transform(vertices[0]);
+	points[vertexCount] = { vertices[0].X, vertices[0].Y, vertices[0].Z };
 	line->SetWidth(width > 0.0f ? width : 1.0f);
 	line->SetPattern(pattern | (pattern<<16));
 	line->SetPatternScale(1);
-	line->Draw(points, vertexCount + 1, color.color);
+	line->DrawTransform(points, vertexCount + 1, &transform, color.color);
 	delete[] points;
 }
 
