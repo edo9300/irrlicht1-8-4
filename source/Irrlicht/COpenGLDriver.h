@@ -222,10 +222,10 @@ namespace video
 		virtual void draw3DLineW(const core::vector3df& start,
 					const core::vector3df& end,
 					SColor color = SColor(255,255,255,255),
-					int width = 0);
+					float width = 0.0f);
 
 		virtual void draw3DShapeW(const core::vector3df* vertices,
-								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), int width = 0, unsigned short pattern = 0xffff);
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff);
 
 		//! \return Returns the name of the video driver. Example: In case of the Direct3D8
 		//! driver, it would return "Direct3D8.1".

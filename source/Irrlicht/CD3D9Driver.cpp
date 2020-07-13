@@ -2996,7 +2996,7 @@ void CD3D9Driver::draw3DLine(const core::vector3df& start,
 }
 
 void CD3D9Driver::draw3DLineW(const core::vector3df& start,
-							  const core::vector3df& end, SColor color, int width) {
+							  const core::vector3df& end, SColor color, float width) {
 	if(width == 1) {
 		draw3DLine(start, end, color);
 		return;
@@ -3010,7 +3010,7 @@ void CD3D9Driver::draw3DLineW(const core::vector3df& start,
 
 
 void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
-							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+							   u32 vertexCount, SColor color, float width, unsigned short pattern) {
 	if(vertexCount < 2)
 		return;
 
@@ -3058,7 +3058,7 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 		points[i] = transform(vertices[i]);
 	}
 	points[vertexCount] = transform(vertices[0]);
-	line->SetWidth(width);
+	line->SetWidth(width > 0.0f ? width : 1.0f);
 	line->SetPattern(pattern | (pattern<<16));
 	line->SetPatternScale(1);
 	line->Draw(points, vertexCount + 1, color.color);

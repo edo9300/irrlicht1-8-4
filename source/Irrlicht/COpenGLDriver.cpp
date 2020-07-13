@@ -3868,9 +3868,9 @@ void COpenGLDriver::draw3DLine(const core::vector3df& start,
 	draw3DLineW(start, end, color);
 }
 void COpenGLDriver::draw3DLineW(const core::vector3df& start,
-				const core::vector3df& end, SColor color, int width)
+				const core::vector3df& end, SColor color, float width)
 {
-	glLineWidth((width > 0) ? width : 1);
+	glLineWidth((width > 0.0f) ? width : 1.0f);
 	setRenderStates3DMode();
 
 	glBegin(GL_LINES);
@@ -3882,10 +3882,10 @@ void COpenGLDriver::draw3DLineW(const core::vector3df& start,
 }
 
 void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
-							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+							   u32 vertexCount, SColor color, float width, unsigned short pattern) {
 	if(vertexCount < 2)
 		return;
-	glLineWidth((width > 0) ? width : 1);
+	glLineWidth((width > 0.0f) ? width : 1.0f);
 	setRenderStates3DMode();
 
 	glLineStipple(1, pattern);

@@ -774,10 +774,10 @@ namespace video
 			const core::vector3df& end, SColor color = SColor(255,255,255,255)) =0;
 
 		virtual void draw3DLineW(const core::vector3df& start,
-			const core::vector3df& end, SColor color = SColor(255,255,255,255),int width = 0) =0;
+			const core::vector3df& end, SColor color = SColor(255,255,255,255), float width = 0.0f) =0;
 
 		virtual void draw3DShapeW(const core::vector3df* vertices,
-								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), int width = 0, unsigned short pattern = 0xffff) = 0;
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff) = 0;
 
 		//! Draws a 3d triangle.
 		/** This method calls drawVertexPrimitiveList for some triangles.

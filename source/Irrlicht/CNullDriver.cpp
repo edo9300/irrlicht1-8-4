@@ -665,13 +665,13 @@ void CNullDriver::draw3DLine(const core::vector3df& start,
 {
 }
 void CNullDriver::draw3DLineW(const core::vector3df& start,
-				const core::vector3df& end, SColor color, int width)
+				const core::vector3df& end, SColor color, float width)
 {
 	draw3DLine(start, end, color);
 }
 
 void CNullDriver::draw3DShapeW(const core::vector3df* vertices,
-							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+							   u32 vertexCount, SColor color, float width, unsigned short pattern) {
 	if(vertexCount > 1 && pattern == 0xffff) {
 		for(int i = 0; i < (vertexCount - 1); i++) {
 			draw3DLineW(vertices[i], vertices[i + 1], color, width);
