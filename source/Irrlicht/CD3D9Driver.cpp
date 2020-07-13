@@ -39,7 +39,7 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	MaxLightDistance(0.f), LastSetLight(-1),
 	ColorFormat(ECF_A8R8G8B8), DeviceLost(false),
 	DriverWasReset(true), OcclusionQuerySupport(false),
-	AlphaToCoverageSupport(false), Params(params)
+	AlphaToCoverageSupport(false), Params(params), line(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9Driver");
@@ -503,6 +503,30 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 	cgD3D9SetDevice(pID3DDevice);
 	#endif
 
+	{
+		// try to load dll
+		io::path strDllName = "d3dx9_";
+		strDllName += (int)D3DX_SDK_VERSION;
+		strDllName += ".dll";
+
+		HRESULT(WINAPI *pFn)(LPDIRECT3DDEVICE9 pDevice, LPD3DXLINE* ppLine);
+
+		HMODULE hMod = LoadLibrary(strDllName.c_str());
+		if(hMod)
+			pFn = (decltype(pFn))GetProcAddress(hMod, "D3DXCreateLine");
+
+		if(!pFn) {
+			os::Printer::log("Could not load shader function D3DXCreateLine from dll, line stripple disabled",
+							 strDllName.c_str(), ELL_ERROR);
+		} else {
+			if(SUCCEEDED(pFn(pID3DDevice, &line))) {
+				line->SetGLLines(true);
+			} else {
+				line = nullptr;
+			}
+		}
+	}
+
 	// so far so good.
 	return true;
 }
@@ -603,6 +627,8 @@ bool CD3D9Driver::endScene()
 	{
 		DeviceLost = true;
 		os::Printer::log("Present failed", "DIRECT3D9 device lost.", ELL_WARNING);
+		if(line)
+			line->OnLostDevice();
 	}
 #ifdef D3DERR_DEVICEREMOVED
 	else if (hr == D3DERR_DEVICEREMOVED)
@@ -2969,6 +2995,76 @@ void CD3D9Driver::draw3DLine(const core::vector3df& start,
 	pID3DDevice->DrawPrimitiveUP(D3DPT_LINELIST, 1, v, sizeof(S3DVertex));
 }
 
+void CD3D9Driver::draw3DLineW(const core::vector3df& start,
+							  const core::vector3df& end, SColor color, int width) {
+	if(width == 1) {
+		draw3DLine(start, end, color);
+		return;
+	}
+	core::vector3df v[2];
+	v[0] = start;
+	v[1] = end;
+
+	draw3DShapeW(v, 2, color, width);
+}
+
+
+void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
+							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+	if(vertexCount < 2)
+		return;
+
+	if(!line || (pattern == 0xffff && width == 1)) {
+		if(pattern == 0xffff) {
+			for(int i = 0; i < (vertexCount - 1); i++) {
+				draw3DLine(vertices[i], vertices[i + 1], color);
+			}
+			draw3DLine(vertices[vertexCount - 1], vertices[0], color);
+		}
+		return;
+	}
+
+	auto transform = [&](const core::vector3df & pos3d) -> D3DXVECTOR2 {
+		core::dimension2d<u32> dim;
+		if(CurrentRendertargetSize.Width == 0)
+			dim = ScreenSize;
+		else
+			dim = CurrentRendertargetSize;
+
+		dim.Width /= 2;
+		dim.Height /= 2;
+
+		core::matrix4 trans = getTransform(ETS_PROJECTION);
+		trans *= getTransform(ETS_VIEW);
+		trans *= getTransform(ETS_WORLD);
+
+		f32 transformedPos[4] = { pos3d.X, pos3d.Y, pos3d.Z, 1.0f };
+
+		trans.multiplyWith1x4Matrix(transformedPos);
+
+		if(transformedPos[3] < 0)
+			return D3DXVECTOR2(-10000, -10000);
+
+		const f32 zDiv = transformedPos[3] == 0.0f ? 1.0f :
+			core::reciprocal(transformedPos[3]);
+
+		return D3DXVECTOR2(
+			dim.Width + core::round32(dim.Width * (transformedPos[0] * zDiv)),
+			dim.Height - core::round32(dim.Height * (transformedPos[1] * zDiv)));
+	};
+
+	D3DXVECTOR2* points = new D3DXVECTOR2[vertexCount + 1];
+	for(int i = 0; i < vertexCount; i++) {
+		points[i] = transform(vertices[i]);
+	}
+	points[vertexCount] = transform(vertices[0]);
+	line->SetWidth(width);
+	line->SetPattern(pattern | (pattern<<16));
+	line->SetPatternScale(1);
+	line->Draw(points, vertexCount + 1, color.color);
+	delete[] points;
+}
+
 
 //! resets the device
 bool CD3D9Driver::reset()
@@ -3004,7 +3100,13 @@ bool CD3D9Driver::reset()
 
 	DriverWasReset=true;
 
+	if(line)
+		line->OnLostDevice();
+
 	HRESULT hr = pID3DDevice->Reset(&present);
+
+	if(line)
+		line->OnResetDevice();
 
 	// restore RTTs
 	for (i=0; i<Textures.size(); ++i)

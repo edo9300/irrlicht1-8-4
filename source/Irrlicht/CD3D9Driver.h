@@ -21,6 +21,7 @@
 #include "irrMath.h"    // needed by borland for sqrtf define
 #endif
 #include <d3d9.h>
+#include <d3dx9core.h>
 
 #ifdef _IRR_COMPILE_WITH_CG_
 #include "Cg/cg.h"
@@ -199,6 +200,12 @@ namespace video
 		//! Draws a 3d line.
 		virtual void draw3DLine(const core::vector3df& start,
 			const core::vector3df& end, SColor color = SColor(255,255,255,255));
+
+		virtual void draw3DLineW(const core::vector3df& start,
+			const core::vector3df& end, SColor color = SColor(255,255,255,255),int width = 0);
+
+		virtual void draw3DShapeW(const core::vector3df* vertices,
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), int width = 0, unsigned short pattern = 0xffff);
 
 		//! initialises the Direct3D API
 		bool initDriver(HWND hwnd, bool pureSoftware);
@@ -488,6 +495,8 @@ namespace video
 		bool DriverWasReset;
 		bool OcclusionQuerySupport;
 		bool AlphaToCoverageSupport;
+
+		ID3DXLine* line;
 
 		#ifdef _IRR_COMPILE_WITH_CG_
 		CGcontext CgContext;

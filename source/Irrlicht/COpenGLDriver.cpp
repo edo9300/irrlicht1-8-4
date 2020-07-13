@@ -3865,6 +3865,12 @@ void COpenGLDriver::setFog(SColor c, E_FOG_TYPE fogType, f32 start,
 void COpenGLDriver::draw3DLine(const core::vector3df& start,
 				const core::vector3df& end, SColor color)
 {
+	draw3DLineW(start, end, color);
+}
+void COpenGLDriver::draw3DLineW(const core::vector3df& start,
+				const core::vector3df& end, SColor color, int width)
+{
+	glLineWidth((width > 0) ? width : 1);
 	setRenderStates3DMode();
 
 	glBegin(GL_LINES);
@@ -3873,6 +3879,27 @@ void COpenGLDriver::draw3DLine(const core::vector3df& start,
 
 	glVertex3f(end.X, end.Y, end.Z);
 	glEnd();
+}
+
+void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
+							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+	if(vertexCount < 2)
+		return;
+	glLineWidth((width > 0) ? width : 1);
+	setRenderStates3DMode();
+
+	glLineStipple(1, pattern);
+	if(pattern != 0xffff) {
+		glEnable(GL_LINE_STIPPLE);
+	}
+	glDisable(GL_TEXTURE_2D);
+	glColor4ub(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+	glBegin(GL_LINE_LOOP);
+	for(int i = 0; i < vertexCount; i++) {
+		glVertex3fv((float*)&vertices[i]);
+	}
+	glEnd();
+	glDisable(GL_LINE_STIPPLE);
 }
 
 

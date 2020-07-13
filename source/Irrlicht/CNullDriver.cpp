@@ -664,6 +664,17 @@ void CNullDriver::draw3DLine(const core::vector3df& start,
 				const core::vector3df& end, SColor color)
 {
 }
+void CNullDriver::draw3DLineW(const core::vector3df& start,
+				const core::vector3df& end, SColor color, int width)
+{
+	draw3DLine(start, end, color);
+}
+
+void CNullDriver::draw3DShapeW(const core::vector3df* vertices,
+							   u32 vertexCount, SColor color, int width, unsigned short pattern) {
+	if(vertexCount > 1)
+		draw3DLine(vertices[0], vertices[1], color);
+}
 
 
 //! Draws a 3d triangle.
