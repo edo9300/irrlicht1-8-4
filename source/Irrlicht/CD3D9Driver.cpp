@@ -39,7 +39,8 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	MaxLightDistance(0.f), LastSetLight(-1),
 	ColorFormat(ECF_A8R8G8B8), DeviceLost(false),
 	DriverWasReset(true), OcclusionQuerySupport(false),
-	AlphaToCoverageSupport(false), Params(params), line(nullptr)
+	AlphaToCoverageSupport(false), Params(params), line(nullptr), d3dx9(nullptr),
+	SaveSurfaceToFileInMemory(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9Driver");
@@ -72,6 +73,15 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	#endif
 
 	// init direct 3d is done in the factory function
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+	d3dxversion = __TEXT("d3dx9_" STR(D3DX_SDK_VERSION) ".dll");
+#undef STR
+#undef STR_HELPER
+	d3dx9 = LoadLibrary(d3dxversion.c_str());
+	if(!d3dx9)
+		os::Printer::log("Could not load Direct3D Extension dll", d3dxversion, ELL_ERROR);
 }
 
 
@@ -90,6 +100,9 @@ CD3D9Driver::~CD3D9Driver()
 
 	// drop d3d9
 
+	if(line)
+		line->Release();
+
 	if (pID3DDevice)
 		pID3DDevice->Release();
 
@@ -104,6 +117,12 @@ CD3D9Driver::~CD3D9Driver()
 		cgDestroyContext(CgContext);
 	}
 	#endif
+
+	if(d3dx9)
+		FreeLibrary(d3dx9);
+
+	if(D3DLibrary)
+		FreeLibrary(D3DLibrary);
 }
 
 
@@ -504,20 +523,15 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 	#endif
 
 	{
-		// try to load dll
-		io::path strDllName = "d3dx9_";
-		strDllName += (int)D3DX_SDK_VERSION;
-		strDllName += ".dll";
 
-		HRESULT(WINAPI *pFn)(LPDIRECT3DDEVICE9 pDevice, LPD3DXLINE* ppLine);
+		HRESULT(WINAPI *pFn)(LPDIRECT3DDEVICE9 pDevice, LPD3DXLINE* ppLine) = nullptr;
 
-		HMODULE hMod = LoadLibrary(strDllName.c_str());
-		if(hMod)
-			pFn = (decltype(pFn))GetProcAddress(hMod, "D3DXCreateLine");
+		if(d3dx9)
+			pFn = (decltype(pFn))GetProcAddress(d3dx9, "D3DXCreateLine");
 
 		if(!pFn) {
-			os::Printer::log("Could not load shader function D3DXCreateLine from dll, line stripple disabled",
-							 strDllName.c_str(), ELL_ERROR);
+			os::Printer::log("Could not load function D3DXCreateLine from dll, line stripple disabled",
+							 d3dxversion, ELL_ERROR);
 		} else {
 			if(SUCCEEDED(pFn(pID3DDevice, &line))) {
 				line->SetGLLines(true);
@@ -3405,6 +3419,48 @@ void CD3D9Driver::clearZBuffer()
 		os::Printer::log("CD3D9Driver clearZBuffer() failed.", ELL_WARNING);
 }
 
+IImage* CD3D9Driver::CaptureSurfaceD3dx() {
+
+	typedef HRESULT(WINAPI *SaveSurfaceToFileInMemoryFunction)(LPD3DXBUFFER*             ppDestBuf,
+															   D3DXIMAGE_FILEFORMAT      DestFormat,
+															   LPDIRECT3DSURFACE9        pSrcSurface,
+															   CONST PALETTEENTRY*       pSrcPalette,
+															   CONST RECT*               pSrcRect);
+
+	if(!SaveSurfaceToFileInMemory) {
+		if(d3dx9) {
+			SaveSurfaceToFileInMemory = GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
+			if(!SaveSurfaceToFileInMemory) {
+				SaveSurfaceToFileInMemory = (void*)1;
+				os::Printer::log("Could not load shader D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
+								 d3dxversion, ELL_ERROR);
+			}
+		}
+	}
+
+	if((uintptr_t)SaveSurfaceToFileInMemory == 1)
+		return nullptr;
+	IImage* retimage = nullptr;
+	LPDIRECT3DSURFACE9 back_buffer = nullptr;
+	pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
+	D3DLOCKED_RECT d3dlr;
+	D3DSURFACE_DESC desc;
+	back_buffer->GetDesc(&desc);
+	RECT rc{ 0, 0, desc.Width, desc.Height };
+	LPD3DXBUFFER outbuffer;
+	HRESULT hr = static_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
+	if(SUCCEEDED(hr)) {
+		void* data = outbuffer->GetBufferPointer();
+		auto size = outbuffer->GetBufferSize();
+		auto file = io::createMemoryReadFile(data, size, L"", false);
+		retimage = createImageFromFile(file);
+		file->drop();
+		outbuffer->Release();
+	}
+	back_buffer->Release();
+	return retimage;
+}
+
 //! Returns an image created from the last rendered frame.
 IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target) {
 	if(target != video::ERT_FRAME_BUFFER) {
@@ -3415,7 +3471,12 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 	if(format == video::ECF_UNKNOWN)
 		format = video::ECF_A8R8G8B8;
 
-	IImage* newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
+	IImage* newImage = CaptureSurfaceD3dx();
+
+	if(newImage)
+		return newImage;
+
+	newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
 	if(!newImage) {
 		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Couldn't create return image", ELL_ERROR);
 		return nullptr;

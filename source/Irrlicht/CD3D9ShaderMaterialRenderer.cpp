@@ -11,6 +11,7 @@
 #include "IVideoDriver.h"
 #include "os.h"
 #include "irrString.h"
+#include "CD3D9Driver.h"
 
 #ifndef _IRR_D3D_NO_SHADER_DEBUGGING
 #include <stdio.h>
@@ -27,7 +28,8 @@ CD3D9ShaderMaterialRenderer::CD3D9ShaderMaterialRenderer(IDirect3DDevice9* d3dde
 		s32& outMaterialTypeNr, const c8* vertexShaderProgram, const c8* pixelShaderProgram,
 		IShaderConstantSetCallBack* callback, IMaterialRenderer* baseMaterial, s32 userData)
 : pID3DDevice(d3ddev), Driver(driver), CallBack(callback), BaseMaterial(baseMaterial),
-	VertexShader(0), OldVertexShader(0), PixelShader(0), UserData(userData)
+	VertexShader(0), OldVertexShader(0), PixelShader(0), UserData(userData), AssembleShader(nullptr),
+	AssembleShaderFile(nullptr), CompileShader(nullptr), CompileShaderFile(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9ShaderMaterialRenderer");
@@ -50,7 +52,8 @@ CD3D9ShaderMaterialRenderer::CD3D9ShaderMaterialRenderer(IDirect3DDevice9* d3dde
 			IShaderConstantSetCallBack* callback,
 			IMaterialRenderer* baseMaterial, s32 userData)
 : pID3DDevice(d3ddev), Driver(driver), CallBack(callback), BaseMaterial(baseMaterial),
-	VertexShader(0), OldVertexShader(0), PixelShader(0), UserData(userData)
+	VertexShader(0), OldVertexShader(0), PixelShader(0), UserData(userData), AssembleShader(nullptr),
+	AssembleShaderFile(nullptr), CompileShader(nullptr), CompileShaderFile(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9ShaderMaterialRenderer");
@@ -319,32 +322,24 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShader(LPCSTR pSrcData,
 					DWORD Flags, LPD3DXBUFFER* ppShader,
 					LPD3DXBUFFER* ppErrorMsgs);
 
-		static bool LoadFailed = false;
-		static AssembleShaderFunction pFn = 0;
-
-		if (!pFn && !LoadFailed)
+		if (!AssembleShader)
 		{
-			// try to load dll
-			io::path strDllName = "d3dx9_";
-			strDllName += (int)D3DX_SDK_VERSION;
-			strDllName += ".dll";
+			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
+			if (handle)
+				AssembleShader = GetProcAddress(handle, "D3DXAssembleShader");
 
-			HMODULE hMod = LoadLibrary(strDllName.c_str());
-			if (hMod)
-				 pFn = (AssembleShaderFunction)GetProcAddress(hMod, "D3DXAssembleShader");
-
-			if (!pFn)
+			if (!AssembleShader)
 			{
-				LoadFailed = true;
+				AssembleShader = (void*)1;
 				os::Printer::log("Could not load shader function D3DXAssembleShader from dll, shaders disabled",
-					strDllName.c_str(), ELL_ERROR);
+					static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandleVersion().c_str(), ELL_ERROR);
 			}
 		}
 
-		if (pFn)
+		if ((uintptr_t)AssembleShader != 1)
 		{
 			// call already loaded function
-			return (*pFn)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return static_cast<AssembleShaderFunction>(AssembleShader)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -379,32 +374,24 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShaderFromFile(LPCSTR pSrcF
 				CONST D3DXMACRO* pDefines, LPD3DXINCLUDE pInclude, DWORD Flags,
 				LPD3DXBUFFER* ppShader, LPD3DXBUFFER* ppErrorMsgs);
 
-		static bool LoadFailed = false;
-		static AssembleShaderFromFileFunction pFn = 0;
-
-		if (!pFn && !LoadFailed)
+		if (!AssembleShaderFile)
 		{
-			// try to load dll
-			io::path strDllName = "d3dx9_";
-			strDllName += (int)D3DX_SDK_VERSION;
-			strDllName += ".dll";
+			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
+			if (handle)
+				AssembleShaderFile = GetProcAddress(handle, "D3DXAssembleShaderFromFileA");
 
-			HMODULE hMod = LoadLibrary(strDllName.c_str());
-			if (hMod)
-				 pFn = (AssembleShaderFromFileFunction)GetProcAddress(hMod, "D3DXAssembleShaderFromFileA");
-
-			if (!pFn)
+			if (!AssembleShaderFile)
 			{
-				LoadFailed = true;
+				AssembleShaderFile = (void*)1;
 				os::Printer::log("Could not load shader function D3DXAssembleShaderFromFileA from dll, shaders disabled",
-					strDllName.c_str(), ELL_ERROR);
+					static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandleVersion().c_str(), ELL_ERROR);
 			}
 		}
 
-		if (pFn)
+		if ((uintptr_t)AssembleShaderFile != 1)
 		{
 			// call already loaded function
-			return (*pFn)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return static_cast<AssembleShaderFromFileFunction>(AssembleShaderFile)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -440,32 +427,24 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShader(LPCSTR pSrcData, UINT
 				LPCSTR pProfile, DWORD Flags, LPD3DXBUFFER* ppShader,
 				LPD3DXBUFFER* ppErrorMsgs, LPD3DXCONSTANTTABLE* ppConstantTable);
 
-		static bool LoadFailed = false;
-		static D3DXCompileShaderFunction pFn = 0;
-
-		if (!pFn && !LoadFailed)
+		if (!CompileShader)
 		{
-			// try to load dll
-			io::path strDllName = "d3dx9_";
-			strDllName += (int)D3DX_SDK_VERSION;
-			strDllName += ".dll";
+			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
+			if (handle)
+				 CompileShader = GetProcAddress(handle, "D3DXCompileShader");
 
-			HMODULE hMod = LoadLibrary(strDllName.c_str());
-			if (hMod)
-				 pFn = (D3DXCompileShaderFunction)GetProcAddress(hMod, "D3DXCompileShader");
-
-			if (!pFn)
+			if (!CompileShader)
 			{
-				LoadFailed = true;
+				CompileShader = (void*)1;
 				os::Printer::log("Could not load shader function D3DXCompileShader from dll, shaders disabled",
-					strDllName.c_str(), ELL_ERROR);
+					static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandleVersion().c_str(), ELL_ERROR);
 			}
 		}
 
-		if (pFn)
+		if ((uintptr_t)CompileShader != 1)
 		{
 			// call already loaded function
-			return (*pFn)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return static_cast<D3DXCompileShaderFunction>(CompileShader)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -500,32 +479,24 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShaderFromFile(LPCSTR pSrcFi
 			LPCSTR pProfile, DWORD Flags, LPD3DXBUFFER* ppShader, LPD3DXBUFFER* ppErrorMsgs,
 			LPD3DXCONSTANTTABLE* ppConstantTable);
 
-		static bool LoadFailed = false;
-		static D3DXCompileShaderFromFileFunction pFn = 0;
-
-		if (!pFn && !LoadFailed)
+		if (!CompileShaderFile)
 		{
-			// try to load dll
-			io::path strDllName = "d3dx9_";
-			strDllName += (int)D3DX_SDK_VERSION;
-			strDllName += ".dll";
+			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
+			if (handle)
+				CompileShaderFile = GetProcAddress(handle, "D3DXCompileShaderFromFileA");
 
-			HMODULE hMod = LoadLibrary(strDllName.c_str());
-			if (hMod)
-				 pFn = (D3DXCompileShaderFromFileFunction)GetProcAddress(hMod, "D3DXCompileShaderFromFileA");
-
-			if (!pFn)
+			if (!CompileShaderFile)
 			{
-				LoadFailed = true;
+				CompileShaderFile = (void*)1;
 				os::Printer::log("Could not load shader function D3DXCompileShaderFromFileA from dll, shaders disabled",
-					strDllName.c_str(), ELL_ERROR);
+					static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandleVersion().c_str(), ELL_ERROR);
 			}
 		}
 
-		if (pFn)
+		if ((uintptr_t)CompileShaderFile != 1)
 		{
 			// call already loaded function
-			return (*pFn)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return static_cast<D3DXCompileShaderFromFileFunction>(CompileShaderFile)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24

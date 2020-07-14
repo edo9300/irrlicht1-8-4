@@ -352,6 +352,10 @@ namespace video
 		const CGcontext& getCgContext();
 		#endif
 
+		const HMODULE getD3dxHandle() { return d3dx9; };
+
+		const io::path& getD3dxHandleVersion() { return d3dxversion; };
+
 	private:
 
 		//! enumeration for rendering modes such as 2d and 3d for minizing the switching of renderStates.
@@ -497,6 +501,13 @@ namespace video
 		bool AlphaToCoverageSupport;
 
 		ID3DXLine* line;
+
+		HMODULE d3dx9;
+		io::path d3dxversion;
+
+		void* SaveSurfaceToFileInMemory;
+
+		IImage* CaptureSurfaceD3dx();
 
 		#ifdef _IRR_COMPILE_WITH_CG_
 		CGcontext CgContext;
