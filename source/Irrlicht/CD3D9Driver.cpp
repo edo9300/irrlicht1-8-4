@@ -3432,7 +3432,7 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 			SaveSurfaceToFileInMemory = GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
 			if(!SaveSurfaceToFileInMemory) {
 				SaveSurfaceToFileInMemory = (void*)1;
-				os::Printer::log("Could not load shader D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
+				os::Printer::log("Could not load D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
 								 d3dxversion, ELL_ERROR);
 			}
 		}
@@ -3442,18 +3442,24 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 		return nullptr;
 	IImage* retimage = nullptr;
 	LPDIRECT3DSURFACE9 back_buffer = nullptr;
-	pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
-	LPD3DXBUFFER outbuffer = nullptr;
-	HRESULT hr = static_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
+	HRESULT hr;
+	hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
 	if(SUCCEEDED(hr)) {
-		void* data = outbuffer->GetBufferPointer();
-		auto size = outbuffer->GetBufferSize();
-		auto file = io::createMemoryReadFile(data, size, L"", false);
-		retimage = createImageFromFile(file);
-		file->drop();
-		outbuffer->Release();
+		LPD3DXBUFFER outbuffer = nullptr;
+		hr = static_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
+		if(SUCCEEDED(hr)) {
+			void* data = outbuffer->GetBufferPointer();
+			auto size = outbuffer->GetBufferSize();
+			auto file = io::createMemoryReadFile(data, size, L"", false);
+			retimage = createImageFromFile(file);
+			file->drop();
+			outbuffer->Release();
+		}
+		back_buffer->Release();
 	}
-	back_buffer->Release();
+	if(FAILED(hr)) {
+		os::Printer::log("CD3D9Driver CaptureSurfaceD3dx() failed.", core::stringc((int)hr).c_str(), ELL_ERROR);
+	}
 	return retimage;
 }
 
