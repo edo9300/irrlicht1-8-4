@@ -3443,11 +3443,7 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 	IImage* retimage = nullptr;
 	LPDIRECT3DSURFACE9 back_buffer = nullptr;
 	pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
-	D3DLOCKED_RECT d3dlr;
-	D3DSURFACE_DESC desc;
-	back_buffer->GetDesc(&desc);
-	RECT rc{ 0, 0, desc.Width, desc.Height };
-	LPD3DXBUFFER outbuffer;
+	LPD3DXBUFFER outbuffer = nullptr;
 	HRESULT hr = static_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
 	if(SUCCEEDED(hr)) {
 		void* data = outbuffer->GetBufferPointer();
