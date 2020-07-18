@@ -3028,7 +3028,7 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 	if(vertexCount < 2)
 		return;
 
-	if(!line || (pattern == 0xffff && width == 1)) {
+	if(!line || pattern == 0xffff) {
 		if(pattern == 0xffff) {
 			for(int i = 0; i < (vertexCount - 1); i++) {
 				draw3DLine(vertices[i], vertices[i + 1], color);
