@@ -53,7 +53,7 @@ const core::stringc& COSOperator::getOperatingSystemVersion() const
 // UTF-16/UTF-32 to UTF-8
 static int EncodeUTF8(char * dest, const wchar_t * src, int size) {
 	char* pstr = dest;
-	while(*src != 0 && (dest - pstr<size)) {
+	while(*src != 0 && (dest - pstr < size)) {
 		if(*src < 0x80) {
 			*dest = static_cast<char>(*src);
 			++dest;
@@ -67,7 +67,7 @@ static int EncodeUTF8(char * dest, const wchar_t * src, int size) {
 			dest[2] = ((*src) & 0x3f) | 0x80;
 			dest += 3;
 		} else {
-			if(sizeof(wchar_t) == 2) {
+#if	WCHAR_MAX == 0xffff
 				unsigned unicode = 0;
 				unicode |= (*src++ & 0x3ff) << 10;
 				unicode |= *src & 0x3ff;
@@ -76,12 +76,12 @@ static int EncodeUTF8(char * dest, const wchar_t * src, int size) {
 				dest[1] = ((unicode >> 12) & 0x3f) | 0x80;
 				dest[2] = ((unicode >> 6) & 0x3f) | 0x80;
 				dest[3] = ((unicode) & 0x3f) | 0x80;
-			} else {
+#else
 				dest[0] = ((*src >> 18) & 0x7) | 0xf0;
 				dest[1] = ((*src >> 12) & 0x3f) | 0x80;
 				dest[2] = ((*src >> 6) & 0x3f) | 0x80;
 				dest[3] = ((*src) & 0x3f) | 0x80;
-			}
+#endif
 			dest += 4;
 		}
 		src++;
@@ -93,7 +93,7 @@ static int EncodeUTF8(char * dest, const wchar_t * src, int size) {
 static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 	const char* p = src;
 	wchar_t* wp = dest;
-	while(*p != 0 && (wp - dest<size)) {
+	while(*p != 0 && (wp - dest < size)) {
 		if((*p & 0x80) == 0) {
 			*wp = *p;
 			p++;
@@ -104,14 +104,14 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 			*wp = (((unsigned)p[0] & 0xf) << 12) | (((unsigned)p[1] & 0x3f) << 6) | ((unsigned)p[2] & 0x3f);
 			p += 3;
 		} else if((*p & 0xf8) == 0xf0) {
-			if(sizeof(wchar_t) == 2) {
+#if	WCHAR_MAX == 0xffff
 				unsigned unicode = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
 				unicode -= 0x10000;
 				*wp++ = (unicode >> 10) | 0xd800;
 				*wp = (unicode & 0x3ff) | 0xdc00;
-			} else {
+#else
 				*wp = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
-			}
+#endif
 			p += 4;
 		} else
 			p++;
@@ -121,12 +121,13 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 	return wp - dest;
 }
 
+
 //! copies text to the clipboard
 void COSOperator::copyToClipboard(const wchar_t* _text) const
 {
-	if (wcslen(_text)==0)
+	if(wcslen(_text) == 0)
 		return;
-#if !defined(_IRR_WCHAR_FILESYSTEM)
+#if !defined(_IRR_WCHAR_FILESYSTEM) && !defined(_IRR_WINDOWS_API_)
 	size_t lenOld = wcslen(_text) * sizeof(wchar_t);
 	char* text = new char[lenOld + 1];
 	size_t len = EncodeUTF8(text, _text, lenOld);
@@ -138,35 +139,23 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 // Windows version
 #if defined(_IRR_XBOX_PLATFORM_)
 #elif defined(_IRR_WINDOWS_API_)
-	if (!OpenClipboard(NULL) || _text == 0)
+	if(!OpenClipboard(NULL) || _text == 0)
 		return;
 
 	EmptyClipboard();
 
 	HGLOBAL clipbuffer;
-#if defined(_IRR_WCHAR_FILESYSTEM)
 	wchar_t * buffer;
 
 	clipbuffer = GlobalAlloc(GMEM_DDESHARE, sizeof(wchar_t) * (wcslen(text) + 1));
 	buffer = (wchar_t*)GlobalLock(clipbuffer);
 
 	wcscpy(buffer, text);
-#else
-	char * buffer;
-
-	clipbuffer = GlobalAlloc(GMEM_DDESHARE, strlen(text) + 1);
-	buffer = (char*)GlobalLock(clipbuffer);
-
-	strcpy(buffer, text);
-#endif
 
 	GlobalUnlock(clipbuffer);
-#if defined(_IRR_WCHAR_FILESYSTEM)
 	SetClipboardData(CF_UNICODETEXT, clipbuffer);
-#else
-	SetClipboardData(CF_TEXT, clipbuffer);
-#endif
 	CloseClipboard();
+	return;
 
 // MacOSX version
 #elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
@@ -174,10 +163,10 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 	OSXCopyToClipboard(text);
 
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-    if ( IrrDeviceLinux )
-        IrrDeviceLinux->copyToClipboard(text);
+	if(IrrDeviceLinux)
+		IrrDeviceLinux->copyToClipboard(text);
 #endif
-#if !defined(_IRR_WCHAR_FILESYSTEM)
+#if !defined(_IRR_WCHAR_FILESYSTEM) && !defined(_IRR_WINDOWS_API_)
 	if(text)
 		delete[] text;
 #endif
@@ -188,25 +177,33 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 //! \return Returns 0 if no string is in there.
 const wchar_t* COSOperator::getTextFromClipboard() const {
 	static core::stringw wstring;
-#if !defined(_IRR_WCHAR_FILESYSTEM)
-	const char * cbuffer = 0;
-#endif
+	char* cbuffer = 0;
+	wchar_t* buffer = 0;
 #if defined(_IRR_XBOX_PLATFORM_)
 	return 0;
 #elif defined(_IRR_WINDOWS_API_)
 	if(!OpenClipboard(NULL))
 		return 0;
 
-#if defined(_IRR_WCHAR_FILESYSTEM)
-	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
-	wchar_t* buffer = (wchar_t*)GlobalLock(hData);
-	if(!buffer)
+	HANDLE hData = nullptr;
+
+	auto RetrieveBuffer = [](HANDLE& hData, UINT type)->void* {
+		if(hData = GetClipboardData(type)) {
+			void* buffer = GlobalLock(hData);
+			if(!buffer) {
+				GlobalUnlock(hData);
+				hData = nullptr;
+				return nullptr;
+			}
+			return buffer;
+		}
+		return nullptr;
+	};
+
+	if((buffer = (wchar_t*)RetrieveBuffer(hData, CF_UNICODETEXT)) == nullptr &&
+		(cbuffer = (char*)RetrieveBuffer(hData, CF_TEXT)) == nullptr)
 		return 0;
-	wstring = buffer;
-#else
-	HANDLE hData = GetClipboardData(CF_TEXT);
-	cbuffer = (char*)GlobalLock(hData);
-#endif
+
 #elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 	cbuffer = OSXCopyFromClipboard();
 
@@ -216,7 +213,6 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 #else
 	return 0;
 #endif
-#if !defined(_IRR_WCHAR_FILESYSTEM)
 	if(cbuffer) {
 		size_t lenOld = strlen(cbuffer);
 		wchar_t *ws = new wchar_t[lenOld + 1];
@@ -224,10 +220,8 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		ws[len] = 0;
 		wstring = ws;
 		delete[] ws;
-	} else {
-		return 0;
-	}
-#endif
+	} else if(buffer)
+		wstring = buffer;
 #if defined(_IRR_WINDOWS_API_)
 	GlobalUnlock(hData);
 	CloseClipboard();
