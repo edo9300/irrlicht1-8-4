@@ -55,7 +55,7 @@ CSoftwareTexture2::CSoftwareTexture2(IImage* image, const io::path& name,
 		{
 			char buf[256];
 			core::stringw showName ( name );
-			snprintf ( buf, 256, "Burningvideo: Warning Texture %ls reformat %dx%d -> %dx%d,%d",
+			snprintf_irr ( buf, 256, "Burningvideo: Warning Texture %ls reformat %dx%d -> %dx%d,%d",
 							showName.c_str(),
 							OrigSize.Width, OrigSize.Height, optSize.Width, optSize.Height,
 							BURNINGSHADER_COLOR_FORMAT

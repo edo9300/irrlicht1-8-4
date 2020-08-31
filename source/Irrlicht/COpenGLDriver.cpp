@@ -143,10 +143,10 @@ bool COpenGLDriver::initDriver(CIrrDeviceWin32* device)
 	PIXELFORMATDESCRIPTOR pfd = {
 		sizeof(PIXELFORMATDESCRIPTOR),             // Size Of This Pixel Format Descriptor
 		1,                                         // Version Number
-		PFD_DRAW_TO_WINDOW |                       // Format Must Support Window
+		DWORD(PFD_DRAW_TO_WINDOW |                       // Format Must Support Window
 		PFD_SUPPORT_OPENGL |                       // Format Must Support OpenGL
 		(Params.Doublebuffer?PFD_DOUBLEBUFFER:0) | // Must Support Double Buffering
-		(Params.Stereobuffer?PFD_STEREO:0),        // Must Support Stereo Buffer
+		(Params.Stereobuffer?PFD_STEREO:0)),        // Must Support Stereo Buffer
 		PFD_TYPE_RGBA,                             // Request An RGBA Format
 		Params.Bits,                               // Select Our Color Depth
 		0, 0, 0, 0, 0, 0,                          // Color Bits Ignored
@@ -683,7 +683,7 @@ bool COpenGLDriver::genericDriverInit()
 	{
 		char buf[32];
 		const u32 maj = ShaderLanguageVersion/100;
-		snprintf(buf, 32, "%u.%u", maj, ShaderLanguageVersion-maj*100);
+		snprintf_irr(buf, 32, "%u.%u", maj, ShaderLanguageVersion-maj*100);
 		os::Printer::log("GLSL version", buf, ELL_INFORMATION);
 	}
 	else
@@ -3895,7 +3895,7 @@ void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
 	glDisable(GL_TEXTURE_2D);
 	glColor4ub(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
 	glBegin(GL_LINE_LOOP);
-	for(int i = 0; i < vertexCount; i++) {
+	for(u32 i = 0; i < vertexCount; i++) {
 		glVertex3fv((float*)&vertices[i]);
 	}
 	glEnd();
