@@ -108,12 +108,12 @@ void CAnimatedMeshSceneNode::buildFrameNr(u32 timeMs)
 		if (FramesPerSecond > 0.f) //forwards...
 		{
 			if (CurrentFrameNr > EndFrame)
-				CurrentFrameNr = StartFrame + fmod(CurrentFrameNr - StartFrame, (f32)(EndFrame-StartFrame));
+				CurrentFrameNr = StartFrame + (f32)fmod(CurrentFrameNr - StartFrame, EndFrame-StartFrame);
 		}
 		else //backwards...
 		{
 			if (CurrentFrameNr < StartFrame)
-				CurrentFrameNr = EndFrame - fmod(EndFrame - CurrentFrameNr, (f32)(EndFrame-StartFrame));
+				CurrentFrameNr = EndFrame - (f32)fmod(EndFrame - CurrentFrameNr, EndFrame-StartFrame);
 		}
 	}
 	else

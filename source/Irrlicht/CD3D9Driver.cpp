@@ -1569,7 +1569,7 @@ void CD3D9Driver::draw2D3DVertexPrimitiveList(const void* vertices,
 				pID3DDevice->DrawIndexedPrimitiveUP(D3DPT_LINESTRIP, 0, vertexCount,
 				primitiveCount - 1, indexList, indexType, vertices, stride);
 
-				u16 tmpIndices[] = {primitiveCount - 1, 0};
+				u16 tmpIndices[] = {(u16)(primitiveCount - 1), 0};
 
 				pID3DDevice->DrawIndexedPrimitiveUP(D3DPT_LINELIST, 0, vertexCount,
 					1, tmpIndices, indexType, vertices, stride);
@@ -3030,7 +3030,7 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 
 	if(!line || pattern == 0xffff) {
 		if(pattern == 0xffff) {
-			for(int i = 0; i < (vertexCount - 1); i++) {
+			for(u32 i = 0; i < (vertexCount - 1); i++) {
 				draw3DLine(vertices[i], vertices[i + 1], color);
 			}
 			draw3DLine(vertices[vertexCount - 1], vertices[0], color);
@@ -3041,7 +3041,7 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 	D3DXMATRIX transform = *(D3DMATRIX*)&(getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD));
 
 	D3DXVECTOR3* points = new D3DXVECTOR3[vertexCount + 1];
-	for(int i = 0; i < vertexCount; i++) {
+	for(u32 i = 0; i < vertexCount; i++) {
 		points[i] = { vertices[i].X, vertices[i].Y, vertices[i].Z };
 	}
 	points[vertexCount] = { vertices[0].X, vertices[0].Y, vertices[0].Z };
@@ -3494,7 +3494,7 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 			hr = pID3DDevice->GetRenderTargetData(backBufferSurface, captureSurface);
 			backBufferSurface->Release();
 			if(SUCCEEDED(hr)) {
-				RECT rc{ 0, 0, present.BackBufferWidth, present.BackBufferHeight };
+				RECT rc{ 0, 0, (LONG)present.BackBufferWidth, (LONG)present.BackBufferHeight };
 				D3DLOCKED_RECT lockedRect;
 				hr = captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY);
 				if(SUCCEEDED(hr)) {
