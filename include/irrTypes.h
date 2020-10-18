@@ -123,6 +123,7 @@ typedef double				f64;
 #elif !defined(__CYGWIN__)
 #define swprintf_irr _snwprintf
 #define snprintf_irr _snprintf
+#endif
 #else
 #define swprintf_irr swprintf
 #define snprintf_irr snprintf
