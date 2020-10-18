@@ -177,7 +177,7 @@ void COSOperator::copyToClipboard(const wchar_t* _text) const
 //! \return Returns 0 if no string is in there.
 const wchar_t* COSOperator::getTextFromClipboard() const {
 	static core::stringw wstring;
-	char* cbuffer = 0;
+	const char* cbuffer = 0;
 	wchar_t* buffer = 0;
 #if defined(_IRR_XBOX_PLATFORM_)
 	return 0;
