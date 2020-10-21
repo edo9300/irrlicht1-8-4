@@ -222,7 +222,7 @@ CIrrDeviceLinux::~CIrrDeviceLinux()
 }
 
 
-#if defined(_IRR_COMPILE_WITH_X11_) && defined(_DEBUG)
+#if defined(_IRR_COMPILE_WITH_X11_)// && defined(_DEBUG)
 int IrrPrintXError(Display *display, XErrorEvent *event)
 {
 	char msg[256];
@@ -384,8 +384,8 @@ bool CIrrDeviceLinux::createWindow()
 #ifdef _IRR_COMPILE_WITH_X11_
 #ifdef _DEBUG
 	os::Printer::log("Creating X window...", ELL_INFORMATION);
-	XSetErrorHandler(IrrPrintXError);
 #endif
+	XSetErrorHandler(IrrPrintXError);
 
 	display = XOpenDisplay(0);
 	if (!display)
