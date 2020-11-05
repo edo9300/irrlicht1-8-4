@@ -4,10 +4,12 @@
 #include <IrrCompileConfig.h>
 #ifdef _IRR_COMPILE_WITH_WINDOWS_DEVICE_
 #include "win_drag_n_dropper.h"
-
+#pragma warning(push)
+#pragma warning(disable: 4091) //warning C4091: 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
+#include <Shlobj.h>
+#pragma warning(pop)
 #include <vector>
 #include <string>
-#include <Shlobj.h>
 #include <IrrlichtDevice.h>
 
 HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
@@ -26,29 +28,28 @@ HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
 FORMATETC CheckFormat(IDataObject* pDataObj) {
 	IEnumFORMATETC* Enum;
 	FORMATETC type;
-	FORMATETC nonunicode{ 0 };
-	pDataObj->EnumFormatEtc(DATADIR_GET, &Enum);
-	while(Enum->Next(1, &type, 0) == S_OK) {
-		if(type.cfFormat == CF_UNICODETEXT) {
-			return type;
-		}
-		if(type.cfFormat == CF_TEXT)
-			nonunicode = type;
-		if(type.cfFormat == CF_HDROP) {
-			STGMEDIUM stg;
-			if(pDataObj->GetData(&type, &stg) == S_OK) {
-				DROPFILES* filelist = (DROPFILES*)GlobalLock(stg.hGlobal);
-				bool unicode = filelist->fWide;
-				GlobalUnlock(stg.hGlobal);
-				ReleaseStgMedium(&stg);
-				if(unicode)
-					return type;
-				else
-					nonunicode = type;
+	FORMATETC ret{ 0 };
+	bool unicode = false;
+	if(pDataObj->EnumFormatEtc(DATADIR_GET, &Enum) == S_OK) {
+		while(!unicode && Enum->Next(1, &type, 0) == S_OK) {
+			if(type.cfFormat == CF_HDROP) {
+				STGMEDIUM stg;
+				if(pDataObj->GetData(&type, &stg) == S_OK) {
+					DROPFILES* filelist;
+					if((filelist = static_cast<DROPFILES*>(GlobalLock(stg.hGlobal))) != nullptr) {
+						unicode = filelist->fWide;
+						GlobalUnlock(stg.hGlobal);
+						ret = type;
+					}
+					ReleaseStgMedium(&stg);
+				}
+			} else if((unicode = (type.cfFormat == CF_UNICODETEXT)) == true || type.cfFormat == CF_TEXT) {
+				ret = type;
 			}
 		}
+		Enum->Release();
 	}
-	return nonunicode;
+	return ret;
 }
 #define checktarget (!dragCheck || (ScreenToClient(window, reinterpret_cast<LPPOINT>(&pt)) && dragCheck({ pt.x,pt.y }, isFile)))
 
@@ -79,11 +80,11 @@ HRESULT __stdcall edoproDropper::DragLeave(void) {
 	return S_OK;
 }
 
-template<typename T>
-inline wchar_t* ToWideAllocated(T* _string) {
-	if(std::is_same<T, wchar_t>::value)
-		return (wchar_t*)_string;
-	char* string = (char*)_string;
+inline wchar_t* ToWideAllocated(wchar_t* string) {
+	return string;
+}
+
+inline wchar_t* ToWideAllocated(char* string) {
 	size_t lenOld = mbstowcs(NULL, string, strlen(string));
 	wchar_t *ws = new wchar_t[lenOld + 1];
 	size_t len = mbstowcs(ws, string, lenOld);
@@ -115,10 +116,10 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 	*pdwEffect = DROPEFFECT_COPY;
 	STGMEDIUM stg;
 	FORMATETC fe = CheckFormat(pDataObj);
-	if(pDataObj->GetData(&fe, &stg) != S_OK)
+	if(!fe.cfFormat || pDataObj->GetData(&fe, &stg) != S_OK)
 		return S_FALSE;
-	char* data = nullptr;
-	if(!(data = (char*)GlobalLock(stg.hGlobal))) {
+	void* data = nullptr;
+	if(!(data = GlobalLock(stg.hGlobal))) {
 		ReleaseStgMedium(&stg);
 		return S_FALSE;
 	}
@@ -131,11 +132,11 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 	device->postEventFromUser(event);
 	event.DropEvent.DropType = isFile ? irr::DROP_FILE : irr::DROP_TEXT;
 	if(isFile) {
-		DROPFILES* _filelist = (DROPFILES*)data;
-		bool unicode = _filelist->fWide;
-		void* files = (void*)(data + (_filelist->pFiles));
-		auto filelist = unicode ? GetFileList((wchar_t*)files) : GetFileList((char*)files);
-		for(auto& file : filelist) {
+		auto filelist = static_cast<DROPFILES*>(data);
+		const bool unicode = filelist->fWide;
+		void* files = (static_cast<char*>(data) + (filelist->pFiles));
+		const auto _filelist = unicode ? GetFileList(static_cast<wchar_t*>(files)) : GetFileList(static_cast<char*>(files));
+		for(const auto& file : _filelist) {
 			event.DropEvent.Text = file;
 			device->postEventFromUser(event);
 			event.DropEvent.Text = nullptr;
@@ -143,12 +144,10 @@ HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 				delete[] file;
 		}
 	} else {
-		if(fe.cfFormat == CF_TEXT)
-			event.DropEvent.Text = ToWideAllocated(data);
-		else
-			event.DropEvent.Text = (wchar_t*)data;
+		const bool unicode = fe.cfFormat != CF_TEXT;
+		event.DropEvent.Text = unicode ? static_cast<wchar_t*>(data) : ToWideAllocated(static_cast<char*>(data));
 		device->postEventFromUser(event);
-		if(fe.cfFormat == CF_TEXT)
+		if(!unicode)
 			delete[] event.DropEvent.Text;
 		event.DropEvent.Text = nullptr;
 	}

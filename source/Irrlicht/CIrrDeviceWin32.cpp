@@ -1146,6 +1146,7 @@ CIrrDeviceWin32::~CIrrDeviceWin32()
 	delete JoyControl;
 
 	if(dropper) {
+		RevokeDragDrop(HWnd);
 		dropper->Release();
 		OleUninitialize();
 	}
@@ -1913,6 +1914,7 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 		auto res = OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
 	} else {
+		RevokeDragDrop(HWnd);
 		dropper->Release();
 		OleUninitialize();
 		dropper = nullptr;
