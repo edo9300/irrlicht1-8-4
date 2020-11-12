@@ -1609,11 +1609,36 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 				else
 					out.append("Microsoft Windows Server 2008 R2 ");
 			}
+			else if (osvi.dwMinorVersion == 2)
+			{
+				if (osvi.wProductType == VER_NT_WORKSTATION)
+					out.append("Microsoft Windows 8 ");
+				else
+					out.append("Microsoft Windows Server 2012 ");
+			}
+			else if (osvi.dwMinorVersion == 3)
+			{
+				if (osvi.wProductType == VER_NT_WORKSTATION)
+					out.append("Microsoft Windows 8.1 ");
+				else
+					out.append("Microsoft Windows Server 2012 R2 ");
+			}
+		}
+		else
+		if (osvi.dwMajorVersion == 10 )
+		{
+			if (osvi.dwMinorVersion == 0)
+			{
+				if (osvi.wProductType == VER_NT_WORKSTATION)
+					out.append("Microsoft Windows 10 ");
+				else
+					out.append("Microsoft Windows Server 2016 ");
+			}
 		}
 
 		if (bOsVersionInfoEx)
 		{
-			if (osvi.dwMajorVersion == 6)
+			if (osvi.dwMajorVersion >= 6)
 			{
 				DWORD dwType;
 				pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
