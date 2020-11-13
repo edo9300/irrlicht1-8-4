@@ -1192,15 +1192,17 @@ void CIrrDeviceWin32::createDriver()
 
 		VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
 
-		if (!VideoDriver)
-		{
-			os::Printer::log("Could not create DIRECT3D9 Driver.", ELL_ERROR);
-		}
+		if (VideoDriver)
+			break;
+		os::Printer::log("Could not create DIRECT3D9 Driver.", ELL_ERROR);
 		#else
 		os::Printer::log("DIRECT3D9 Driver was not compiled into this dll. Try another one.", ELL_ERROR);
+		break;
 		#endif // _IRR_COMPILE_WITH_DIRECT3D_9_
 
-		break;
+	#ifdef _IRR_COMPILE_WITH_OPENGL_
+	os::Printer::log("Falling back to OpenGL driver.", ELL_ERROR);
+	#endif
 
 	case video::EDT_OPENGL:
 
