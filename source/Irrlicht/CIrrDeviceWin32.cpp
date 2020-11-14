@@ -1711,7 +1711,7 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		{
 			HKEY hKey;
 			TCHAR szProductType[80];
-			DWORD dwBufLen;
+			DWORD dwBufLen = sizeof(szProductType);
 			const LPCTSTR path = __TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions");
 			if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szProductType, &dwBufLen) == ERROR_SUCCESS) {
 				if(_tcsicmp(__TEXT("WINNT"), szProductType) == 0)
@@ -1741,15 +1741,16 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 				const LPCTSTR path = __TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
 				TCHAR szReleaseId[80];
 				DWORD UBR;
-				DWORD pcbData;
-				if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szReleaseId, &pcbData) == ERROR_SUCCESS &&
-				   RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("UBR"), RRF_RT_REG_DWORD, nullptr, &UBR, &pcbData) == ERROR_SUCCESS) {
-					sprintf(tmp, "Version %s (Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
+				DWORD dwBufLen = sizeof(szReleaseId);
+				DWORD dwUBRLen = sizeof(UBR);
+				if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szReleaseId, &dwBufLen) == ERROR_SUCCESS &&
+				   RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("UBR"), RRF_RT_REG_DWORD, nullptr, &UBR, &dwUBRLen) == ERROR_SUCCESS) {
+					sprintf(tmp, "(Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
 					return true;
 				}
 				return false;
 			};
-			if(osvi.dwMajorVersion <10 || !GetWin10ProductInfo()) {
+			if(osvi.dwMajorVersion < 10 || !GetWin10ProductInfo()) {
 				sprintf(tmp, "%s (Build %ld)", irr::core::stringc(osvi.szCSDVersion).c_str(),
 						osvi.dwBuildNumber & 0xFFFF);
 			}
