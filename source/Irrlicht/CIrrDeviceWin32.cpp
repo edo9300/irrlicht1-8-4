@@ -24,6 +24,7 @@
 #include "IGUIEnvironment.h"
 #include "IGUIElement.h"
 #include <winuser.h>
+#include <tchar.h>
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
 #ifdef _IRR_COMPILE_WITH_DIRECTINPUT_JOYSTICK_
 #define DIRECTINPUT_VERSION 0x0800
@@ -1709,29 +1710,24 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		else
 		{
 			HKEY hKey;
-			char szProductType[80];
+			TCHAR szProductType[80];
 			DWORD dwBufLen;
-
-			RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-					__TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions"),
-					0, KEY_QUERY_VALUE, &hKey );
-			RegQueryValueEx( hKey, __TEXT("ProductType"), NULL, NULL,
-					(LPBYTE) szProductType, &dwBufLen);
-			RegCloseKey( hKey );
-
-			if (_strcmpi( "WINNT", szProductType) == 0 )
-				out.append("Professional ");
-			if (_strcmpi( "LANMANNT", szProductType) == 0)
-				out.append("Server ");
-			if (_strcmpi( "SERVERNT", szProductType) == 0)
-				out.append("Advanced Server ");
+			const LPCTSTR path = __TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions");
+			if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szProductType, &dwBufLen) == ERROR_SUCCESS) {
+				if(_tcsicmp(__TEXT("WINNT"), szProductType) == 0)
+					out.append("Professional ");
+				if(_tcsicmp(__TEXT("LANMANNT"), szProductType) == 0)
+					out.append("Server ");
+				if(_tcsicmp(__TEXT("SERVERNT"), szProductType) == 0)
+					out.append("Advanced Server ");
+			}
 		}
 
 		// Display version, service pack (if any), and build number.
 
 		char tmp[255];
 
-		if (osvi.dwMajorVersion <= 4 )
+		if (osvi.dwMajorVersion <= 4)
 		{
 			sprintf(tmp, "version %ld.%ld %s (Build %ld)",
 					osvi.dwMajorVersion,
@@ -1741,8 +1737,22 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 		else
 		{
-			sprintf(tmp, "%s (Build %ld)", irr::core::stringc(osvi.szCSDVersion).c_str(),
-			osvi.dwBuildNumber & 0xFFFF);
+			auto GetWin10ProductInfo = [&tmp,&osvi]()->bool {
+				const LPCTSTR path = __TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
+				TCHAR szReleaseId[80];
+				DWORD UBR;
+				DWORD pcbData;
+				if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szReleaseId, &pcbData) == ERROR_SUCCESS &&
+				   RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("UBR"), RRF_RT_REG_DWORD, nullptr, &UBR, &pcbData) == ERROR_SUCCESS) {
+					sprintf(tmp, "Version %s (Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
+					return true;
+				}
+				return false;
+			};
+			if(osvi.dwMajorVersion <10 || !GetWin10ProductInfo()) {
+				sprintf(tmp, "%s (Build %ld)", irr::core::stringc(osvi.szCSDVersion).c_str(),
+						osvi.dwBuildNumber & 0xFFFF);
+			}
 		}
 
 		out.append(tmp);
@@ -1935,7 +1945,7 @@ void CIrrDeviceWin32::clearSystemMessages()
 //register drag and drop support
 void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
 	if((enable && dropper) || (!enable && !dropper))
-	   return;
+		return;
 	if(enable) {
 		dropper = new edoproDropper(HWnd, dragCheck, this);
 		auto res = OleInitialize(NULL);
