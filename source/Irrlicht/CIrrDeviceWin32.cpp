@@ -1569,120 +1569,138 @@ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 
 void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 {
-	OSVERSIONINFOEX osvi;
-	PGPI pGPI;
-	BOOL bOsVersionInfoEx;
+	auto GetRegEntry = [](const TCHAR* path, const TCHAR* name, DWORD flag, void* buff, DWORD size)->LSTATUS {
+		HKEY hKey;
+		DWORD dwRetFlag;
+		auto dwBufLen = size;
+		LSTATUS ret = ERROR_SUCCESS;
+		if((ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, path, 0, KEY_QUERY_VALUE, &hKey)) != ERROR_SUCCESS)
+			return ret;
+		ret = RegQueryValueEx(hKey, name, NULL, &dwRetFlag, (LPBYTE)buff, &dwBufLen);
+		RegCloseKey(hKey);
+		if((dwRetFlag & flag) == 0)
+			ret = ERROR_BAD_FORMAT;
+		return ret;
+	};
+	OSVERSIONINFOEX osvi{ sizeof(OSVERSIONINFOEX) };
 
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-	bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO*) &osvi);
-	if (!bOsVersionInfoEx)
-	{
+	const BOOL bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO*) &osvi);
+	if(!bOsVersionInfoEx) {
+		ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
 		osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-		if (! GetVersionEx((OSVERSIONINFO *) &osvi))
+		if(!GetVersionEx((OSVERSIONINFO*)&osvi))
 			return;
 	}
 
-	switch (osvi.dwPlatformId)
-	{
-	case VER_PLATFORM_WIN32_NT:
-		if (osvi.dwMajorVersion <= 4)
-			out.append("Microsoft Windows NT ");
-		else
-		if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 0)
-			out.append("Microsoft Windows 2000 ");
-		else
-		if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 1)
-			out.append("Microsoft Windows XP ");
-		else
-		if (osvi.dwMajorVersion == 6 )
-		{
-			if (osvi.dwMinorVersion == 0)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows Vista ");
-				else
-					out.append("Microsoft Windows Server 2008 ");
+	auto ServerOrWorkstation = [workstation = osvi.wProductType == VER_NT_WORKSTATION,&out](const char* str1, const char* str2) {
+		out.append(workstation ? str1 : str2);
+	};
+
+	switch(osvi.dwPlatformId) {
+		case VER_PLATFORM_WIN32_NT:
+			out.append("Microsoft Windows ");
+			switch(osvi.dwMajorVersion) {
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					out.append("NT ");
+					break;
+				case 5:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							out.append("2000 ");
+							break;
+						case 1:
+							out.append("XP ");
+							break;
+						case 2:
+							out.append("Server 2003 ");
+							if(GetSystemMetrics(SM_SERVERR2))
+								out.append("R2 ");
+							break;
+						default:
+							break;
+					}
+					break;
+				case 6:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							ServerOrWorkstation("Vista ", "Server 2008");
+							break;
+						case 1:
+							ServerOrWorkstation("7 ", "Server 2008 R2 ");
+							break;
+						case 2:
+							ServerOrWorkstation("8 ", "Server 2012 ");
+							break;
+						case 3:
+							ServerOrWorkstation("8.1 ", "Server 2012 R2 ");
+							break;
+					}
+					break;
+
+				case 10:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							if(osvi.wProductType == VER_NT_WORKSTATION)
+								out.append("10 ");
+							else {
+								if(osvi.dwBuildNumber == 14393)
+									out.append("Server 2016 ");
+								else if(osvi.dwBuildNumber == 17763)
+									out.append("Server 2019 ");
+							}
+							break;
+					}
+					break;
+				default:
+					break;
 			}
-			else if (osvi.dwMinorVersion == 1)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows 7 ");
-				else
-					out.append("Microsoft Windows Server 2008 R2 ");
-			}
-			else if (osvi.dwMinorVersion == 2)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows 8 ");
-				else
-					out.append("Microsoft Windows Server 2012 ");
-			}
-			else if (osvi.dwMinorVersion == 3)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows 8.1 ");
-				else
-					out.append("Microsoft Windows Server 2012 R2 ");
-			}
-		}
-		else
-		if (osvi.dwMajorVersion == 10 )
-		{
-			if (osvi.dwMinorVersion == 0)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows 10 ");
-				else
-					out.append("Microsoft Windows Server 2016 ");
-			}
-		}
 
 		if (bOsVersionInfoEx)
 		{
 			if (osvi.dwMajorVersion >= 6)
 			{
 				DWORD dwType;
-				pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
-				pGPI(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &dwType);
-
-				switch (dwType)
-				{
-				case PRODUCT_ULTIMATE:
-				case PRODUCT_ULTIMATE_E:
-				case PRODUCT_ULTIMATE_N:
-					out.append("Ultimate Edition ");
-					break;
-				case PRODUCT_PROFESSIONAL:
-				case PRODUCT_PROFESSIONAL_E:
-				case PRODUCT_PROFESSIONAL_N:
-					out.append("Professional Edition ");
-					break;
-				case PRODUCT_HOME_BASIC:
-				case PRODUCT_HOME_BASIC_E:
-				case PRODUCT_HOME_BASIC_N:
-					out.append("Home Basic Edition ");
-					break;
-				case PRODUCT_HOME_PREMIUM:
-				case PRODUCT_HOME_PREMIUM_E:
-				case PRODUCT_HOME_PREMIUM_N:
-					out.append("Home Premium Edition ");
-					break;
-				case PRODUCT_ENTERPRISE:
-				case PRODUCT_ENTERPRISE_E:
-				case PRODUCT_ENTERPRISE_N:
-					out.append("Enterprise Edition ");
-					break;
-				case PRODUCT_BUSINESS:
-				case PRODUCT_BUSINESS_N:
-					out.append("Business Edition ");
-					break;
-				case PRODUCT_STARTER:
-				case PRODUCT_STARTER_E:
-				case PRODUCT_STARTER_N:
-					out.append("Starter Edition ");
-					break;
+				auto pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
+				if(pGPI && pGPI(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &dwType)) {
+					switch(dwType) {
+						case PRODUCT_ULTIMATE:
+						case PRODUCT_ULTIMATE_E:
+						case PRODUCT_ULTIMATE_N:
+							out.append("Ultimate Edition ");
+							break;
+						case PRODUCT_PROFESSIONAL:
+						case PRODUCT_PROFESSIONAL_E:
+						case PRODUCT_PROFESSIONAL_N:
+							out.append("Professional Edition ");
+							break;
+						case PRODUCT_HOME_BASIC:
+						case PRODUCT_HOME_BASIC_E:
+						case PRODUCT_HOME_BASIC_N:
+							out.append("Home Basic Edition ");
+							break;
+						case PRODUCT_HOME_PREMIUM:
+						case PRODUCT_HOME_PREMIUM_E:
+						case PRODUCT_HOME_PREMIUM_N:
+							out.append("Home Premium Edition ");
+							break;
+						case PRODUCT_ENTERPRISE:
+						case PRODUCT_ENTERPRISE_E:
+						case PRODUCT_ENTERPRISE_N:
+							out.append("Enterprise Edition ");
+							break;
+						case PRODUCT_BUSINESS:
+						case PRODUCT_BUSINESS_N:
+							out.append("Business Edition ");
+							break;
+						case PRODUCT_STARTER:
+						case PRODUCT_STARTER_E:
+						case PRODUCT_STARTER_N:
+							out.append("Starter Edition ");
+							break;
+					}
 				}
 			}
 #ifdef VER_SUITE_ENTERPRISE
@@ -1709,11 +1727,10 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 		else
 		{
-			HKEY hKey;
-			TCHAR szProductType[80];
-			DWORD dwBufLen = sizeof(szProductType);
 			const LPCTSTR path = __TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions");
-			if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szProductType, &dwBufLen) == ERROR_SUCCESS) {
+
+			TCHAR szProductType[80];
+			if(GetRegEntry(path, __TEXT("ProductType"), REG_SZ, szProductType, sizeof(szProductType)) == ERROR_SUCCESS) {
 				if(_tcsicmp(__TEXT("WINNT"), szProductType) == 0)
 					out.append("Professional ");
 				if(_tcsicmp(__TEXT("LANMANNT"), szProductType) == 0)
@@ -1737,14 +1754,12 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 		else
 		{
-			auto GetWin10ProductInfo = [&tmp,&osvi]()->bool {
+			auto GetWin10ProductInfo = [&]()->bool {
 				const LPCTSTR path = __TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
 				TCHAR szReleaseId[80];
 				DWORD UBR;
-				DWORD dwBufLen = sizeof(szReleaseId);
-				DWORD dwUBRLen = sizeof(UBR);
-				if(RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("ReleaseId"), RRF_RT_REG_SZ, nullptr, szReleaseId, &dwBufLen) == ERROR_SUCCESS &&
-				   RegGetValue(HKEY_LOCAL_MACHINE, path, __TEXT("UBR"), RRF_RT_REG_DWORD, nullptr, &UBR, &dwUBRLen) == ERROR_SUCCESS) {
+				if(GetRegEntry(path, __TEXT("ReleaseId"), REG_SZ, szReleaseId, sizeof(szReleaseId)) == ERROR_SUCCESS &&
+				   GetRegEntry(path, __TEXT("UBR"), REG_DWORD, &UBR, sizeof(UBR)) == ERROR_SUCCESS) {
 					sprintf(tmp, "(Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
 					return true;
 				}
