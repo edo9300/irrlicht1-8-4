@@ -1130,7 +1130,7 @@ bool CIrrDeviceLinux::createInputContext()
 	XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, (char*)NULL);
 	XIMStyle bestStyle = 0;
 	// TODO: If we want to support languages like chinese or japanese as well we probably have to work with callbacks here.
-	XIMStyle supportedStyle = XIMPreeditNone | XIMStatusNone;	
+	XIMStyle supportedStyle = XIMPreeditNothing | XIMStatusNothing;
     for(int i=0; i < im_supported_styles->count_styles; ++i) 
 	{
         XIMStyle style = im_supported_styles->supported_styles[i];
@@ -1239,6 +1239,8 @@ bool CIrrDeviceLinux::run()
 		{
 			XEvent event;
 			XNextEvent(display, &event);
+			if (XFilterEvent(&event, window))
+				continue;
 
 			switch (event.type)
 			{
