@@ -614,8 +614,8 @@ namespace
 	};
 	irr::core::list<SEnvMapper> EnvMap;
 
-	HKL KEYBOARD_INPUT_HKL=0;
-	unsigned int KEYBOARD_INPUT_CODEPAGE = 1252;
+	/*HKL KEYBOARD_INPUT_HKL=0;
+	unsigned int KEYBOARD_INPUT_CODEPAGE = 1252;*/
 }
 
 SEnvMapper* getEnvMapperFromHWnd(HWND hWnd)
@@ -649,7 +649,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	#define WHEEL_DELTA 120
 	#endif
 
-	irr::CIrrDeviceWin32* dev = 0;
+	irr::CIrrDeviceWin32* const dev = getDeviceFromHWnd(hWnd);
 	irr::SEvent event;
 
 	static irr::s32 ClickCount=0;
@@ -676,6 +676,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{3, WM_MOUSEWHEEL,  irr::EMIE_MOUSE_WHEEL},
 		{-1, 0, 0}
 	};
+
+	if(dev && message != WM_CHAR && dev->GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
+		auto ev = dev->GetPrevKeyEvent();
+		dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+		dev->postEventFromUser(ev);
+	}
 
 	// handle grouped events
 	messageMap * m = mouseMap;
@@ -729,8 +735,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			event.MouseInput.Y -= p.y;
 			event.MouseInput.Wheel = ((irr::f32)((short)HIWORD(wParam))) / (irr::f32)WHEEL_DELTA;
 		}
-
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev)
 		{
 			dev->postEventFromUser(event);
@@ -754,7 +758,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	{
-		dev = getDeviceFromHWnd(hWnd);
 		if(dev) {
 			irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
 			if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
@@ -823,44 +826,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			event.KeyInput.Shift = ((allKeys[VK_SHIFT] & 0x80)!=0);
 			event.KeyInput.Control = ((allKeys[VK_CONTROL] & 0x80)!=0);
 
+			event.KeyInput.Char = 0;
+
 			// Handle unicode and deadkeys in a way that works since Windows 95 and nt4.0
 			// Using ToUnicode instead would be shorter, but would to my knowledge not run on 95 and 98.
-			WORD keyChars[2];
+			/*WORD keyChars[2];
 			UINT scanCode = HIWORD(lParam);
-			int conversionResult = ToAsciiEx(wParam,scanCode,allKeys,keyChars,0,KEYBOARD_INPUT_HKL);
-			if (conversionResult == 1)
-			{
+			int conversionResult = ToAsciiEx(wParam, scanCode, allKeys, keyChars, 0, KEYBOARD_INPUT_HKL);
+			if(conversionResult == 1) {
 				WORD unicodeChar;
 				MultiByteToWideChar(
-						KEYBOARD_INPUT_CODEPAGE,
-						MB_PRECOMPOSED, // default
-						(LPCSTR)keyChars,
-						sizeof(keyChars),
-						(WCHAR*)&unicodeChar,
-						1 );
+					KEYBOARD_INPUT_CODEPAGE,
+					MB_PRECOMPOSED, // default
+					(LPCSTR)keyChars,
+					sizeof(keyChars),
+					(WCHAR*)&unicodeChar,
+					1);
 				event.KeyInput.Char = unicodeChar;
-			}
-			else
-				event.KeyInput.Char = 0;
+			}*/
 
 			// allow composing characters like '@' with Alt Gr on non-US keyboards
 			if ((allKeys[VK_MENU] & 0x80) != 0)
 				event.KeyInput.Control = 0;
 
-			dev = getDeviceFromHWnd(hWnd);
-			if (dev)
-				dev->postEventFromUser(event);
+			if(dev)
+				dev->GetPrevKeyEvent() = event;
 
 			if (message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)
 				return DefWindowProc(hWnd, message, wParam, lParam);
 			else
 				return 0;
 		}
-
+	case WM_CHAR:
+		if(dev) {
+			dev->GetPrevKeyEvent().KeyInput.Char = wParam;
+			auto ev = dev->GetPrevKeyEvent();
+			dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+			dev->postEventFromUser(ev);
+		}
+		return 0;
 	case WM_SIZE:
 		{
 			// resize
-			dev = getDeviceFromHWnd(hWnd);
 			if (dev)
 				dev->OnResized();
 		}
@@ -882,7 +889,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_ACTIVATE:
 		// we need to take care for screen changes, e.g. Alt-Tab
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev && dev->isFullscreen())
 		{
 			if ((wParam&0xFF)==WA_INACTIVE)
@@ -907,7 +913,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		event.EventType = irr::EET_USER_EVENT;
 		event.UserEvent.UserData1 = (irr::s32)wParam;
 		event.UserEvent.UserData2 = (irr::s32)lParam;
-		dev = getDeviceFromHWnd(hWnd);
 
 		if (dev)
 			dev->postEventFromUser(event);
@@ -916,7 +921,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_SETCURSOR:
 		// because Windows forgot about that in the meantime
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev)
 		{
 			dev->getCursorControl()->setActiveIcon( dev->getCursorControl()->getActiveIcon() );
@@ -924,15 +928,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 
-	case WM_INPUTLANGCHANGE:
+	/*case WM_INPUTLANGCHANGE:
 		// get the new codepage used for keyboard input
 		KEYBOARD_INPUT_HKL = GetKeyboardLayout(0);
 		KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );
-		return 0;
+		return 0;*/
 
 	case WM_IME_STARTCOMPOSITION:
 	{
-		dev = getDeviceFromHWnd(hWnd);
 		irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
 		if(!ele)
 			break;
@@ -974,7 +977,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		event.KeyInput.Key = irr::KEY_ACCEPT;
 		event.KeyInput.Shift = 0;
 		event.KeyInput.Control = 0;
-		dev = getDeviceFromHWnd(hWnd);
 		if(dev)
 			dev->postEventFromUser(event);
 		return 0;
@@ -989,8 +991,10 @@ namespace irr
 //! constructor
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
-	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr)
+	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr),
+	has_charevent(false), key_event{}
 {
+	key_event.EventType = EGUIET_FORCE_32_BIT;
 	#ifdef _DEBUG
 	setDebugName("CIrrDeviceWin32");
 	#endif
@@ -1133,8 +1137,8 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 	}
 
 	// get the codepage used for keyboard input
-	KEYBOARD_INPUT_HKL = GetKeyboardLayout(0);
-	KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );
+	/*KEYBOARD_INPUT_HKL = GetKeyboardLayout(0);
+	KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );*/
 
 	// inform driver about the window size etc.
 	resizeIfNecessary();
@@ -1967,6 +1971,11 @@ void CIrrDeviceWin32::handleSystemMessages()
 
 		if (msg.message == WM_QUIT)
 			Close = true;
+	}
+	if(GetPrevKeyEvent().EventType != EGUIET_FORCE_32_BIT) {
+		auto ev = GetPrevKeyEvent();
+		GetPrevKeyEvent().EventType = EGUIET_FORCE_32_BIT;
+		postEventFromUser(ev);
 	}
 }
 

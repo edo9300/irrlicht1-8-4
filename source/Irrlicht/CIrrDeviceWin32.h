@@ -403,6 +403,10 @@ namespace irr
 		//! returns the win32 cursor control
 		CCursorControl* getWin32CursorControl();
 
+		irr::SEvent& GetPrevKeyEvent() { return key_event; }
+
+		bool HasCharEvent() { return has_charevent; }
+
 	private:
 
 		//! create the driver
@@ -426,6 +430,10 @@ namespace irr
 		SJoystickWin32Control* JoyControl;
 
 		edoproDropper* dropper;
+
+		bool has_charevent;
+
+		irr::SEvent key_event;
 	};
 
 } // end namespace irr
