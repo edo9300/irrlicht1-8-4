@@ -1566,9 +1566,29 @@ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 #define PRODUCT_ENTERPRISE_E	0x00000046
 #define PRODUCT_ULTIMATE_E	0x00000047
 #endif
+#ifndef SM_SERVERR2
+#define SM_SERVERR2 89
+#endif
 
 void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 {
+	auto GetWineVersion = [&out] {
+		auto lib = GetModuleHandle(TEXT("ntdll.dll"));
+		static auto wine_get_build_id = (const char *(CDECL *)(void))GetProcAddress(lib, "wine_get_build_id");
+		if(wine_get_build_id == nullptr)
+			return false;
+		static auto wine_get_host_version = (void (CDECL *)(const char **, const char **))GetProcAddress(lib, "wine_get_host_version");
+		if(wine_get_host_version) {
+			const char *sysname, *release;
+			wine_get_host_version(&sysname, &release);
+			out.append(sysname).append(" ").append(release).append(" ");
+		}
+		if(wine_get_build_id) {
+			const char* buildid = wine_get_build_id();
+			out.append(buildid).append(" ");
+		}
+		return true;
+	};
 	auto GetRegEntry = [](const TCHAR* path, const TCHAR* name, DWORD flag, void* buff, DWORD size)->LSTATUS {
 		HKEY hKey;
 		DWORD dwRetFlag;
@@ -1578,7 +1598,7 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 			return ret;
 		ret = RegQueryValueEx(hKey, name, NULL, &dwRetFlag, (LPBYTE)buff, &dwBufLen);
 		RegCloseKey(hKey);
-		if((dwRetFlag & flag) == 0)
+		if(ret == ERROR_SUCCESS && (dwRetFlag & flag) == 0)
 			ret = ERROR_BAD_FORMAT;
 		return ret;
 	};
@@ -1595,6 +1615,9 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 	auto ServerOrWorkstation = [workstation = osvi.wProductType == VER_NT_WORKSTATION,&out](const char* str1, const char* str2) {
 		out.append(workstation ? str1 : str2);
 	};
+
+	if(GetWineVersion())
+		return;
 
 	switch(osvi.dwPlatformId) {
 		case VER_PLATFORM_WIN32_NT:
@@ -1774,30 +1797,30 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		out.append(tmp);
 		break;
 
-	case VER_PLATFORM_WIN32_WINDOWS:
+		case VER_PLATFORM_WIN32_WINDOWS:
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
-		{
-			out.append("Microsoft Windows 95 ");
-			if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
-				out.append("OSR2 " );
-		}
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
+			{
+				out.append("Microsoft Windows 95 ");
+				if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
+					out.append("OSR2 " );
+			}
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
-		{
-			out.append("Microsoft Windows 98 ");
-			if ( osvi.szCSDVersion[1] == 'A' )
-				out.append( "SE " );
-		}
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
+			{
+				out.append("Microsoft Windows 98 ");
+				if ( osvi.szCSDVersion[1] == 'A' )
+					out.append( "SE " );
+			}
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
-			out.append("Microsoft Windows Me ");
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
+				out.append("Microsoft Windows Me ");
 
-		break;
+			break;
 
-	case VER_PLATFORM_WIN32s:
-		out.append("Microsoft Win32s ");
-		break;
+		case VER_PLATFORM_WIN32s:
+			out.append("Microsoft Win32s ");
+			break;
 	}
 }
 
