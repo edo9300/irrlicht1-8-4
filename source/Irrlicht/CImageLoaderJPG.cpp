@@ -121,19 +121,16 @@ void CImageLoaderJPG::output_message(j_common_ptr cinfo)
 //! returns true if the file maybe is able to be loaded by this class
 bool CImageLoaderJPG::isALoadableFileFormat(io::IReadFile* file) const
 {
-	#ifndef _IRR_COMPILE_WITH_LIBJPEG_
-	return false;
-	#else
+    #ifndef _IRR_COMPILE_WITH_LIBJPEG_
+    return false;
+    #else
 
-	if (!file)
-		return false;
-
-	s32 jfif = 0;
-	file->seek(6);
-	file->read(&jfif, sizeof(s32));
-	return (jfif == 0x4a464946 || jfif == 0x4649464a);
-
-	#endif
+    if (!(file && file->seek(0)))
+        return false;
+    unsigned char header[3];
+    size_t headerLen = file->read(header, sizeof(header));
+    return headerLen >= 3 && !memcmp(header, "\xFF\xD8\xFF", 3);
+    #endif
 }
 
 //! creates a surface from the file
