@@ -188,6 +188,7 @@ define out. */
 #define _IRR_COMPILE_WITH_X11_
 #ifdef NO_IRR_COMPILE_WITH_X11_
 #undef _IRR_COMPILE_WITH_X11_
+#undef _IRR_COMPILE_WITH_X11_DEVICE_
 #endif
 
 //! Define _IRR_OPENGL_USE_EXTPOINTER_ if the OpenGL renderer should use OpenGL extensions via function pointers.
