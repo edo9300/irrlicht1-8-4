@@ -880,9 +880,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SYSCOMMAND:
 		// prevent screensaver or monitor powersave mode from starting
 		if ((wParam & 0xFFF0) == SC_SCREENSAVE ||
-			(wParam & 0xFFF0) == SC_MONITORPOWER ||
-			(wParam & 0xFFF0) == SC_KEYMENU
-			)
+			(wParam & 0xFFF0) == SC_MONITORPOWER)
 			return 0;
 
 		break;
