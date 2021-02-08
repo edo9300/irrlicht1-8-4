@@ -326,7 +326,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShader(LPCSTR pSrcData,
 		{
 			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
 			if (handle)
-				AssembleShader = GetProcAddress(handle, "D3DXAssembleShader");
+				AssembleShader = (void*)GetProcAddress(handle, "D3DXAssembleShader");
 
 			if (!AssembleShader)
 			{
@@ -339,7 +339,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShader(LPCSTR pSrcData,
 		if ((uintptr_t)AssembleShader != 1)
 		{
 			// call already loaded function
-			return static_cast<AssembleShaderFunction>(AssembleShader)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return reinterpret_cast<AssembleShaderFunction>(AssembleShader)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -378,7 +378,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShaderFromFile(LPCSTR pSrcF
 		{
 			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
 			if (handle)
-				AssembleShaderFile = GetProcAddress(handle, "D3DXAssembleShaderFromFileA");
+				AssembleShaderFile = (void*)GetProcAddress(handle, "D3DXAssembleShaderFromFileA");
 
 			if (!AssembleShaderFile)
 			{
@@ -391,7 +391,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShaderFromFile(LPCSTR pSrcF
 		if ((uintptr_t)AssembleShaderFile != 1)
 		{
 			// call already loaded function
-			return static_cast<AssembleShaderFromFileFunction>(AssembleShaderFile)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return reinterpret_cast<AssembleShaderFromFileFunction>(AssembleShaderFile)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -431,7 +431,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShader(LPCSTR pSrcData, UINT
 		{
 			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
 			if (handle)
-				 CompileShader = GetProcAddress(handle, "D3DXCompileShader");
+				 CompileShader = (void*)GetProcAddress(handle, "D3DXCompileShader");
 
 			if (!CompileShader)
 			{
@@ -444,7 +444,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShader(LPCSTR pSrcData, UINT
 		if ((uintptr_t)CompileShader != 1)
 		{
 			// call already loaded function
-			return static_cast<D3DXCompileShaderFunction>(CompileShader)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return reinterpret_cast<D3DXCompileShaderFunction>(CompileShader)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -483,7 +483,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShaderFromFile(LPCSTR pSrcFi
 		{
 			const auto handle = static_cast<video::CD3D9Driver*>(Driver)->getD3dxHandle();
 			if (handle)
-				CompileShaderFile = GetProcAddress(handle, "D3DXCompileShaderFromFileA");
+				CompileShaderFile = (void*)GetProcAddress(handle, "D3DXCompileShaderFromFileA");
 
 			if (!CompileShaderFile)
 			{
@@ -496,7 +496,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShaderFromFile(LPCSTR pSrcFi
 		if ((uintptr_t)CompileShaderFile != 1)
 		{
 			// call already loaded function
-			return static_cast<D3DXCompileShaderFromFileFunction>(CompileShaderFile)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return reinterpret_cast<D3DXCompileShaderFromFileFunction>(CompileShaderFile)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24

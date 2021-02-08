@@ -3038,7 +3038,9 @@ void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
 		return;
 	}
 
-	D3DXMATRIX transform = *(D3DMATRIX*)&(getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD));
+	auto _transform = getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD);
+
+	D3DXMATRIX transform = *(D3DMATRIX*)&_transform;
 
 	D3DXVECTOR3* points = new D3DXVECTOR3[vertexCount + 1];
 	for(u32 i = 0; i < vertexCount; i++) {
@@ -3429,7 +3431,7 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 
 	if(!SaveSurfaceToFileInMemory) {
 		if(d3dx9) {
-			SaveSurfaceToFileInMemory = GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
+			SaveSurfaceToFileInMemory = (void*)GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
 			if(!SaveSurfaceToFileInMemory) {
 				SaveSurfaceToFileInMemory = (void*)1;
 				os::Printer::log("Could not load D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
@@ -3446,7 +3448,7 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 	hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
 	if(SUCCEEDED(hr)) {
 		LPD3DXBUFFER outbuffer = nullptr;
-		hr = static_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
+		hr = reinterpret_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
 		if(SUCCEEDED(hr)) {
 			void* data = outbuffer->GetBufferPointer();
 			auto size = outbuffer->GetBufferSize();
