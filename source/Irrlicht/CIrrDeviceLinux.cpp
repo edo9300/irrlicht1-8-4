@@ -1646,8 +1646,8 @@ bool CIrrDeviceLinux::run()
 										postEventFromUser(irrevent);
 										delete[] ws;
 									}
+									token = strtok_r(NULL, "\r\n", &saveptr);
 								}
-								token = strtok_r(NULL, "\r\n", &saveptr);
 							}
 							irrevent.DropEvent.DropType = DROP_END;
 							irrevent.DropEvent.Text = nullptr;
