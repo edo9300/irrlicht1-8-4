@@ -702,6 +702,9 @@ namespace video
 				const c8* name=0);
 
 		virtual bool checkDriverReset() _IRR_OVERRIDE_ {return false;}
+
+		//! Toggles vsync
+		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
 	protected:
 
 		//! deletes all textures

@@ -267,6 +267,10 @@ bool CEAGLManager::swapBuffers()
     return status;
 }
 
+void CEAGLManager::swapInterval(int interval)
+{
+}
+
 }
 }
 

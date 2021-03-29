@@ -21,11 +21,13 @@ namespace video
 {
 
 CWGLManager::CWGLManager()
-	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0)
+	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0), pWglSwapIntervalEXT(0)
 {
 	#ifdef _DEBUG
 	setDebugName("CWGLManager");
 	#endif
+	
+	pWglSwapIntervalEXT = (void*)wglGetProcAddress("wglSwapIntervalEXT");
 }
 
 CWGLManager::~CWGLManager()
@@ -489,6 +491,16 @@ void CWGLManager::destroyContext()
 bool CWGLManager::swapBuffers()
 {
 	return SwapBuffers((HDC)CurrentContext.OpenGLWin32.HDc) == TRUE;
+}
+
+void CWGLManager::swapInterval(int interval)
+{
+#ifdef WGL_EXT_swap_control
+	if(pWglSwapIntervalEXT) {
+		((PFNWGLSWAPINTERVALEXTPROC)pWglSwapIntervalEXT)(interval);
+		return;
+	}
+#endif
 }
 
 }

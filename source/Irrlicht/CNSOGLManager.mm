@@ -237,6 +237,11 @@ bool CNSOGLManager::swapBuffers()
 	return true;
 }
 
+void CNSOGLManager::swapInterval(int interval)
+{
+	[(NSOpenGLContext*)CurrentContext.OpenGLOSX.Context setValues:interval forParameter:NSOpenGLCPSwapInterval];
+}
+
 }
 }
 

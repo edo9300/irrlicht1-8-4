@@ -75,10 +75,8 @@ bool COpenGLDriver::initDriver()
 	ContextManager->activateContext(ExposedData, false);
 
 	genericDriverInit();
-
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	extGlSwapInterval(Params.Vsync ? 1 : 0);
-#endif
+	
+	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
 
 	return true;
 }

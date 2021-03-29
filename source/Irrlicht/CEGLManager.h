@@ -69,6 +69,9 @@ namespace video
 
 		// Swap buffers.
 		virtual bool swapBuffers() _IRR_OVERRIDE_;
+		
+		// generic vsync setting method for several extensions
+		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
 
 	protected:
 		enum EConfigStyle

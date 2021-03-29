@@ -57,6 +57,9 @@ namespace video
 
         // Swap buffers.
         virtual bool swapBuffers() _IRR_OVERRIDE_;
+		
+		// generic vsync setting method for several extensions
+		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
 
     private:
         SIrrlichtCreationParameters Params;
@@ -65,6 +68,7 @@ namespace video
 		s32 PixelFormat;
 		PIXELFORMATDESCRIPTOR pfd;
 		ECOLOR_FORMAT ColorFormat;
+		void* pWglSwapIntervalEXT;
 	};
 }
 }

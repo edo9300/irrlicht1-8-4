@@ -30,6 +30,12 @@ namespace video
 
 CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExposedVideoData& videodata, int screennr)
 	: Params(params), PrimaryContext(videodata), VisualInfo(0), glxFBConfig(0), GlxWin(0)
+#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
+	,pGlxSwapIntervalSGI(0)
+	,pGlxSwapIntervalEXT(0)
+	,pGlxSwapIntervalMESA(0)
+#endif // _IRR_OPENGL_USE_EXTPOINTER_
+{
 {
 	#ifdef _DEBUG
 	setDebugName("CGLXManager");
@@ -251,6 +257,39 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 				}
 			}
 		}
+		// Accessing the correct function is quite complex
+		// All libraries should support the ARB version, however
+		// since GLX 1.4 the non-ARB version is the official one
+		// So we have to check the runtime environment and
+		// choose the proper symbol
+		// In case you still have problems please enable the
+		// next line by uncommenting it
+		// #define _IRR_GETPROCADDRESS_WORKAROUND_
+
+#ifdef _IRR_OPENGL_USE_EXTPOINTER_
+		#ifndef _IRR_GETPROCADDRESS_WORKAROUND_
+		__GLXextFuncPtr (*IRR_OGL_LOAD_EXTENSION_FUNCP)(const GLubyte*)=0;
+		#ifdef GLX_VERSION_1_4
+			if ((major>1) || (minor>3))
+				IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddress;
+			else
+		#endif
+				IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddressARB;
+			#define IRR_OGL_LOAD_EXTENSION(X) (void*)IRR_OGL_LOAD_EXTENSION_FUNCP(reinterpret_cast<const GLubyte*>(X))
+		#else
+			#define IRR_OGL_LOAD_EXTENSION(X) (void*)glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(X))
+		#endif // workaround
+		#if defined(GLX_SGI_swap_control)
+			pGlxSwapIntervalSGI = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalSGI");
+		#endif
+		#if defined(GLX_EXT_swap_control)
+			pGlxSwapIntervalEXT = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalEXT");
+		#endif
+		#if defined(GLX_MESA_swap_control)
+			pGlxSwapIntervalMESA = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalMESA");
+		#endif
+		#undef IRR_OGL_LOAD_EXTENSION
+#endif
 	}
 	else
 		os::Printer::log("No GLX support available. OpenGL driver will not work.", ELL_WARNING);
@@ -427,6 +466,34 @@ bool CGLXManager::swapBuffers()
 {
 	glXSwapBuffers((Display*)CurrentContext.OpenGLLinux.X11Display, CurrentContext.OpenGLLinux.X11Window);
 	return true;
+}
+
+void CGLXManager::swapInterval(int interval)
+{
+#ifdef GLX_SGI_swap_control
+#ifdef _IRR_OPENGL_USE_EXTPOINTER_
+	if (pGlxSwapIntervalSGI)
+		((PFNGLXSWAPINTERVALSGIPROC)pGlxSwapIntervalSGI)(interval);
+#else
+	glXSwapIntervalSGI(interval);
+#endif
+#elif defined(GLX_EXT_swap_control)
+	Display *dpy = glXGetCurrentDisplay();
+	GLXDrawable drawable = glXGetCurrentDrawable();
+
+#ifdef _IRR_OPENGL_USE_EXTPOINTER_
+	if (pGlxSwapIntervalEXT)
+		((PFNGLXSWAPINTERVALEXTPROC)pGlxSwapIntervalEXT)(dpy, drawable, interval);
+#else
+	pGlXSwapIntervalEXT(dpy, drawable, interval);
+#endif
+#elif defined(GLX_MESA_swap_control)
+#ifdef _IRR_OPENGL_USE_EXTPOINTER_
+	if (pGlxSwapIntervalMESA)
+		((PFNGLXSWAPINTERVALMESAPROC)pGlxSwapIntervalMESA)(interval);
+#else
+	pGlXSwapIntervalMESA(interval);
+#endif
 }
 
 }

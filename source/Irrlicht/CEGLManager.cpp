@@ -163,9 +163,6 @@ bool CEGLManager::generateSurface()
 		eglBindAPI(EGL_OPENGL_ES_API);
 #endif
 
-    if (Params.Vsync)
-		eglSwapInterval(EglDisplay, 1);
-
     return true;
 }
 
@@ -593,6 +590,11 @@ const SExposedVideoData& CEGLManager::getContext() const
 bool CEGLManager::swapBuffers()
 {
     return (eglSwapBuffers(EglDisplay, EglSurface)==EGL_TRUE);
+}
+
+void CEGLManager::swapInterval(int interval)
+{
+	eglSwapInterval(EglDisplay, interval);
 }
 
 bool CEGLManager::testEGLError()

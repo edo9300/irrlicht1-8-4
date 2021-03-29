@@ -52,6 +52,8 @@ COGLES1Driver::COGLES1Driver(const SIrrlichtCreationParameters& params, io::IFil
 	windowSize = params.WindowSize;
 
     genericDriverInit(windowSize, params.Stencilbuffer);
+	
+	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
 }
 
 COGLES1Driver::~COGLES1Driver()
@@ -3352,6 +3354,13 @@ bool COGLES1Driver::needsTransparentRenderPass(const irr::video::SMaterial& mate
 COGLES1CacheHandler* COGLES1Driver::getCacheHandler() const
 {
 	return CacheHandler;
+}
+
+void COGLES1Driver::setVsync(bool enabled)
+{
+	if (Params.Vsync == enabled)
+		return;
+	ContextManager->swapInterval((Params.Vsync = enabled) ? 1 : 0);
 }
 
 } // end namespace

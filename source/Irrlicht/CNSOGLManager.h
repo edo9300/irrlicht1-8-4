@@ -56,6 +56,9 @@ namespace video
 
         // Swap buffers.
         bool swapBuffers();
+		
+		// generic vsync setting method for several extensions
+		void swapInterval(int interval);
 
     private:
         SIrrlichtCreationParameters Params;

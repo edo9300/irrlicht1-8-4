@@ -59,6 +59,9 @@ namespace video
 
         // Swap buffers.
         virtual bool swapBuffers() _IRR_OVERRIDE_;
+		
+		// generic vsync setting method for several extensions
+		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
 
         XVisualInfo* getVisual() const {return VisualInfo;} // return XVisualInfo
 
@@ -69,6 +72,11 @@ namespace video
         XVisualInfo* VisualInfo;
         void* glxFBConfig; // GLXFBConfig
         XID GlxWin; // GLXWindow
+	#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
+		void* pGlxSwapIntervalSGI;
+		void* pGlxSwapIntervalEXT;
+		void* pGlxSwapIntervalMESA;
+	#endif
 	};
 }
 }

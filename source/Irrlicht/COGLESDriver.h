@@ -317,6 +317,9 @@ namespace video
 
 		COGLES1CacheHandler* getCacheHandler() const;
 
+		//! Toggles vsync
+		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
+
 	private:
 		void uploadClipPlane(u32 index);
 

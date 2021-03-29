@@ -76,6 +76,8 @@ COGLES2Driver::COGLES2Driver(const SIrrlichtCreationParameters& params, io::IFil
 	ContextManager->generateContext();
 	ExposedData = ContextManager->getContext();
 	ContextManager->activateContext(ExposedData, false);
+	
+	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
 }
 
 COGLES2Driver::~COGLES2Driver()
@@ -3064,6 +3066,13 @@ COGLES2Driver::~COGLES2Driver()
 	COGLES2CacheHandler* COGLES2Driver::getCacheHandler() const
 	{
 		return CacheHandler;
+	}
+
+	void COGLES2Driver::setVsync(bool enabled)
+	{
+		if (Params.Vsync == enabled)
+			return;
+		ContextManager->swapInterval((Params.Vsync = enabled) ? 1 : 0);
 	}
 
 
