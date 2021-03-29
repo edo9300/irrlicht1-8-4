@@ -3792,6 +3792,18 @@ void CD3D9CallBridge::setBlend(bool enable)
 	}
 }
 
+void CD3D9Driver::setVsync(bool enabled) {
+	if(!pID3DDevice)
+		return;
+	if(Params.Vsync == enabled)
+		return;
+	if(Params.Vsync = enabled)
+		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+	else
+		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	reset();
+}
+
 } // end namespace video
 } // end namespace irr
 

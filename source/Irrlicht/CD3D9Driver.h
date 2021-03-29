@@ -313,6 +313,9 @@ namespace video
 		/** \return Color format of the color buffer as D3D color value. */
 		D3DFORMAT getD3DColorFormat() const;
 
+		//! Toggles vsync
+		virtual void setVsync(bool enabled);
+
 		//! Get D3D color format from Irrlicht color format.
 		D3DFORMAT getD3DFormatFromColorFormat(ECOLOR_FORMAT format) const;
 
