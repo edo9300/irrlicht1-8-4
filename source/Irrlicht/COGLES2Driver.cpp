@@ -730,6 +730,8 @@ COGLES2Driver::~COGLES2Driver()
 			const void* indexList, u32 primitiveCount,
 			E_VERTEX_TYPE vType, scene::E_PRIMITIVE_TYPE pType, E_INDEX_TYPE iType)
 	{
+		static core::array<u8> ColorBuffer;
+
 		if (!primitiveCount || !vertexCount)
 			return;
 
@@ -741,6 +743,15 @@ COGLES2Driver::~COGLES2Driver()
 		CNullDriver::drawVertexPrimitiveList(vertices, vertexCount, indexList, primitiveCount, vType, pType, iType);
 
 		setRenderStates3DMode();
+
+		if(vertices) {
+			//they seem to have to be feeded swapped
+			SColor color(Material.DiffuseColor.getAlpha(), Material.AmbientColor.getBlue(), Material.AmbientColor.getGreen(), Material.AmbientColor.getRed());
+			ColorBuffer.set_used(vertexCount * 4);
+			for(int i = 0; i < (vertexCount * 4); i += 4) {
+				color.toOpenGLColor(&ColorBuffer[i]);
+			}
+		}
 
 		glEnableVertexAttribArray(EVA_POSITION);
 		glEnableVertexAttribArray(EVA_COLOR);
@@ -754,7 +765,7 @@ COGLES2Driver::~COGLES2Driver()
 			{
 				glVertexAttribPointer(EVA_POSITION, 3, GL_FLOAT, false, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
 				glVertexAttribPointer(EVA_NORMAL, 3, GL_FLOAT, false, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Normal);
-				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
+				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, 0, &ColorBuffer[0]);
 				glVertexAttribPointer(EVA_TCOORD0, 2, GL_FLOAT, false, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
 			}
 			else
@@ -773,7 +784,7 @@ COGLES2Driver::~COGLES2Driver()
 			{
 				glVertexAttribPointer(EVA_POSITION, 3, GL_FLOAT, false, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Pos);
 				glVertexAttribPointer(EVA_NORMAL, 3, GL_FLOAT, false, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Normal);
-				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Color);
+				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, 0, &ColorBuffer[0]);
 				glVertexAttribPointer(EVA_TCOORD0, 2, GL_FLOAT, false, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords);
 				glVertexAttribPointer(EVA_TCOORD1, 2, GL_FLOAT, false, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
 			}
@@ -794,7 +805,7 @@ COGLES2Driver::~COGLES2Driver()
 			{
 				glVertexAttribPointer(EVA_POSITION, 3, GL_FLOAT, false, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Pos);
 				glVertexAttribPointer(EVA_NORMAL, 3, GL_FLOAT, false, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Normal);
-				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Color);
+				glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, 0, &ColorBuffer[0]);
 				glVertexAttribPointer(EVA_TCOORD0, 2, GL_FLOAT, false, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].TCoords);
 				glVertexAttribPointer(EVA_TANGENT, 3, GL_FLOAT, false, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Tangent);
 				glVertexAttribPointer(EVA_BINORMAL, 3, GL_FLOAT, false, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Binormal);
@@ -1490,6 +1501,69 @@ COGLES2Driver::~COGLES2Driver()
 		glDisableVertexAttribArray(EVA_COLOR);
 		glDisableVertexAttribArray(EVA_POSITION);
 	}
+	
+		//! draw an 2d rectangle
+	void COGLES2Driver::draw2DRectangleClip(const core::rect<s32>& position,
+			SColor colorLeftUp, SColor colorRightUp,
+			SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp, const core::rect<s32>* clipRect)
+	{
+		IRR_PROFILE(CProfileScope p1(EPID_ES2_DRAW_2DRECTANGLE);)
+		
+		core::rect<s32> pos = position;
+
+		if (clamp)
+			pos.clipAgainst(*clamp);
+
+		if (!pos.isValid())
+			return;
+
+		chooseMaterial2D();
+		setMaterialTexture(0, 0);
+
+		if (clipRect)
+		{
+			if (!clipRect->isValid())
+				return;
+
+			glEnable(GL_SCISSOR_TEST);
+			const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
+			glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
+				clipRect->getWidth(), clipRect->getHeight());
+		}
+
+		setRenderStates2DMode(colorLeftUp.getAlpha() < 255 ||
+				colorRightUp.getAlpha() < 255 ||
+				colorLeftDown.getAlpha() < 255 ||
+				colorRightDown.getAlpha() < 255, false, false);
+
+		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
+
+		f32 left = (f32)pos.UpperLeftCorner.X / (f32)renderTargetSize.Width * 2.f - 1.f;
+		f32 right = (f32)pos.LowerRightCorner.X / (f32)renderTargetSize.Width * 2.f - 1.f;
+		f32 down = 2.f - (f32)pos.LowerRightCorner.Y / (f32)renderTargetSize.Height * 2.f - 1.f;
+		f32 top = 2.f - (f32)pos.UpperLeftCorner.Y / (f32)renderTargetSize.Height * 2.f - 1.f;
+
+		u16 indices[] = {0, 1, 2, 3};
+		S3DVertex vertices[4];
+		vertices[0] = S3DVertex(left, top, 0, 0, 0, 1, colorLeftUp, 0, 0);
+		vertices[1] = S3DVertex(right, top, 0, 0, 0, 1, colorRightUp, 0, 0);
+		vertices[2] = S3DVertex(right, down, 0, 0, 0, 1, colorRightDown, 0, 0);
+		vertices[3] = S3DVertex(left, down, 0, 0, 0, 1, colorLeftDown, 0, 0);
+		
+		glEnableVertexAttribArray(EVA_POSITION);
+		glEnableVertexAttribArray(EVA_COLOR);
+		glVertexAttribPointer(EVA_POSITION, 3, GL_FLOAT, false, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
+		glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
+		glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, indices);
+		glDisableVertexAttribArray(EVA_COLOR);
+		glDisableVertexAttribArray(EVA_POSITION);
+
+		if(clipRect)
+			glDisable(GL_SCISSOR_TEST);
+	}
+
+
 
 
 	//! Draws a 2d line.
@@ -2228,6 +2302,13 @@ COGLES2Driver::~COGLES2Driver()
 	void COGLES2Driver::draw3DLine(const core::vector3df& start,
 			const core::vector3df& end, SColor color)
 	{
+		draw3DLineW(start, end, color);
+	}
+
+
+	void COGLES2Driver::draw3DLineW(const core::vector3df& start,
+			const core::vector3df& end, SColor color, float width)
+	{
 		IRR_PROFILE(CProfileScope p1(EPID_ES2_DRAW_3DLINE);)
 
 		setRenderStates3DMode();
@@ -2239,6 +2320,7 @@ COGLES2Driver::~COGLES2Driver()
 
 		glEnableVertexAttribArray(EVA_POSITION);
 		glEnableVertexAttribArray(EVA_COLOR);
+		glLineWidth(width > 0.0f ? width : 1.0f);
 		glVertexAttribPointer(EVA_POSITION, 3, GL_FLOAT, false, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
 		glVertexAttribPointer(EVA_COLOR, 4, GL_UNSIGNED_BYTE, true, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
 		glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, indices);

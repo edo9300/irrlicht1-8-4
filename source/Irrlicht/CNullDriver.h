@@ -132,6 +132,12 @@ namespace video
 		virtual void draw3DLine(const core::vector3df& start,
 			const core::vector3df& end, SColor color = SColor(255,255,255,255)) _IRR_OVERRIDE_;
 
+		virtual void draw3DLineW(const core::vector3df& start,
+			const core::vector3df& end, SColor color = SColor(255,255,255,255), float width = 0.0f) _IRR_OVERRIDE_;
+
+		virtual void draw3DShapeW(const core::vector3df* vertices,
+			u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff) _IRR_OVERRIDE_;
+
 		//! Draws a 3d triangle.
 		virtual void draw3DTriangle(const core::triangle3df& triangle,
 			SColor color = SColor(255,255,255,255)) _IRR_OVERRIDE_;
@@ -209,6 +215,11 @@ namespace video
 		virtual void draw2DRectangle(const core::rect<s32>& pos,
 			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
 			const core::rect<s32>* clip = 0) _IRR_OVERRIDE_;
+
+		//! Draws a 2d rectangle with a gradient.
+		virtual void draw2DRectangleClip(const core::rect<s32>& pos,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp = 0, const core::rect<s32>* clip = 0);
 
 		//! Draws the outline of a 2d rectangle
 		virtual void draw2DRectangleOutline(const core::recti& pos, SColor color=SColor(255,255,255,255)) _IRR_OVERRIDE_;
@@ -288,7 +299,7 @@ namespace video
 		virtual void addExternalImageWriter(IImageWriter* writer) _IRR_OVERRIDE_;
 
 		//! Draws a shadow volume into the stencil buffer. To draw a stencil shadow, do
-		//! this: Frist, draw all geometry. Then use this method, to draw the shadow
+		//! this: First, draw all geometry. Then use this method, to draw the shadow
 		//! volume. Then, use IVideoDriver::drawStencilShadow() to visualize the shadow.
 		virtual void drawStencilShadowVolume(const core::array<core::vector3df>& triangles,
 			bool zfail=true, u32 debugDataVisible=0) _IRR_OVERRIDE_;

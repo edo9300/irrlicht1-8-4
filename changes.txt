@@ -9,6 +9,18 @@ Changes in ogl-es (not yet released - will be merged with trunk at some point)
 
 --------------------------
 Changes in 1.9 (not yet released)
+- Fix bug in rect::clipAgainst that had caused rects completely outside to the left-top of the rect to be clipped against ending up with both corners outside.
+  It still worked for UI in most cases as the resulting rectangle still had an area of 0.
+- Add getAlign functions to IGUIElement
+- Add optional multitouch support to X11 (but disabled in IrrCompileConfig by default). Thanks @TheBrokenRail for a patch proposal based on example code from esjeon (patch #322).
+- Slightly changed close window handling on X11 (optimized and avoids problems on some shells). Thanks @TheBrokenRail for a patch (was part of patch #322).
+- Add getActiveColor functions to IGUIStaticText and IGUIButton (get currently used color).
+- Add IGUIEnvironment::addToDeletionQueue to allow save removal of gui elements while iterating over them (like the same named function in ISceneManager).
+- IGUIEnvironment::drawAll has now a parameter to allow disabling automatic resize to screensize. Makes it easier to use partial screens with full alignment support.
+- No longer try to set WM_QUIT when using an external Window on Win32. 
+  Thx @Marko Mahnic for the patch (https://sourceforge.net/p/irrlicht/bugs/449)
+- ply meshloader now also supports textures with uv-labels named texture_u/texture_v. 
+  Thx @acy for bugreport and test-model (http://irrlicht.sourceforge.net/forum/viewtopic.php?f=4&t=52646)
 - Fix potential reading/writing 1 byte behind it's own buffer in PLY loader.
   Thanks @wolfgang for report and patch (http://irrlicht.sourceforge.net/forum/viewtopic.php?f=7&t=52627&p=305573#p305573)
 - ICursorControl::isVisible is now always returning the flag set in setVisible. 
@@ -18,15 +30,16 @@ Changes in 1.9 (not yet released)
 - Improvements to B3D writer for speed, readability and handling of low framerate animations.
   Thanks @JLouisB for the patch (For more info, see: http://irrlicht.sourceforge.net/forum/viewtopic.php?f=2&t=50067&start=15)
 - Add another render pass ESNRP_GUI which is drawn last and is p.E. useful for rendering gui nodes in the scenemanager.
-- BurningVideo: 0.51
+- BurningVideo: 0.52
   - 10 year anniversary update
   - Lighting model reworked. moved to eyespace like openGL. [Specular Highlights, Fog, Sphere/Reflection Map] 
   - increased internal s4DVertex to support 4 Textures and 4 Colors [switchable]
   - Textures are handled as sRGB during Mipmap Generation. More accurate, less visual disruption
-  - 2D is drawn as 3D like hardware drivers. [switchable]. enables viewport scaling, material2D
+  - 2D is drawn as 3D like hardware drivers. [switchable]. enables viewport scaling, material2D, scissor
   - Texture Spatial Resolution Limiting working. [lower memory consumption,SOFTWARE_DRIVER_2_TEXTURE_MAXSIZE]
   - NormalMap for 1 Light accurate. still all lights are accumulated
   - SuperTuxKart 8.0.1 playable
+  - Internal Backbuffer Scaling and Interlacing
   - Known Problems
     - Depthbuffer range not equal to Hardware Drivers. Problems with Orthographic Stencil Shadows
 	- Triangle MipMap Selection. Wrong for TextureAtlas and Billboards
@@ -305,6 +318,7 @@ Changes in 1.9 (not yet released)
 
 --------------------------
 Changes in 1.8.5
+ - Update libpng to 1.6.37 (from 1.6.23)
  - Fix CIrrDeviceSDL::getVideoModeList which didn't return video modes before. Thx @kas1e for report and patch.
  - CIrrDeviceMacOSX now sets the SEvent.MouseInput Shift and Control values on mouse events like the other devices. Thanks @ Zero King  for patch (#321)
  - isWindowFocused in IrrDeviceSDL device now returns the input focus like the other devices. Before it was returning a mouse-over-window state.

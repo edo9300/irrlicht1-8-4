@@ -101,6 +101,8 @@ CGUIEnvironment::CGUIEnvironment(io::IFileSystem* fs, video::IVideoDriver* drive
 //! destructor
 CGUIEnvironment::~CGUIEnvironment()
 {
+	clearDeletionQueue();
+
 	if ( HoveredNoSubelement && HoveredNoSubelement != this )
 	{
 		HoveredNoSubelement->drop();
@@ -191,19 +193,18 @@ void CGUIEnvironment::loadBuiltInFont()
 
 
 //! draws all gui elements
-void CGUIEnvironment::drawAll()
+void CGUIEnvironment::drawAll(bool useScreenSize)
 {
-	if (Driver)
+	if (useScreenSize && Driver)
 	{
 		core::dimension2d<s32> dim(Driver->getScreenSize());
 		if (AbsoluteRect.LowerRightCorner.X != dim.Width ||
-			AbsoluteRect.LowerRightCorner.Y != dim.Height)
+			AbsoluteRect.UpperLeftCorner.X != 0 ||
+			AbsoluteRect.LowerRightCorner.Y != dim.Height ||
+			AbsoluteRect.UpperLeftCorner.Y != 0
+			)
 		{
-			// resize gui environment
-			DesiredRect.LowerRightCorner = dim;
-			AbsoluteClippingRect = DesiredRect;
-			AbsoluteRect = DesiredRect;
-			updateAbsolutePosition();
+			setRelativePosition(core::recti(0,0,dim.Width, dim.Height));
 		}
 	}
 
@@ -213,6 +214,8 @@ void CGUIEnvironment::drawAll()
 
 	draw();
 	OnPostRender ( os::Timer::getTime () );
+
+	clearDeletionQueue();
 }
 
 
@@ -368,6 +371,17 @@ IOSOperator* CGUIEnvironment::getOSOperator() const
 }
 
 
+//! sets the OS operator used by the enviroment
+void CGUIEnvironment::setOSOperator(IOSOperator* Operator)
+{
+	if(this->Operator)
+		this->Operator->drop();
+	if(Operator)
+		Operator->grab();
+	this->Operator = Operator;
+}
+
+
 //! clear all GUI elements
 void CGUIEnvironment::clear()
 {
@@ -471,6 +485,28 @@ void CGUIEnvironment::OnPostRender( u32 time )
 	IGUIElement::OnPostRender ( time );
 }
 
+void CGUIEnvironment::addToDeletionQueue(IGUIElement* element)
+{
+	if (!element)
+		return;
+
+	element->grab();
+	DeletionQueue.push_back(element);
+}
+
+void CGUIEnvironment::clearDeletionQueue()
+{
+	if (DeletionQueue.empty())
+		return;
+
+	for (u32 i=0; i<DeletionQueue.size(); ++i)
+	{
+		DeletionQueue[i]->remove();
+		DeletionQueue[i]->drop();
+	}
+
+	DeletionQueue.clear();
+}
 
 //
 void CGUIEnvironment::updateHoveredElement(core::position2d<s32> mousePos)

@@ -227,20 +227,21 @@ define out. */
 	#endif
 #endif
 
-
-// Debian 10 removed support for GLES1 in mesa.
-// Can't tell about other Linux platforms or a way to test if it's still available,
-// so removing OGLES1 support on Linux now to allow compiling to work by default.
-#if defined(_IRR_LINUX_PLATFORM_) && !defined(_IRR_ANDROID_PLATFORM_)
-#define NO_IRR_COMPILE_WITH_OGLES1_
-#endif
-
 //! Define _IRR_COMPILE_WITH_OGLES1_ to compile the Irrlicht engine with OpenGL ES 1.1.
 /** If you do not wish the engine to be compiled with OpenGL ES 1.1, comment this
-define out. */
+define out.
+Depending on platform you may have to enable _IRR_OGLES1_USE_KHRONOS_API_HEADERS_ as well when using it.
+*/
+#if defined(_IRR_ANDROID_PLATFORM_) || defined(_IRR_IOS_PLATFORM_)
 #define _IRR_COMPILE_WITH_OGLES1_
+#endif
 #ifdef NO_IRR_COMPILE_WITH_OGLES1_
 #undef _IRR_COMPILE_WITH_OGLES1_
+#endif
+
+#ifdef _IRR_COMPILE_WITH_OGLES1_
+//! Define _IRR_OGLES1_USE_KHRONOS_API_HEADERS_ to use the OpenGL ES headers from the Debian Khronos-api package
+//#define _IRR_OGLES1_USE_KHRONOS_API_HEADERS_
 #endif
 
 //! Define required options for OpenGL ES 1.1 drivers.
@@ -315,17 +316,21 @@ define out. */
 #undef _IRR_COMPILE_WITH_X11_
 #endif
 
-//! On some Linux systems the XF86 vidmode extension or X11 RandR are missing. Use these flags
-//! to remove the dependencies such that Irrlicht will compile on those systems, too.
-//! If you don't need colored cursors you can also disable the Xcursor extension
+//! On some Linux systems the XF86 vidmode extension, X11 RandR, or XInput2 are missing.
+//! Use these defines to add/remove support for those dependencies as needed.
+//! XInput2 (library called Xi) is currently only used to support touch-input.
 #if defined(_IRR_LINUX_PLATFORM_) && defined(_IRR_COMPILE_WITH_X11_)
 #define _IRR_LINUX_X11_VIDMODE_
 //#define _IRR_LINUX_X11_RANDR_
+//#define _IRR_LINUX_X11_XINPUT2_
 #ifdef NO_IRR_LINUX_X11_VIDMODE_
 #undef _IRR_LINUX_X11_VIDMODE_
 #endif
 #ifdef NO_IRR_LINUX_X11_RANDR_
 #undef _IRR_LINUX_X11_RANDR_
+#endif
+#ifdef NO_IRR_LINUX_X11_XINPUT2_
+#undef _IRR_LINUX_X11_XINPUT2_
 #endif
 
 //! X11 has by default only monochrome cursors, but using the Xcursor library we can also get color cursor support.

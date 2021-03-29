@@ -1345,6 +1345,48 @@ void COGLES1Driver::draw2DRectangle(const core::rect<s32>& position,
 	drawVertexPrimitiveList2d3d(vertices, 4, indices, 2, video::EVT_STANDARD, scene::EPT_TRIANGLE_FAN, EIT_16BIT, false);
 }
 
+//! draw an 2d rectangle
+void COGLES1Driver::draw2DRectangleClip(const core::rect<s32>& position,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp, const core::rect<s32>* clipRect)
+{
+	core::rect<s32> pos = position;
+
+	if (clamp)
+		pos.clipAgainst(*clamp);
+
+	if (!pos.isValid())
+		return;
+
+	if (clipRect)
+	{
+		if (!clipRect->isValid())
+			return;
+
+		glEnable(GL_SCISSOR_TEST);
+		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
+		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
+			clipRect->getWidth(), clipRect->getHeight());
+	}
+
+	setRenderStates2DMode(colorLeftUp.getAlpha() < 255 ||
+		colorRightUp.getAlpha() < 255 ||
+		colorLeftDown.getAlpha() < 255 ||
+		colorRightDown.getAlpha() < 255, false, false);
+
+	u16 indices[] = {0,1,2,3};
+	S3DVertex vertices[4];
+	vertices[0] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.UpperLeftCorner.Y, 0, 0,0,1, colorLeftUp, 0,0);
+	vertices[1] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.UpperLeftCorner.Y, 0, 0,0,1, colorRightUp, 0,0);
+	vertices[2] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.LowerRightCorner.Y, 0, 0,0,1, colorRightDown, 0,0);
+	vertices[3] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.LowerRightCorner.Y, 0, 0,0,1, colorLeftDown, 0,0);
+	drawVertexPrimitiveList2d3d(vertices, 4, indices, 2, video::EVT_STANDARD, scene::EPT_TRIANGLE_FAN, EIT_16BIT, false);
+
+	if(clipRect)
+		glDisable(GL_SCISSOR_TEST);
+}
+
+
 
 //! Draws a 2d line.
 void COGLES1Driver::draw2DLine(const core::position2d<s32>& start,
@@ -2542,13 +2584,53 @@ void COGLES1Driver::setFog(SColor c, E_FOG_TYPE fogType, f32 start,
 void COGLES1Driver::draw3DLine(const core::vector3df& start,
 				const core::vector3df& end, SColor color)
 {
-	setRenderStates3DMode();
+	draw3DLineW(start, end, color);
+}
 
-	u16 indices[] = {0,1};
-	S3DVertex vertices[2];
-	vertices[0] = S3DVertex(start.X,start.Y,start.Z, 0,0,1, color, 0,0);
-	vertices[1] = S3DVertex(end.X,end.Y,end.Z, 0,0,1, color, 0,0);
-	drawVertexPrimitiveList2d3d(vertices, 2, indices, 1, video::EVT_STANDARD, scene::EPT_LINES);
+
+void COGLES1Driver::draw3DLineW(const core::vector3df& start,
+				const core::vector3df& end, SColor color, float width)
+{
+	if(color.color == 0xffffffff) {
+		setRenderStates3DMode();
+
+		u16 indices[] = { 0,1 };
+		S3DVertex vertices[2];
+		vertices[0] = S3DVertex(start.X, start.Y, start.Z, 0, 0, 1, color, 0, 0);
+		vertices[1] = S3DVertex(end.X, end.Y, end.Z, 0, 0, 1, color, 0, 0);
+		glLineWidth(width > 0.0f ? width : 1.0f);
+		drawVertexPrimitiveList2d3d(vertices, 2, indices, 1, video::EVT_STANDARD, scene::EPT_LINES);
+		return;
+	}
+
+	core::dimension2d<u32> dim = getCurrentRenderTargetSize();
+	if(dim.Width == 0)
+		dim = ScreenSize;
+
+	dim.Width /= 2;
+	dim.Height /= 2;
+
+	core::matrix4 trans = getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD);
+	
+	auto transform = [&](const core::vector3df & pos3d) -> core::vector2d<s32> {
+
+		f32 transformedPos[4] = { pos3d.X, pos3d.Y, pos3d.Z, 1.0f };
+
+		trans.multiplyWith1x4Matrix(transformedPos);
+
+		if(transformedPos[3] < 0)
+			return core::vector2d<s32>(-10000, -10000);
+
+		const f32 zDiv = transformedPos[3] == 0.0f ? 1.0f :
+			core::reciprocal(transformedPos[3]);
+
+		return core::vector2d<s32>(
+			dim.Width + core::round32(dim.Width * (transformedPos[0] * zDiv)),
+			dim.Height - core::round32(dim.Height * (transformedPos[1] * zDiv)));
+	};
+	
+	glLineWidth(width > 0.0f ? width : 1.0f);
+	draw2DLine(transform(start), transform(end), color);
 }
 
 

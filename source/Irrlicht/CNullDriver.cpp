@@ -813,6 +813,23 @@ void CNullDriver::draw3DLine(const core::vector3df& start,
 {
 }
 
+void CNullDriver::draw3DLineW(const core::vector3df& start,
+				const core::vector3df& end, SColor color, float width)
+{
+	draw3DLine(start, end, color);
+}
+
+void CNullDriver::draw3DShapeW(const core::vector3df* vertices,
+							   u32 vertexCount, SColor color, float width, unsigned short pattern) {
+	if(vertexCount > 1 && pattern == 0xffff) {
+		for(int i = 0; i < (vertexCount - 1); i++) {
+			draw3DLineW(vertices[i], vertices[i + 1], color, width);
+		}
+		draw3DLineW(vertices[vertexCount - 1], vertices[0], color, width);
+	}
+}
+
+
 
 //! Draws a 3d triangle.
 void CNullDriver::draw3DTriangle(const core::triangle3df& triangle, SColor color)
@@ -964,6 +981,13 @@ void CNullDriver::draw2DRectangle(const core::rect<s32>& pos,
 {
 }
 
+//! Draws a 2d rectangle with a gradient.
+void CNullDriver::draw2DRectangleClip(const core::rect<s32>& pos,
+	SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+	const core::rect<s32>* clamp, const core::rect<s32>* clip)
+{
+	draw2DRectangle(pos, colorLeftUp, colorRightUp, colorLeftDown, colorRightDown, clip);
+}
 
 
 //! Draws a 2d line.
@@ -1076,7 +1100,7 @@ const wchar_t* CNullDriver::getName() const
 
 
 //! Draws a shadow volume into the stencil buffer. To draw a stencil shadow, do
-//! this: Frist, draw all geometry. Then use this method, to draw the shadow
+//! this: First, draw all geometry. Then use this method, to draw the shadow
 //! volume. Then, use IVideoDriver::drawStencilShadow() to visualize the shadow.
 void CNullDriver::drawStencilShadowVolume(const core::array<core::vector3df>& triangles, bool zfail, u32 debugDataVisible)
 {

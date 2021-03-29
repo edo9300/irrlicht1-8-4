@@ -382,7 +382,9 @@ namespace video
 		\param format The color format of the render target. Floating point formats are supported.
 		\return Pointer to the created texture or 0 if the texture
 		could not be created. This pointer should not be dropped. See
-		IReferenceCounted::drop() for more information. */
+		IReferenceCounted::drop() for more information.
+		You may want to remove it from driver texture cache with removeTexture if you no longer need it.
+		*/
 		virtual ITexture* addRenderTargetTexture(const core::dimension2d<u32>& size,
 				const io::path& name = "rt", const ECOLOR_FORMAT format = ECF_UNKNOWN) =0;
 
@@ -752,6 +754,12 @@ namespace video
 		virtual void draw3DLine(const core::vector3df& start,
 			const core::vector3df& end, SColor color = SColor(255,255,255,255)) =0;
 
+		virtual void draw3DLineW(const core::vector3df& start,
+			const core::vector3df& end, SColor color = SColor(255,255,255,255), float width = 0.0f) =0;
+
+		virtual void draw3DShapeW(const core::vector3df* vertices,
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff) = 0;
+
 		//! Draws a 3d triangle.
 		/** This method calls drawVertexPrimitiveList for some triangles.
 		This method works with all drivers because it simply calls
@@ -911,6 +919,11 @@ namespace video
 				SColor colorLeftUp, SColor colorRightUp,
 				SColor colorLeftDown, SColor colorRightDown,
 				const core::rect<s32>* clip =0) =0;
+
+		virtual void draw2DRectangleClip(const core::rect<s32>& pos,
+				SColor colorLeftUp, SColor colorRightUp,
+				SColor colorLeftDown, SColor colorRightDown,
+				const core::rect<s32>* clamp =0, const core::rect<s32>* clip =0) =0;
 
 		//! Draws the outline of a 2D rectangle.
 		/** \param pos Position of the rectangle.
@@ -1476,7 +1489,7 @@ namespace video
 		other flags can be changed, though some might have to effect
 		in most cases.
 		Please note that you have to enable/disable this effect with
-		enableInitMaterial2D(). This effect is costly, as it increases
+		enableMaterial2D(). This effect is costly, as it increases
 		the number of state changes considerably. Always reset the
 		values when done.
 		\return Material reference which should be altered to reflect

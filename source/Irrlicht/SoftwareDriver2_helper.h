@@ -22,7 +22,7 @@ namespace irr
 
 // supporting different packed pixel needs many defines...
 
-#ifdef SOFTWARE_DRIVER_2_32BIT
+#if defined(SOFTWARE_DRIVER_2_32BIT)
 	typedef u32	tVideoSample;
 	typedef u32	tStencilSample;
 
@@ -40,8 +40,8 @@ namespace irr
 	#define	COLOR_MAX_LOG2				8
 	#define	COLOR_BRIGHT_WHITE			0xFFFFFFFF
 
-	#define VIDEO_SAMPLE_GRANULARITY	(unsigned)2
-
+	#define SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY	(unsigned)2
+	#define SOFTWARE_DRIVER_2_RENDERTARGET_GRANULARITY	(unsigned)2
 #else
 	typedef u16	tVideoSample;
 	typedef u8	tStencilSample;
@@ -59,7 +59,8 @@ namespace irr
 	#define	COLOR_MAX					0x1F
 	#define	COLOR_MAX_LOG2				5
 	#define	COLOR_BRIGHT_WHITE			0xFFFF
-	#define VIDEO_SAMPLE_GRANULARITY	(unsigned)1
+	#define SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY	(unsigned)1
+	#define SOFTWARE_DRIVER_2_RENDERTARGET_GRANULARITY	(unsigned)1
 
 #endif
 
@@ -140,6 +141,19 @@ inline void memset16(void * dest, const u16 value, size_t bytesize)
 	}
 }
 
+//! memset interleaved
+inline void memset32_interlaced(void* dest, const u32 value, size_t pitch,u32 height,const interlaced_control Interlaced)
+{
+	if (Interlaced.bypass) return memset32(dest, value, pitch * height);
+
+	u8* dst = (u8*)dest;
+	interlace_scanline_data line;
+	for (line.y = 0; line.y < height; line.y += SOFTWARE_DRIVER_2_STEP_Y)
+	{
+		interlace_scanline_enabled memset32(dst, value, pitch);
+		dst += pitch;
+	}
+}
 
 // byte-align structures
 #include "irrpack.h"
@@ -182,7 +196,7 @@ static inline s32 s32_log2_s32(u32 in)
 	}
 	return ret;
 	//return s32_log2_f32( (f32) x);
-	//ieee754 _log2;_log2.f = (f32) in; return _log2.fields.exp - 127; 
+	//ieee754 _log2;_log2.f = (f32) in; return _log2.fields.exp - 127;
 }
 
 #if 0
@@ -577,7 +591,7 @@ REALINLINE tFixPoint imulFix2(const tFixPoint x, const tFixPoint y)
 */
 REALINLINE tFixPoint imulFix_tex1(const tFixPoint x, const tFixPoint y)
 {
-#ifdef SOFTWARE_DRIVER_2_32BIT
+#if SOFTWARE_DRIVER_2_TEXTURE_COLOR_FORMAT == ECF_A8R8G8B8
 	return (((tFixPointu)x >> 2)*(((tFixPointu)y + FIX_POINT_ONE) >> 2)) >> (tFixPointu) (FIX_POINT_PRE + 4);
 #else
 	return (x * (y+ FIX_POINT_ONE)) >> (FIX_POINT_PRE + 5);
@@ -598,33 +612,22 @@ REALINLINE tFixPoint imulFix_tex2(const tFixPoint x, const tFixPoint y)
 
 REALINLINE tFixPoint imulFix_tex4(const tFixPoint x, const tFixPoint y)
 {
-#ifdef SOFTWARE_DRIVER_2_32BIT
-	register tFixPoint a = (((tFixPointu)x >> 2)*(((tFixPointu)y + FIX_POINT_ONE) >> 2)) >> (tFixPointu)(FIX_POINT_PRE + 2);
+#if SOFTWARE_DRIVER_2_TEXTURE_COLOR_FORMAT == ECF_A8R8G8B8
+	tFixPoint a = (((tFixPointu)x >> 2)*(((tFixPointu)y + FIX_POINT_ONE) >> 2)) >> (tFixPointu)(FIX_POINT_PRE + 2);
 #else
-	register tFixPoint a = (x * (y + FIX_POINT_ONE)) >> (FIX_POINT_PRE + 3);
+	tFixPoint a = (x * (y + FIX_POINT_ONE)) >> (FIX_POINT_PRE + 3);
 #endif
-	register tFixPoint mask = (a - FIXPOINT_COLOR_MAX) >> 31;
+	tFixPoint mask = (a - FIXPOINT_COLOR_MAX) >> 31;
 	return (a & mask) | (FIXPOINT_COLOR_MAX & ~mask);
 }
 
-
-#if 0
-#define imulFix_tex1(x,y) ((((tFixPointu)x >> 2) * ((tFixPointu)y >> 2)) >> (tFixPointu)(FIX_POINT_PRE + 4))
-#define imulFix_tex2(x,y) ((((tFixPointu)x >> 2) * ((tFixPointu)y >> 2)) >> (tFixPointu)(FIX_POINT_PRE + 3))
-
-#ifdef SOFTWARE_DRIVER_2_32BIT
-#define imulFix_tex4(x,y) ( ( (tFixPointu) x >> 2 ) * ( (tFixPointu) y >> 2 ) ) >> (tFixPointu) ( FIX_POINT_PRE + 2 )
-#else
-#define imulFix_tex4(x,y) ( x * y) >> ( FIX_POINT_PRE + ( VIDEO_SAMPLE_GRANULARITY * 3 ) )
-#endif
-#endif
 
 /*!
 	clamp FixPoint to maxcolor in FixPoint, min(a,COLOR_MAX)
 */
 REALINLINE tFixPoint clampfix_maxcolor ( const tFixPoint a)
 {
-	register tFixPoint c = (a - FIXPOINT_COLOR_MAX) >> 31;
+	tFixPoint c = (a - FIXPOINT_COLOR_MAX) >> 31;
 	return (a & c) | ( FIXPOINT_COLOR_MAX & ~c);
 }
 
@@ -828,10 +831,10 @@ struct sInternalTexture
 // get video sample plain
 static inline tVideoSample getTexel_plain ( const sInternalTexture* t, const tFixPointu tx, const tFixPointu ty )
 {
-	register size_t ofs;
+	size_t ofs;
 
 	ofs = ( ( ty & t->textureYMask ) >> FIX_POINT_PRE ) << t->pitchlog2;
-	ofs |= ( tx & t->textureXMask ) >> ( FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY );
+	ofs |= ( tx & t->textureXMask ) >> ( FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY );
 
 	// texel
 	return *((tVideoSample*)( (u8*) t->data + ofs ));
@@ -842,13 +845,13 @@ inline void getTexel_fix ( tFixPoint &r, tFixPoint &g, tFixPoint &b,
 						const sInternalTexture* t, const tFixPointu tx, const tFixPointu ty
 								)
 {
-	register size_t ofs;
+	size_t ofs;
 
 	ofs = ( ((ty + FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask ) >> FIX_POINT_PRE ) << t->pitchlog2;
-	ofs |= ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask ) >> ( FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY );
+	ofs |= ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask ) >> ( FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY );
 
 	// texel
-	register tVideoSample t00;
+	tVideoSample t00;
 	t00 = *((tVideoSample*)( (u8*) t->data + ofs ));
 
 	r = (t00 & MASK_R) >> ( SHIFT_R - FIX_POINT_PRE);
@@ -862,13 +865,13 @@ inline void getTexel_fix(tFixPoint &a, tFixPoint &r, tFixPoint &g, tFixPoint &b,
 	const sInternalTexture* t, const tFixPointu tx, const tFixPointu ty
 )
 {
-	register size_t ofs;
+	size_t ofs;
 
 	ofs = (((ty+ FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
-	ofs |= ((tx+ FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+	ofs |= ((tx+ FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 	// texel
-	register tVideoSample t00;
+	tVideoSample t00;
 	t00 = *((tVideoSample*)((u8*)t->data + ofs));
 
 	a = (t00 & MASK_A) >> (SHIFT_A - FIX_POINT_PRE);
@@ -886,7 +889,7 @@ static REALINLINE void getTexel_fix ( tFixPoint &a,
 	size_t ofs;
 
 	ofs = ( ((ty + FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask ) >> FIX_POINT_PRE ) << t->pitchlog2;
-	ofs |= ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask ) >> ( FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY );
+	ofs |= ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask ) >> ( FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY );
 
 	// texel
 	tVideoSample t00;
@@ -910,10 +913,10 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 #if 0
 	if (t->lodFactor > 0)
 	{
-		register size_t ofs;
+		size_t ofs;
 
 		ofs = (((ty + FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
-		ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+		ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 		// texel
 		tVideoSample t00;
@@ -932,13 +935,13 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	tFixPointu r11, g11, b11;
 
 	size_t o0, o1, o2, o3;
-	register tVideoSample t00;
+	tVideoSample t00;
 
 	//wraps positive (ignoring negative)
 	o0 = (((ty)& t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
 	o1 = (((ty + FIX_POINT_ONE) & t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
-	o2 = ((tx)& t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
-	o3 = ((tx + FIX_POINT_ONE) & t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+	o2 = ((tx)& t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
+	o3 = ((tx + FIX_POINT_ONE) & t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 	t00 = *((tVideoSample*)((u8*)t->data + (o0 + o2)));
 	r00 = (t00 & MASK_R) >> SHIFT_R;
@@ -961,8 +964,8 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	b11 = (t00 & MASK_B);
 
 
-	register tFixPointu fracx = tx & FIX_POINT_FRACT_MASK;
-	register tFixPointu fracy = ty & FIX_POINT_FRACT_MASK;
+	tFixPointu fracx = tx & FIX_POINT_FRACT_MASK;
+	tFixPointu fracy = ty & FIX_POINT_FRACT_MASK;
 
 	//w00 w01 w10 w11
 	tFixPointu w[4];
@@ -999,11 +1002,11 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	if (tex->lodFactor > 1)
 	{
 		//nearest neighbor
-		register size_t ofs;
+		size_t ofs;
 		ofs = (((ty + FIX_POINT_ZERO_DOT_FIVE) & tex->textureYMask) >> FIX_POINT_PRE) << tex->pitchlog2;
-		ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & tex->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+		ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & tex->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
-		register tVideoSample t00;
+		tVideoSample t00;
 		t00 = *((tVideoSample*)((u8*)tex->data + ofs));
 
 		r = (t00 & MASK_R) >> (SHIFT_R - FIX_POINT_PRE);
@@ -1015,8 +1018,8 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	//w00 w01 w10 w11
 	tFixPointu w[4];
 	{
-		register tFixPointu fracx = tx & FIX_POINT_FRACT_MASK;
-		register tFixPointu fracy = ty & FIX_POINT_FRACT_MASK;
+		tFixPointu fracx = tx & FIX_POINT_FRACT_MASK;
+		tFixPointu fracy = ty & FIX_POINT_FRACT_MASK;
 		w[0] = imulFixu(FIX_POINT_ONE - fracx, FIX_POINT_ONE - fracy);
 		w[1] = imulFixu(fracx, FIX_POINT_ONE - fracy);
 		w[2] = imulFixu(FIX_POINT_ONE - fracx, fracy);
@@ -1026,11 +1029,11 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	//wraps positive (ignoring negative)
 	tVideoSample t[4];
 	{
-		register size_t o0, o1, o2, o3;
+		size_t o0, o1, o2, o3;
 		o0 = (((ty) & tex->textureYMask) >> FIX_POINT_PRE) << tex->pitchlog2;
 		o1 = (((ty + FIX_POINT_ONE) & tex->textureYMask) >> FIX_POINT_PRE) << tex->pitchlog2;
-		o2 = ((tx)& tex->textureXMask) >> (unsigned)(FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
-		o3 = ((tx + FIX_POINT_ONE) & tex->textureXMask) >> (unsigned)(FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+		o2 = ((tx)& tex->textureXMask) >> (unsigned)(FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
+		o3 = ((tx + FIX_POINT_ONE) & tex->textureXMask) >> (unsigned)(FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 		t[0] = *((tVideoSample*)((u8*)tex->data + (o0 + o2)));
 		t[1] = *((tVideoSample*)((u8*)tex->data + (o0 + o3)));
@@ -1068,12 +1071,12 @@ static REALINLINE void getSample_texture(tFixPoint &a, tFixPoint &r, tFixPoint &
 	tFixPointu a11, r11, g11, b11;
 
 	size_t o0, o1, o2, o3;
-	register tVideoSample t00;
+	tVideoSample t00;
 
 	o0 = (((ty)& tex->textureYMask) >> FIX_POINT_PRE) << tex->pitchlog2;
 	o1 = (((ty + FIX_POINT_ONE) & tex->textureYMask) >> FIX_POINT_PRE) << tex->pitchlog2;
-	o2 = ((tx)& tex->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
-	o3 = ((tx + FIX_POINT_ONE) & tex->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+	o2 = ((tx)& tex->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
+	o3 = ((tx + FIX_POINT_ONE) & tex->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 	t00 = *((tVideoSample*)((u8*)tex->data + (o0 + o2)));
 	a00 = (t00 & MASK_A) >> SHIFT_A;
@@ -1142,9 +1145,9 @@ static REALINLINE void getSample_texture(tFixPoint &r, tFixPoint &g, tFixPoint &
 	const sInternalTexture* burning_restrict t, const tFixPointu tx, const tFixPointu ty
 )
 {
-	register size_t ofs;
+	size_t ofs;
 	ofs = (((ty + FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
-	ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+	ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 	// texel
 	const tVideoSample t00 = *((tVideoSample*)((u8*)t->data + ofs));
@@ -1158,9 +1161,9 @@ static REALINLINE void getSample_texture(tFixPoint &a, tFixPoint &r, tFixPoint &
 	const sInternalTexture* burning_restrict t, const tFixPointu tx, const tFixPointu ty
 )
 {
-	register size_t ofs;
+	size_t ofs;
 	ofs = (((ty + FIX_POINT_ZERO_DOT_FIVE) & t->textureYMask) >> FIX_POINT_PRE) << t->pitchlog2;
-	ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - VIDEO_SAMPLE_GRANULARITY);
+	ofs += ((tx + FIX_POINT_ZERO_DOT_FIVE) & t->textureXMask) >> (FIX_POINT_PRE - SOFTWARE_DRIVER_2_TEXTURE_GRANULARITY);
 
 	// texel
 	const tVideoSample t00 = *((tVideoSample*)((u8*)t->data + ofs));
@@ -1233,8 +1236,6 @@ static inline int tiny_isequal(const char *s1, const char *s2, size_t n)
 }
 
 #define tiny_istoken(a, b) tiny_isequal(a,b,sizeof(a)-1) != 0
-//! Size of a static C-style array.
-#define array_size(_arr)  ((sizeof(_arr)/sizeof(*_arr)))
 
 
 } // end namespace irr

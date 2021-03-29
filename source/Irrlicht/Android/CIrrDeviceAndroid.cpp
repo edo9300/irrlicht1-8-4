@@ -393,6 +393,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 						event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, i);
 						event.TouchInput.X = AMotionEvent_getX(androidEvent, i);
 						event.TouchInput.Y = AMotionEvent_getY(androidEvent, i);
+						event.TouchInput.touchedCount = pointerCount;
 
 						device->postEventFromUser(event);
 					}
@@ -404,6 +405,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 					event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, pointerIndex);
 					event.TouchInput.X = AMotionEvent_getX(androidEvent, pointerIndex);
 					event.TouchInput.Y = AMotionEvent_getY(androidEvent, pointerIndex);
+					event.TouchInput.touchedCount = AMotionEvent_getPointerCount(androidEvent);
 
 					device->postEventFromUser(event);
 				}
@@ -457,7 +459,13 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 				event.KeyInput.Shift = true;
 			else
 				event.KeyInput.Shift = false;
-			event.KeyInput.Control = false;
+
+			if(keyMetaState & AMETA_CTRL_ON
+			   || keyMetaState & AMETA_CTRL_LEFT_ON
+			   || keyMetaState & AMETA_CTRL_RIGHT_ON)
+				event.KeyInput.Control = true;
+			else
+				event.KeyInput.Control = false;
 
 			// Having memory allocations + going through JNI for each key-press is pretty bad (slow).
 			// So we do it only for those keys which are likely text-characters and avoid it for all other keys.

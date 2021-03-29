@@ -13,6 +13,7 @@ LOCAL_CFLAGS += -g -D_DEBUG
 else
 LOCAL_CFLAGS += -fexpensive-optimizations -O3
 endif
+LOCAL_CFLAGS += -DPNG_ARM_NEON_OPT=0
 
 LOCAL_C_INCLUDES := ../../../include
 LOCAL_C_INCLUDES += ../zlib ../jpeglib ../libpng
@@ -338,8 +339,4 @@ LOCAL_STATIC_LIBRARIES := android_native_app_glue
 include $(BUILD_STATIC_LIBRARY)
 
 $(call import-module,android/native_app_glue)
-
-all: $(IRRLICHT_LIB_PATH)
-$(IRRLICHT_LIB_PATH) : $(TARGET_OUT)/$(IRRLICHT_LIB_NAME)
-	cp $< $@
 
