@@ -494,6 +494,7 @@ void CGLXManager::swapInterval(int interval)
 #else
 	pGlXSwapIntervalMESA(interval);
 #endif
+#endif
 }
 
 }
