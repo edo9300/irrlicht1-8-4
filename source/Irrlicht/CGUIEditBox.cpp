@@ -479,6 +479,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 		{
 		case KEY_END:
 			{
+			end:
 				s32 p = Text.size();
 				if (WordWrap || MultiLine)
 				{
@@ -506,6 +507,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 			break;
 		case KEY_HOME:
 			{
+			home:
 
 				s32 p = 0;
 				if (WordWrap || MultiLine)
@@ -597,9 +599,8 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				}
 
 			}
-			else
-			{
-				return false;
+			else {
+				goto home;
 			}
 			break;
 		case KEY_DOWN:
@@ -628,9 +629,8 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				}
 
 			}
-			else
-			{
-				return false;
+			else {
+				goto end;
 			}
 			break;
 		case KEY_INSERT:
@@ -741,6 +741,16 @@ bool CGUIEditBox::processKey(const SEvent& event)
 		case KEY_ESCAPE:
 		case KEY_TAB:
 		case KEY_SHIFT:
+		case KEY_LSHIFT:
+		case KEY_RSHIFT:
+		case KEY_MENU:
+		case KEY_LMENU:
+		case KEY_RMENU:
+		case KEY_LWIN:
+		case KEY_RWIN:
+		case KEY_CAPITAL:
+		case KEY_NUMLOCK:
+		case KEY_SCROLL:
 		case KEY_F1:
 		case KEY_F2:
 		case KEY_F3:
