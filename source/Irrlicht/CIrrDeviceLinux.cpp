@@ -1420,7 +1420,7 @@ bool CIrrDeviceLinux::run()
 							if(strcmp("text/plain", name) == 0) {
 								size_t lenOld = strlen((char *)p.data);
 								wchar_t *ws = new wchar_t[lenOld + 1];
-								core::utf8ToWchar((char*)p.data, ws, lenOld + 1);
+								core::utf8ToWchar((char*)p.data, ws, (lenOld + 1)*sizeof(wchar_t));
 								irrevent.DropEvent.Text = ws;
 								postEventFromUser(irrevent);
 								delete[] ws;
@@ -1431,7 +1431,7 @@ bool CIrrDeviceLinux::run()
 									if(fn) {
 										size_t lenOld = strlen(fn);
 										wchar_t *ws = new wchar_t[lenOld + 1];
-										core::utf8ToWchar(fn, ws, lenOld + 1);
+										core::utf8ToWchar(fn, ws, (lenOld + 1)*sizeof(wchar_t));
 										irrevent.DropEvent.Text = ws;
 										postEventFromUser(irrevent);
 										delete[] ws;
@@ -2275,7 +2275,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 	Clipboard = "";
 	if (ownerWindow != None )
 	{
-		XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, ownerWindow, CurrentTime);
+		XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, XWindow, CurrentTime);
 		XFlush (XDisplay);
 		ClipboardWaiting = true;
 		u32 startTime = getTimer()->getRealTime();
@@ -2297,7 +2297,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 		int format;
 		unsigned long numItems, bytesLeft, dummy;
 		unsigned char *data;
-		XGetWindowProperty (XDisplay, ownerWindow,
+		XGetWindowProperty (XDisplay, XWindow,
 				XA_PRIMARY, // property name
 				0, // offset
 				0, // length (we only check for data, so 0)
@@ -2308,6 +2308,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 				&numItems, // number items
 				&bytesLeft, // remaining bytes for partial reads
 				&data); // data
+		XFree(data);
 		if ( bytesLeft > 0 )
 		{
 			// there is some data to get
@@ -2316,8 +2317,8 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 										&numItems, &dummy, &data);
 			if (result == Success)
 				Clipboard = (irr::c8*)data;
+			XFree(data);
 		}
-		XFree(data);
 	}
 
 	return Clipboard.c_str();

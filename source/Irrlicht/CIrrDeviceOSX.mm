@@ -635,7 +635,7 @@ static bool firstLaunch = true;
 		auto cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
-		core::utf8ToWchar(cstr, &wstr[0], lenUTF8 + 1);
+		core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
 		irrevent.DropEvent.Text = wstr.c_str();
 
 		if (!_device->postEventFromUser(irrevent)) {
@@ -811,7 +811,7 @@ void CIrrDeviceMacOSX::handleInputEvent(const char *cStr)
 
 	size_t lenOld = strlen(cStr);
 	wchar_t *ws = new wchar_t[lenOld + 1];
-	core::utf8ToWchar(cStr, ws, lenOld + 1);
+	core::utf8ToWchar(cStr, ws, (lenOld + 1)*sizeof(wchar_t));
 	irr::core::stringw widep(ws);
 	delete[] ws;
 

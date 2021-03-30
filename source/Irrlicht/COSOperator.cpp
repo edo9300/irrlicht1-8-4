@@ -160,7 +160,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	if(cbuffer) {
 		size_t lenOld = strlen(cbuffer);
 		wchar_t* ws = new wchar_t[lenOld + 1];
-		core::utf8ToWchar(cbuffer, ws, lenOld + 1);
+		core::utf8ToWchar(cbuffer, ws, (lenOld + 1)*sizeof(wchar_t));
 		wstring = ws;
 		delete[] ws;
 	} else
