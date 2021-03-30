@@ -14,13 +14,17 @@
 #include "IEventReceiver.h"
 #include "irrList.h"
 #include "os.h"
+#include "win_drag_n_dropper.h"
 
 #include "CTimer.h"
 #include "irrString.h"
 #include "COSOperator.h"
 #include "dimension2d.h"
 #include "IGUISpriteBank.h"
+#include "IGUIEnvironment.h"
+#include "IGUIElement.h"
 #include <winuser.h>
+#include <tchar.h>
 #include "SExposedVideoData.h"
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
 #include <mmsystem.h>
@@ -725,7 +729,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	#define WHEEL_DELTA 120
 	#endif
 
-	irr::CIrrDeviceWin32* dev = 0;
+	irr::CIrrDeviceWin32* const dev = getDeviceFromHWnd(hWnd);
 	irr::SEvent event;
 
 	static irr::s32 ClickCount=0;
@@ -752,6 +756,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		{3, WM_MOUSEWHEEL,  irr::EMIE_MOUSE_WHEEL},
 		{-1, 0, 0}
 	};
+
+	if(dev && message != WM_CHAR && dev->GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
+		auto ev = dev->GetPrevKeyEvent();
+		dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+		dev->postEventFromUser(ev);
+	}
 
 	// handle grouped events
 	messageMap * m = mouseMap;
@@ -805,8 +815,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			event.MouseInput.Y -= p.y;
 			event.MouseInput.Wheel = ((irr::f32)((short)HIWORD(wParam))) / (irr::f32)WHEEL_DELTA;
 		}
-
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev)
 		{
 			dev->postEventFromUser(event);
@@ -827,6 +835,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 		}
 		return 0;
+	}
+
+	{
+		if(dev) {
+			irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
+			if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
+				HIMC hIMC = ImmGetContext(hWnd);
+				if(hIMC) {
+					ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
+					ImmReleaseContext(hWnd, hIMC);
+				}
+				ImmAssociateContextEx(hWnd, NULL, 0);
+			} else
+				ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
+		}
+
 	}
 
 	switch (message)
@@ -853,7 +877,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			event.KeyInput.Key = (irr::EKEY_CODE)wParam;
 			event.KeyInput.PressedDown = (message==WM_KEYDOWN || message == WM_SYSKEYDOWN);
 
+#ifdef MAPVK_VSC_TO_VK_EX
+			const UINT MY_MAPVK_VSC_TO_VK_EX = MAPVK_VSC_TO_VK_EX;
+#else
 			const UINT MY_MAPVK_VSC_TO_VK_EX = 3; // MAPVK_VSC_TO_VK_EX should be in SDK according to MSDN, but isn't in mine.
+#endif
 			if ( event.KeyInput.Key == irr::KEY_SHIFT )
 			{
 				// this will fail on systems before windows NT/2000/XP, not sure _what_ will return there instead.
@@ -880,7 +908,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			// Handle unicode and deadkeys in a way that works since Windows 95 and nt4.0
 			// Using ToUnicode instead would be shorter, but would to my knowledge not run on 95 and 98.
-			WORD keyChars[2];
+			/*WORD keyChars[2];
 			UINT scanCode = HIWORD(lParam);
 			int conversionResult = ToAsciiEx(static_cast<UINT>(wParam),scanCode,allKeys,keyChars,0,KEYBOARD_INPUT_HKL);
 			if (conversionResult == 1)
@@ -895,16 +923,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						1 );
 				event.KeyInput.Char = unicodeChar;
 			}
-			else
+			else*/
 				event.KeyInput.Char = 0;
 
 			// allow composing characters like '@' with Alt Gr on non-US keyboards
 			if ((allKeys[VK_MENU] & 0x80) != 0)
 				event.KeyInput.Control = 0;
-
-			dev = getDeviceFromHWnd(hWnd);
-			if (dev)
-				dev->postEventFromUser(event);
+			
+			if(dev)
+				dev->GetPrevKeyEvent() = event;
 
 			if (message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)
 				return DefWindowProc(hWnd, message, wParam, lParam);
@@ -912,10 +939,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				return 0;
 		}
 
+	case WM_CHAR:
+		if(dev) {
+			dev->GetPrevKeyEvent().KeyInput.Char = wParam;
+			auto ev = dev->GetPrevKeyEvent();
+			dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+			dev->postEventFromUser(ev);
+		}
+		return 0;
 	case WM_SIZE:
 		{
 			// resize
-			dev = getDeviceFromHWnd(hWnd);
 			if (dev)
 				dev->OnResized();
 		}
@@ -928,16 +962,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SYSCOMMAND:
 		// prevent screensaver or monitor powersave mode from starting
 		if ((wParam & 0xFFF0) == SC_SCREENSAVE ||
-			(wParam & 0xFFF0) == SC_MONITORPOWER ||
-			(wParam & 0xFFF0) == SC_KEYMENU
-			)
+			(wParam & 0xFFF0) == SC_MONITORPOWER)
 			return 0;
 
 		break;
 
 	case WM_ACTIVATE:
 		// we need to take care for screen changes, e.g. Alt-Tab
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev && dev->isFullscreen())
 		{
 			if ((wParam&0xFF)==WA_INACTIVE)
@@ -962,7 +993,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		event.EventType = irr::EET_USER_EVENT;
 		event.UserEvent.UserData1 = static_cast<size_t>(wParam);
 		event.UserEvent.UserData2 = static_cast<size_t>(lParam);
-		dev = getDeviceFromHWnd(hWnd);
 
 		if (dev)
 			dev->postEventFromUser(event);
@@ -971,7 +1001,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	case WM_SETCURSOR:
 		// because Windows forgot about that in the meantime
-		dev = getDeviceFromHWnd(hWnd);
 		if (dev)
 		{
 			dev->getCursorControl()->setActiveIcon( dev->getCursorControl()->getActiveIcon() );
@@ -984,6 +1013,53 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		KEYBOARD_INPUT_HKL = GetKeyboardLayout(0);
 		KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );
 		return 0;
+
+	case WM_IME_STARTCOMPOSITION:
+	{
+		irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
+		if(!ele)
+			break;
+		irr::core::position2di pos = ele->getAbsolutePosition().UpperLeftCorner;
+		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + ele->getAbsolutePosition().getHeight() } };
+		HIMC hIMC = ImmGetContext(hWnd);
+		ImmSetCompositionWindow(hIMC, &CompForm);
+		ImmReleaseContext(hWnd, hIMC);
+	}
+	break;
+
+	case WM_IME_CHAR:
+		event.EventType = irr::EET_KEY_INPUT_EVENT;
+		event.KeyInput.PressedDown = true;
+#ifdef _UNICODE
+		event.KeyInput.Char = wParam;
+#else
+		BYTE ch[3];
+		if(wParam >> 8) {
+			ch[0] = wParam >> 8;
+			ch[1] = wParam & 0xff;
+			ch[2] = 0;
+
+		} else {
+			ch[0] = wParam;
+			ch[1] = 0;
+
+		}
+		WORD unicodeChar;
+		MultiByteToWideChar(
+			KEYBOARD_INPUT_CODEPAGE,
+			MB_PRECOMPOSED, // default
+			(LPCSTR)ch,
+			sizeof(wParam),
+			(WCHAR*)&unicodeChar,
+			1);
+		event.KeyInput.Char = unicodeChar;
+#endif
+		event.KeyInput.Key = irr::KEY_ACCEPT;
+		event.KeyInput.Shift = 0;
+		event.KeyInput.Control = 0;
+		if(dev)
+			dev->postEventFromUser(event);
+		return 0;
 	}
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
@@ -995,8 +1071,10 @@ namespace irr
 //! constructor
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
-	ExternalWindow(false), Win32CursorControl(0), JoyControl(0)
+	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr),
+	has_charevent(false), key_event{}
 {
+	key_event.EventType = EGUIET_FORCE_32_BIT;
 	#ifdef _DEBUG
 	setDebugName("CIrrDeviceWin32");
 	#endif
@@ -1151,6 +1229,12 @@ CIrrDeviceWin32::~CIrrDeviceWin32()
 {
 	delete JoyControl;
 
+	if(dropper) {
+		RevokeDragDrop(HWnd);
+		dropper->Release();
+		OleUninitialize();
+	}
+
 	// unregister environment
 	for (u32 i=0; i< EnvMap.size(); ++i)
 	{
@@ -1177,12 +1261,17 @@ void CIrrDeviceWin32::createDriver()
 #ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
 		VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
 
-		if (!VideoDriver)
-			os::Printer::log("Could not create DIRECT3D9 Driver.", ELL_ERROR);
+		if (VideoDriver)
+			break;
+		os::Printer::log("Could not create DIRECT3D9 Driver.", ELL_ERROR);
 #else
 		os::Printer::log("DIRECT3D9 Driver was not compiled into this dll. Try another one.", ELL_ERROR);
-#endif
 		break;
+#endif
+
+#ifdef _IRR_COMPILE_WITH_OPENGL_
+		os::Printer::log("Falling back to OpenGL driver.", ELL_ERROR);
+#endif
 	case video::EDT_OPENGL:
 #ifdef _IRR_COMPILE_WITH_OPENGL_
 		switchToFullScreen();
@@ -1575,102 +1664,153 @@ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 #define PRODUCT_ENTERPRISE_E	0x00000046
 #define PRODUCT_ULTIMATE_E	0x00000047
 #endif
+#ifndef SM_SERVERR2
+#define SM_SERVERR2 89
+#endif
 
 void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 {
-	OSVERSIONINFOEX osvi;
-	PGPI pGPI;
-	BOOL bOsVersionInfoEx;
-
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-	bOsVersionInfoEx = GetVersionEx((OSVERSIONINFO*) &osvi);
-	if (!bOsVersionInfoEx)
-	{
-		osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-		if (! GetVersionEx((OSVERSIONINFO *) &osvi))
-			return;
-	}
-
-	switch (osvi.dwPlatformId)
-	{
-	case VER_PLATFORM_WIN32_NT:
-		if (osvi.dwMajorVersion <= 4)
-			out.append("Microsoft Windows NT ");
-		else
-		if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 0)
-			out.append("Microsoft Windows 2000 ");
-		else
-		if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 1)
-			out.append("Microsoft Windows XP ");
-		else
-		if (osvi.dwMajorVersion == 6 )
-		{
-			if (osvi.dwMinorVersion == 0)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows Vista ");
-				else
-					out.append("Microsoft Windows Server 2008 ");
-			}
-			else if (osvi.dwMinorVersion == 1)
-			{
-				if (osvi.wProductType == VER_NT_WORKSTATION)
-					out.append("Microsoft Windows 7 ");
-				else
-					out.append("Microsoft Windows Server 2008 R2 ");
-			}
-			else if (osvi.dwMinorVersion == 2)
-			{
-				out.append("Microsoft Windows 8 or later ");
-			}
+	auto GetWineVersion = [&out] {
+		auto lib = GetModuleHandle(TEXT("ntdll.dll"));
+		auto wine_get_build_id = (const char *(*)(void))GetProcAddress(lib, "wine_get_build_id");
+		if(wine_get_build_id == nullptr)
+			return false;
+		auto wine_get_host_version = (void (*)(const char **, const char **))GetProcAddress(lib, "wine_get_host_version");
+		if(wine_get_host_version) {
+			const char *sysname, *release;
+			wine_get_host_version(&sysname, &release);
+			out.append(sysname).append(" ").append(release).append(" ");
 		}
+		out.append(wine_get_build_id()).append(" ");
+		return true;
+	};
+	auto GetRegEntry = [](const TCHAR* path, const TCHAR* name, DWORD flag, void* buff, DWORD size) {
+		HKEY hKey;
+		DWORD dwRetFlag;
+		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, path, 0, KEY_QUERY_VALUE, &hKey) != ERROR_SUCCESS)
+			return false;
+		auto ret = RegQueryValueEx(hKey, name, NULL, &dwRetFlag, (LPBYTE)buff, &size);
+		RegCloseKey(hKey);
+		return ret == ERROR_SUCCESS && (dwRetFlag & flag) != 0;
+	};
+	OSVERSIONINFOEX osvi{ sizeof(OSVERSIONINFOEX) };
 
-		if (bOsVersionInfoEx)
+	if(!GetVersionEx((OSVERSIONINFO*)&osvi) &&
+	   (osvi = { sizeof(OSVERSIONINFO) }, !GetVersionEx((OSVERSIONINFO*)&osvi)))
+		return;
+
+	auto ServerOrWorkstation = [workstation = osvi.wProductType == VER_NT_WORKSTATION,&out](const char* str1, const char* str2) {
+		out.append(workstation ? str1 : str2);
+	};
+
+	if(GetWineVersion())
+		return;
+
+	switch(osvi.dwPlatformId) {
+		case VER_PLATFORM_WIN32_NT:
+			out.append("Microsoft Windows ");
+			switch(osvi.dwMajorVersion) {
+				case 1:
+				case 2:
+				case 3:
+				case 4:
+					out.append("NT ");
+					break;
+				case 5:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							out.append("2000 ");
+							break;
+						case 1:
+							out.append("XP ");
+							break;
+						case 2:
+							out.append("Server 2003 ");
+							if(GetSystemMetrics(SM_SERVERR2))
+								out.append("R2 ");
+							break;
+						default:
+							break;
+					}
+					break;
+				case 6:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							ServerOrWorkstation("Vista ", "Server 2008");
+							break;
+						case 1:
+							ServerOrWorkstation("7 ", "Server 2008 R2 ");
+							break;
+						case 2:
+							ServerOrWorkstation("8 ", "Server 2012 ");
+							break;
+						case 3:
+							ServerOrWorkstation("8.1 ", "Server 2012 R2 ");
+							break;
+					}
+					break;
+
+				case 10:
+					switch(osvi.dwMinorVersion) {
+						case 0:
+							if(osvi.wProductType == VER_NT_WORKSTATION)
+								out.append("10 ");
+							else {
+								if(osvi.dwBuildNumber == 14393)
+									out.append("Server 2016 ");
+								else if(osvi.dwBuildNumber == 17763)
+									out.append("Server 2019 ");
+							}
+							break;
+					}
+					break;
+				default:
+					break;
+			}
+
+		if (osvi.dwOSVersionInfoSize == sizeof(OSVERSIONINFOEX))
 		{
-			if (osvi.dwMajorVersion == 6)
+			if (osvi.dwMajorVersion >= 6)
 			{
 				DWORD dwType;
-				pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
-				pGPI(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &dwType);
-
-				switch (dwType)
-				{
-				case PRODUCT_ULTIMATE:
-				case PRODUCT_ULTIMATE_E:
-				case PRODUCT_ULTIMATE_N:
-					out.append("Ultimate Edition ");
-					break;
-				case PRODUCT_PROFESSIONAL:
-				case PRODUCT_PROFESSIONAL_E:
-				case PRODUCT_PROFESSIONAL_N:
-					out.append("Professional Edition ");
-					break;
-				case PRODUCT_HOME_BASIC:
-				case PRODUCT_HOME_BASIC_E:
-				case PRODUCT_HOME_BASIC_N:
-					out.append("Home Basic Edition ");
-					break;
-				case PRODUCT_HOME_PREMIUM:
-				case PRODUCT_HOME_PREMIUM_E:
-				case PRODUCT_HOME_PREMIUM_N:
-					out.append("Home Premium Edition ");
-					break;
-				case PRODUCT_ENTERPRISE:
-				case PRODUCT_ENTERPRISE_E:
-				case PRODUCT_ENTERPRISE_N:
-					out.append("Enterprise Edition ");
-					break;
-				case PRODUCT_BUSINESS:
-				case PRODUCT_BUSINESS_N:
-					out.append("Business Edition ");
-					break;
-				case PRODUCT_STARTER:
-				case PRODUCT_STARTER_E:
-				case PRODUCT_STARTER_N:
-					out.append("Starter Edition ");
-					break;
+				auto pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
+				if(pGPI && pGPI(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &dwType)) {
+					switch(dwType) {
+						case PRODUCT_ULTIMATE:
+						case PRODUCT_ULTIMATE_E:
+						case PRODUCT_ULTIMATE_N:
+							out.append("Ultimate Edition ");
+							break;
+						case PRODUCT_PROFESSIONAL:
+						case PRODUCT_PROFESSIONAL_E:
+						case PRODUCT_PROFESSIONAL_N:
+							out.append("Professional Edition ");
+							break;
+						case PRODUCT_HOME_BASIC:
+						case PRODUCT_HOME_BASIC_E:
+						case PRODUCT_HOME_BASIC_N:
+							out.append("Home Basic Edition ");
+							break;
+						case PRODUCT_HOME_PREMIUM:
+						case PRODUCT_HOME_PREMIUM_E:
+						case PRODUCT_HOME_PREMIUM_N:
+							out.append("Home Premium Edition ");
+							break;
+						case PRODUCT_ENTERPRISE:
+						case PRODUCT_ENTERPRISE_E:
+						case PRODUCT_ENTERPRISE_N:
+							out.append("Enterprise Edition ");
+							break;
+						case PRODUCT_BUSINESS:
+						case PRODUCT_BUSINESS_N:
+							out.append("Business Edition ");
+							break;
+						case PRODUCT_STARTER:
+						case PRODUCT_STARTER_E:
+						case PRODUCT_STARTER_N:
+							out.append("Starter Edition ");
+							break;
+					}
 				}
 			}
 #ifdef VER_SUITE_ENTERPRISE
@@ -1697,33 +1837,26 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 		else
 		{
-			HKEY hKey;
-			char szProductType[80];
-			DWORD dwBufLen;
+			const LPCTSTR path = __TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions");
 
-			RegOpenKeyEx( HKEY_LOCAL_MACHINE,
-					__TEXT("SYSTEM\\CurrentControlSet\\Control\\ProductOptions"),
-					0, KEY_QUERY_VALUE, &hKey );
-			RegQueryValueEx( hKey, __TEXT("ProductType"), NULL, NULL,
-					(LPBYTE) szProductType, &dwBufLen);
-			RegCloseKey( hKey );
-
-			
-			if (irr::core::stringc("WINNT").equals_ignore_case(szProductType))
-				out.append("Professional ");
-			if (irr::core::stringc("LANMANNT").equals_ignore_case(szProductType))
-				out.append("Server ");
-			if (irr::core::stringc("SERVERNT").equals_ignore_case(szProductType))
-				out.append("Advanced Server ");
+			TCHAR szProductType[80];
+			if(GetRegEntry(path, __TEXT("ProductType"), REG_SZ, szProductType, sizeof(szProductType))) {
+				if(_tcsicmp(__TEXT("WINNT"), szProductType) == 0)
+					out.append("Professional ");
+				if(_tcsicmp(__TEXT("LANMANNT"), szProductType) == 0)
+					out.append("Server ");
+				if(_tcsicmp(__TEXT("SERVERNT"), szProductType) == 0)
+					out.append("Advanced Server ");
+			}
 		}
 
 		// Display version, service pack (if any), and build number.
 
 		char tmp[255];
 
-		if (osvi.dwMajorVersion <= 4 )
+		if (osvi.dwMajorVersion <= 4)
 		{
-			sprintf(tmp, "version %lu.%lu %s (Build %lu)",
+			sprintf(tmp, "version %ld.%ld %s (Build %ld)",
 					osvi.dwMajorVersion,
 					osvi.dwMinorVersion,
 					irr::core::stringc(osvi.szCSDVersion).c_str(),
@@ -1731,37 +1864,50 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 		else
 		{
-			sprintf(tmp, "%s (Build %lu)", irr::core::stringc(osvi.szCSDVersion).c_str(),
-			osvi.dwBuildNumber & 0xFFFF);
+			auto GetWin10ProductInfo = [&]()->bool {
+				const LPCTSTR path = __TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
+				TCHAR szReleaseId[80];
+				DWORD UBR;
+				if(GetRegEntry(path, __TEXT("ReleaseId"), REG_SZ, szReleaseId, sizeof(szReleaseId)) &&
+				   GetRegEntry(path, __TEXT("UBR"), REG_DWORD, &UBR, sizeof(UBR))) {
+					sprintf(tmp, "(Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
+					return true;
+				}
+				return false;
+			};
+			if(osvi.dwMajorVersion < 10 || !GetWin10ProductInfo()) {
+				sprintf(tmp, "%s (Build %ld)", irr::core::stringc(osvi.szCSDVersion).c_str(),
+						osvi.dwBuildNumber & 0xFFFF);
+			}
 		}
 
 		out.append(tmp);
 		break;
 
-	case VER_PLATFORM_WIN32_WINDOWS:
+		case VER_PLATFORM_WIN32_WINDOWS:
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
-		{
-			out.append("Microsoft Windows 95 ");
-			if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
-				out.append("OSR2 " );
-		}
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
+			{
+				out.append("Microsoft Windows 95 ");
+				if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
+					out.append("OSR2 " );
+			}
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
-		{
-			out.append("Microsoft Windows 98 ");
-			if ( osvi.szCSDVersion[1] == 'A' )
-				out.append( "SE " );
-		}
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
+			{
+				out.append("Microsoft Windows 98 ");
+				if ( osvi.szCSDVersion[1] == 'A' )
+					out.append( "SE " );
+			}
 
-		if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
-			out.append("Microsoft Windows Me ");
+			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
+				out.append("Microsoft Windows Me ");
 
-		break;
+			break;
 
-	case VER_PLATFORM_WIN32s:
-		out.append("Microsoft Win32s ");
-		break;
+		case VER_PLATFORM_WIN32s:
+			out.append("Microsoft Win32s ");
+			break;
 	}
 }
 
@@ -1931,25 +2077,22 @@ void CIrrDeviceWin32::handleSystemMessages()
 	{
 		if (ExternalWindow && msg.hwnd == HWnd)
 		{
-			if (msg.hwnd == HWnd)
-            {
-				WndProc(HWnd, msg.message, msg.wParam, msg.lParam);
-            }
-            else
-            {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
+			WndProc(HWnd, msg.message, msg.wParam, msg.lParam);
 		}
 		else
 		{
-			// No message translation because we don't use WM_CHAR and it would conflict with our
-			// deadkey handling.
+			// conflict with deadkey handling.
+			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
 
 		if (msg.message == WM_QUIT)
 			Close = true;
+	}
+	if(GetPrevKeyEvent().EventType != EGUIET_FORCE_32_BIT) {
+		auto ev = GetPrevKeyEvent();
+		GetPrevKeyEvent().EventType = EGUIET_FORCE_32_BIT;
+		postEventFromUser(ev);
 	}
 }
 
@@ -1962,6 +2105,22 @@ void CIrrDeviceWin32::clearSystemMessages()
 	{}
 	while (PeekMessage(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_REMOVE))
 	{}
+}
+
+//register drag and drop support
+void CIrrDeviceWin32::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+	if((enable && dropper) || (!enable && !dropper))
+		return;
+	if(enable) {
+		dropper = new edoproDropper(HWnd, dragCheck, this);
+		auto res = OleInitialize(NULL);
+		RegisterDragDrop(HWnd, dropper);
+	} else {
+		RevokeDragDrop(HWnd);
+		dropper->Release();
+		OleUninitialize();
+		dropper = nullptr;
+	}
 }
 
 // shows last error in a messagebox to help internal debugging.

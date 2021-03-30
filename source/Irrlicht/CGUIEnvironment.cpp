@@ -667,6 +667,27 @@ bool CGUIEnvironment::postEventFromUser(const SEvent& event)
 			}
 		}
 		break;
+	case EET_DROP_EVENT:
+
+		updateHoveredElement(core::position2d<s32>(event.DropEvent.X, event.DropEvent.Y));
+
+		if (event.DropEvent.DropType == DROP_START)
+			if ( (Hovered && Hovered != Focus) || !Focus )
+		{
+			setFocus(Hovered);
+		}
+
+		// sending input to focus
+		if (Focus && Focus->OnEvent(event))
+			return true;
+
+		// focus could have died in last call
+		if (!Focus && Hovered)
+		{
+			return Hovered->OnEvent(event);
+		}
+
+		break;
 	default:
 		break;
 	} // end switch

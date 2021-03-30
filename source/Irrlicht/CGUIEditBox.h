@@ -167,6 +167,7 @@ namespace gui
 
 		bool processKey(const SEvent& event);
 		bool processMouse(const SEvent& event);
+		bool processDrop(const SEvent& event);
 		s32 getCursorPos(s32 x, s32 y);
 
 		bool OverwriteMode;

@@ -23,6 +23,8 @@
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
+class edoproDropper;
+
 namespace irr
 {
 	struct SJoystickWin32Control;
@@ -103,6 +105,8 @@ namespace irr
 
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
+
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
@@ -416,6 +420,10 @@ namespace irr
 		//! returns the win32 cursor control
 		CCursorControl* getWin32CursorControl();
 
+		irr::SEvent& GetPrevKeyEvent() { return key_event; }
+
+		bool HasCharEvent() { return has_charevent; }
+
 	private:
 
 		//! create the driver
@@ -439,6 +447,12 @@ namespace irr
 		DEVMODE DesktopMode;
 
 		SJoystickWin32Control* JoyControl;
+
+		edoproDropper* dropper;
+
+		bool has_charevent;
+
+		irr::SEvent key_event;
 	};
 
 } // end namespace irr

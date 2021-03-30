@@ -252,6 +252,10 @@ bool CGUIEditBox::OnEvent(const SEvent& event)
 			if (processMouse(event))
 				return true;
 			break;
+		case EET_DROP_EVENT:
+			if(processDrop(event))
+				return true;
+			break;
 		default:
 			break;
 		}
@@ -380,6 +384,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 			}
 			break;
 		case KEY_HOME:
+		case KEY_UP:
 			// move/highlight to start of text
 			if (event.KeyInput.Shift)
 			{
@@ -395,6 +400,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 			}
 			break;
 		case KEY_END:
+		case KEY_DOWN:
 			// move/highlight to end of text
 			if (event.KeyInput.Shift)
 			{
@@ -409,6 +415,59 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				newMarkEnd = 0;
 			}
 			break;
+		case KEY_LEFT:
+		{
+			// move/highlight to begin of word
+			auto pos = CursorPos - 1;
+			do {
+				pos = Text.findLast(L' ', pos - 1);
+			} while(pos != -1 && Text[pos + 1] == L' ');
+			if(pos > CursorPos) {
+				pos = 0;
+			}
+			if(event.KeyInput.Shift) {
+				if(CursorPos > 0) {
+					if(MarkBegin == MarkEnd)
+						newMarkBegin = CursorPos;
+
+					newMarkEnd = pos + 1;
+				}
+			} else {
+				newMarkBegin = 0;
+				newMarkEnd = 0;
+			}
+
+			if(pos > 0) CursorPos = pos + 1;
+			else CursorPos = 0;
+			BlinkStartTime = os::Timer::getTime();
+			break;
+		}
+		case KEY_RIGHT:
+		{
+			auto pos = CursorPos - 1;
+			do {
+				pos = Text.findNext(L' ', pos + 1);
+			} while(pos != -1 && Text[pos + 1] == L' ');
+			if(event.KeyInput.Shift) {
+				if(Text.size() > (u32)CursorPos) {
+					if(MarkBegin == MarkEnd)
+						newMarkBegin = CursorPos;
+
+					newMarkEnd = pos + 1;
+					if(!newMarkEnd || newMarkEnd > Text.size()) {
+						newMarkEnd = Text.size();
+					}
+				}
+			} else {
+				newMarkBegin = 0;
+				newMarkEnd = 0;
+			}
+
+			if(Text.size() > pos) CursorPos = pos + 1;
+			else CursorPos = Text.size();
+			BlinkStartTime = os::Timer::getTime();
+			break;
+		}
 		default:
 			return false;
 		}
@@ -1136,6 +1195,34 @@ bool CGUIEditBox::processMouse(const SEvent& event)
 	}
 
 	return false;
+}
+
+bool CGUIEditBox::processDrop(const SEvent& event) {
+	switch(event.DropEvent.DropType) {
+		case DROP_START: {
+			CursorPos = getCursorPos(event.DropEvent.X, event.DropEvent.Y);
+			break;
+		}
+		case DROP_TEXT: {
+			core::stringw widep(event.DropEvent.Text);
+			core::stringw s = Text.subString(0, CursorPos);
+			s.append(widep);
+			s.append(Text.subString(CursorPos, Text.size() - CursorPos));
+
+			if(!Max || s.size() <= Max) // thx to Fish FH for fix
+			{
+				Text = s;
+				s = widep;
+				CursorPos += s.size();
+			}
+			break;
+		}
+		case DROP_FILE: 
+			return false;
+		default:
+			break;
+	}
+	return true;
 }
 
 
