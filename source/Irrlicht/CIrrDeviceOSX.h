@@ -26,11 +26,16 @@ namespace irr
     class CIrrDeviceMacOSX;
 }
 
-@interface CIrrDelegateOSX : NSObject
+@interface CIrrDelegateOSX : NSTextView <NSApplicationDelegate>
+{
+	NSMenu* _dockMenu;
+	BOOL			_dropIsFile;
+}
 
 - (id)initWithDevice:(irr::CIrrDeviceMacOSX*)device;
 - (void)terminate:(id)sender;
 - (BOOL)isQuit;
+-(NSMenu*)applicationDockMenu:(NSApplication*)sender;
 
 @end
 
@@ -99,6 +104,10 @@ namespace irr
 		//! supported by the gfx adapter.
 		virtual video::IVideoModeList* getVideoModeList() _IRR_OVERRIDE_;
 
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
+
+		virtual bool isDraggable(int x, int y, bool isFile);
+
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
 		{
@@ -109,6 +118,8 @@ namespace irr
 		void setResize(int width, int height);
 		void setCursorVisible(bool visible);
         void setWindow(NSWindow* window);
+		void handleInputEvent(const char* str);
+		void processKeyEvent();
 
 	private:
 
@@ -254,6 +265,7 @@ namespace irr
 		bool IsShiftDown;
 		bool IsControlDown;
 		bool IsResizable;
+		bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
 	};
 
 

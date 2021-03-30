@@ -8,6 +8,7 @@
 
 #ifdef _IRR_COMPILE_WITH_OSX_DEVICE_
 
+#import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #ifndef __MAC_10_6
@@ -28,6 +29,7 @@
 #include "CColorConverter.h"
 #include "irrlicht.h"
 #include <algorithm>
+#include <string>
 
 #include <wchar.h>
 #include <time.h>
@@ -487,6 +489,8 @@ static bool firstLaunch = true;
     
     if (self)
         Device = device;
+
+	_dockMenu = [[[NSMenu alloc] init] autorelease];
     
     Quit = false;
     
@@ -552,6 +556,138 @@ static bool firstLaunch = true;
     return (Quit);
 }
 
+- (void)keyDown:(NSEvent *)event
+{
+	[self interpretKeyEvents:@[event]];
+}
+
+- (void)insertText:(id)string
+{
+	[self setString: @""];
+	if ([string isKindOfClass:[NSAttributedString class]])
+	{
+		Device->handleInputEvent([[string string] UTF8String]);
+	}
+	else
+	{
+		Device->handleInputEvent([string UTF8String]);
+	}
+}
+
+- (void)doCommandBySelector:(SEL)selector
+{
+	Device->processKeyEvent();
+}
+
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender
+{
+	return _dockMenu;
+}
+
+- (NSDragOperation)draggingEntered:(id <NSDraggingInfo>)sender
+{
+	NSPoint dropPoint = [sender draggingLocation];
+	NSPasteboard *pasteboard = [sender draggingPasteboard];
+    _dropIsFile = [[pasteboard types] containsObject:NSFilenamesPboardType];
+
+	if (_device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile) &&
+		([sender draggingSourceOperationMask] & NSDragOperationGeneric) == NSDragOperationGeneric) {
+		return NSDragOperationCopy;
+	}
+
+	return NSDragOperationNone; /* no idea what to do with this, reject it. */
+}
+
+- (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender
+{
+	NSPoint dropPoint = [sender draggingLocation];
+	if (_device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile))
+		return NSDragOperationCopy;
+	return NSDragOperationNone;
+}
+
+- (BOOL)performDragOperation:(id <NSDraggingInfo>)sender
+{ @autoreleasepool
+{
+	NSPoint dropPoint = [sender draggingLocation];
+	NSPasteboard *pasteboard = [sender draggingPasteboard];
+	NSArray *types = [NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil];
+	NSString *desiredType = [pasteboard availableTypeFromArray:types];
+
+	if (desiredType == nil) {
+		return NO;  /* can't accept anything that's being dropped here. */
+	}
+
+	NSData *data = [pasteboard dataForType:desiredType];
+	if (data == nil) {
+		return NO;
+	}
+
+	irr::SEvent	irrevent;
+	irrevent.EventType = irr::EET_DROP_EVENT;
+	irrevent.DropEvent.DropType = irr::DROP_START;
+	irrevent.DropEvent.X = dropPoint.x;
+	irrevent.DropEvent.Y = dropPoint.y;
+	irrevent.DropEvent.Text = nullptr;
+	_device->postEventFromUser(irrevent);
+
+	auto dispatch = ^ (irr::SEvent& irrevent, NSString *str) {
+		auto cstr = [str UTF8String];
+		size_t lenUTF8 = strlen(cstr);
+		std::wstring wstr(lenUTF8 + 1, 0);
+		core::utf8ToWchar(cstr, &wstr[0], lenUTF8 + 1);
+		irrevent.DropEvent.Text = wstr.c_str();
+
+		if (!_device->postEventFromUser(irrevent)) {
+			irrevent.DropEvent.Text = nullptr;
+			irrevent.DropEvent.DropType = irr::DROP_END;
+			_device->postEventFromUser(irrevent);
+			return false;
+		}
+		return true;
+	};
+
+    if ([pasteboard dataForType:NSStringPboardType]) {
+        NSString *str = [pasteboard stringForType:NSStringPboardType];
+        irrevent.DropEvent.DropType = irr::DROP_TEXT;
+        if (!dispatch(irrevent, str))
+            return NO;
+    }
+
+    NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
+	for (NSString *path in fileArray) {		
+		NSURL *fileURL = [NSURL fileURLWithPath:path];
+		NSNumber *isAlias = nil;
+
+		[fileURL getResourceValue:&isAlias forKey:NSURLIsAliasFileKey error:nil];
+
+		/* If the URL is an alias, resolve it. */
+		if ([isAlias boolValue]) {
+			NSURLBookmarkResolutionOptions opts = NSURLBookmarkResolutionWithoutMounting | NSURLBookmarkResolutionWithoutUI;
+			NSData *bookmark = [NSURL bookmarkDataWithContentsOfURL:fileURL error:nil];
+			if (bookmark != nil) {
+				NSURL *resolvedURL = [NSURL URLByResolvingBookmarkData:bookmark
+															   options:opts
+														 relativeToURL:nil
+												   bookmarkDataIsStale:nil
+																 error:nil];
+
+				if (resolvedURL != nil) {
+					fileURL = resolvedURL;
+				}
+			}
+		}
+		irrevent.DropEvent.DropType = irr::DROP_FILE;
+		if (!dispatch(irrevent, [fileURL path]))
+			return NO;
+	}
+
+	irrevent.DropEvent.Text = nullptr;
+	irrevent.DropEvent.DropType = irr::DROP_END;
+	_device->postEventFromUser(irrevent);
+	return YES;
+}}
+
 @end
 
 namespace irr
@@ -578,7 +714,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 		{
 			[[NSAutoreleasePool alloc] init];
 			[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
-			[NSApp setDelegate:(id<NSApplicationDelegate>)[[[CIrrDelegateOSX alloc] initWithDevice:this] autorelease]];
+			[NSApp setDelegate:[[[[CIrrDelegateOSX alloc] initWithDevice:this] initWithFrame:NSZeroRect] autorelease]];
             
             // Create menu
             
@@ -659,6 +795,37 @@ void CIrrDeviceMacOSX::closeDevice()
 
 	IsFullscreen = false;
 	IsActive = false;
+}
+
+
+void CIrrDeviceMacOSX::processKeyEvent()
+{
+	irr::SEvent ievent;
+	NSEvent *event = [[NSApplication sharedApplication] currentEvent];
+	postKeyEvent(event, ievent, true);
+}
+
+void CIrrDeviceMacOSX::handleInputEvent(const char *cStr)
+{
+	SEvent ievent;
+
+	size_t lenOld = strlen(cStr);
+	wchar_t *ws = new wchar_t[lenOld + 1];
+	core::utf8ToWchar(cStr, ws, lenOld + 1);
+	irr::core::stringw widep(ws);
+	delete[] ws;
+
+	ievent.EventType = irr::EET_KEY_INPUT_EVENT;
+	ievent.KeyInput.Key = (irr::EKEY_CODE)0;
+	ievent.KeyInput.PressedDown = true;
+	ievent.KeyInput.Shift = false;
+	ievent.KeyInput.Control = false;
+
+	for (int i = 0; i < widep.size(); ++i)
+	{
+		ievent.KeyInput.Char = widep[i];
+		postEventFromUser(ievent);
+	}
 }
 
 bool CIrrDeviceMacOSX::createWindow()
@@ -794,6 +961,8 @@ bool CIrrDeviceMacOSX::createWindow()
             SetSystemUIMode(kUIModeAllHidden, kUIOptionAutoShowMenuBar);
 #endif
         }
+
+		[[Window contentView] addSubview:(AppDelegate*)[NSApp delegate]];
     }
     
     return result;
@@ -821,6 +990,8 @@ void CIrrDeviceMacOSX::setResize(int width, int height)
 	{
 		NSRect driverFrame = [Window contentRectForFrameRect:[Window frame]];
 		getVideoDriver()->OnResize(core::dimension2d<u32>( (s32)driverFrame.size.width, (s32)driverFrame.size.height));
+		DeviceWidth = (s32)driverFrame.size.width;
+		DeviceHeight = (s32)driverFrame.size.height;
 	}
 	else
 		getVideoDriver()->OnResize(core::dimension2d<u32>( (s32)width, (s32)height));
@@ -910,6 +1081,21 @@ bool CIrrDeviceMacOSX::run()
 	os::Timer::tick();
 	storeMouseLocation();
 
+	auto focusElement = getGUIEnvironment()->getFocus();
+	bool editing = focusElement && focusElement->getType() == irr::gui::EGUIET_EDIT_BOX;
+	auto textView = (NSTextView*)[NSApp delegate];
+	// Fix mouse up events not being raised as a side effect of the IME workaround changing the frame
+	[textView setFrame:NSRect()]; // This sets the NSWindow frame to 0 via the delegate
+	if (!editing)
+	{
+		[Window makeFirstResponder:nil];
+	}
+	else
+	{
+		// Send input events to fake NSTextView that is also the AppDelegate
+		[Window makeFirstResponder:textView];
+	}
+
 	event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES];
 	if (event != nil)
 	{
@@ -918,6 +1104,25 @@ bool CIrrDeviceMacOSX::run()
 		switch([(NSEvent *)event type])
 		{
 			case NSKeyDown:
+				if (editing)
+				{
+					auto crect = focusElement->getAbsolutePosition();
+					// Ensure font height is enough to fill the edit box so the IME window doesn't overlap it
+					[textView setFont:[NSFont userFontOfSize:crect.getHeight()]];
+					// Change origin from top left to bottom right
+					NSRect rect = {
+						crect.UpperLeftCorner.X,
+						[[textView superview] frame].size.height - crect.LowerRightCorner.Y,
+						crect.getWidth(), crect.getHeight(),
+					};
+					// Workaround for correct IME positioning below the edit box
+					[textView setFrame:rect]; // Reset to 0 at the start of the loop to not break other events
+					[NSApp sendEvent:event]; // Delegate to fake text edit control to handle text input
+					break;
+				} else if (([(NSEvent *)event modifierFlags] & NSCommandKeyMask)) {
+					// Fire the event normally for the app menu
+					[NSApp sendEvent:event];
+				}
 				postKeyEvent(event,ievent,true);
 				break;
 
@@ -1095,7 +1300,7 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 
 bool CIrrDeviceMacOSX::isWindowActive() const
 {
-	return (IsActive);
+	return IsActive && Window != NULL && [Window occlusionState] & NSWindowOcclusionStateVisible;
 }
 
 
@@ -1146,20 +1351,20 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 			}
 			else
 			{
-				cStr = (unsigned char *)[str cStringUsingEncoding:NSWindowsCP1252StringEncoding];
+				cStr = (unsigned char *)[str UTF8String:NSWindowsCP1252StringEncoding];
 				if (cStr != NULL && strlen((char*)cStr) > 0)
 				{
 					mchar = cStr[0];
 					mkey = toupper(mchar);
-					if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
-					{
-						if (mkey == 'C' || mkey == 'V' || mkey == 'X')
-						{
-							mchar = 0;
-							skipCommand = true;
-						}
-					}
 				}
+			}
+		}
+		if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
+		{
+			if (mkey == 'A' || mkey == 'C' || mkey == 'V' || mkey == 'X')
+			{
+				mchar = 0;
+				skipCommand = true;
 			}
 		}
 
@@ -1172,8 +1377,6 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 
 		if (skipCommand)
 			ievent.KeyInput.Control = true;
-		else if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
-			[NSApp sendEvent:(NSEvent *)event];
 
 		postEventFromUser(ievent);
 	}
@@ -1786,6 +1989,22 @@ void CIrrDeviceMacOSX::pollJoysticks()
 			postEventFromUser(ActiveJoysticks[joystick].persistentData);
 	}
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
+}
+
+void CIrrDeviceMacOSX::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile))
+{
+	if (enable) {
+		[Window registerForDraggedTypes:[NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil]];
+		dragAndDropCheck = dragCheck;
+	} else {
+		[Window unregisterDraggedTypes];
+		dragAndDropCheck = nullptr;
+	}
+}
+
+bool CIrrDeviceMacOSX::isDraggable(int x, int y, bool isFile) {
+    irr::core::vector2di pos(x, DeviceHeight - y);
+    return !dragAndDropCheck || dragAndDropCheck(pos, isFile);
 }
 
 video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()
