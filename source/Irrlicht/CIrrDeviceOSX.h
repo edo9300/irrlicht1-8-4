@@ -16,6 +16,7 @@
 #include "IGUIEnvironment.h"
 #include "ICursorControl.h"
 
+#import <Cocoa/Cocoa.h>
 #import <AppKit/NSWindow.h>
 #import <AppKit/NSBitmapImageRep.h>
 
