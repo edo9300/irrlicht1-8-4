@@ -109,7 +109,7 @@ namespace irr
 
 		//! gets text from the clipboard
 		//! \return Returns 0 if no string is in there.
-		virtual const c8* getTextFromClipboard() const;
+		virtual const c8* getTextFromClipboard();
 
 		//! copies text to the clipboard
 		//! This sets the clipboard selection and _not_ the primary selection which you have on X on the middle mouse button.
@@ -117,6 +117,8 @@ namespace irr
 
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
+
+		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
@@ -383,6 +385,8 @@ namespace irr
 		XVisualInfo* VisualInfo;
 		int Screennr;
 		Window XWindow;
+		Window xdnd_source;
+		Atom xdnd_req;
 		XSetWindowAttributes WndAttributes;
 		XSizeHints* StdHints;
 		XImage* SoftwareImage;
@@ -397,6 +401,10 @@ namespace irr
 		SizeID OldRandrMode;
 		Rotation OldRandrRotation;
 		#endif
+		bool ClipboardWaiting;
+		bool(*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		bool draggingFile;
+		irr::core::vector2di drop_pos;
 #endif
 		u32 Width, Height;
 		bool WindowHasFocus;

@@ -26,6 +26,8 @@
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
 
+#include <cerrno>
+
 #if defined(_IRR_LINUX_X11_XINPUT2_)
 #include <X11/extensions/XInput2.h>
 #endif
@@ -96,6 +98,17 @@ namespace
 
 	Atom X_ATOM_WM_DELETE_WINDOW;
 
+	Atom X_ATOM_XDND_AWARE;
+	Atom X_ATOM_XDND_ENTER;
+	Atom X_ATOM_XDND_LEAVE;
+	Atom X_ATOM_XDND_POSITION;
+	Atom X_ATOM_XDND_STATUS;
+	Atom X_ATOM_XDND_TYPE_LIST;
+	Atom X_ATOM_XDND_ACTION_COPY;
+	Atom X_ATOM_XDND_DROP;
+	Atom X_ATOM_XDND_FINISHED;
+	Atom X_ATOM_XDND_SELECTION;
+
 #if defined(_IRR_LINUX_X11_XINPUT2_)
 	int XI_EXTENSIONS_OPCODE;
 #endif
@@ -107,9 +120,9 @@ namespace irr
 CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
 #ifdef _IRR_COMPILE_WITH_X11_
-	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), StdHints(0), SoftwareImage(0),
+	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
 	XInputMethod(0), XInputContext(0),
-	HasNetWM(false),
+	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
 #endif
 	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
 	WindowHasFocus(false), WindowMinimized(false),
@@ -235,7 +248,7 @@ CIrrDeviceLinux::~CIrrDeviceLinux()
 }
 
 
-#if defined(_IRR_COMPILE_WITH_X11_) && defined(_DEBUG)
+#if defined(_IRR_COMPILE_WITH_X11_)// && defined(_DEBUG)
 int IrrPrintXError(Display *display, XErrorEvent *event)
 {
 	char msg[256];
@@ -397,8 +410,8 @@ bool CIrrDeviceLinux::createWindow()
 #ifdef _IRR_COMPILE_WITH_X11_
 #ifdef _DEBUG
 	os::Printer::log("Creating X window...", ELL_INFORMATION);
-	XSetErrorHandler(IrrPrintXError);
 #endif
+	XSetErrorHandler(IrrPrintXError);
 
 	XDisplay = XOpenDisplay(0);
 	if (!XDisplay)
@@ -688,6 +701,202 @@ void CIrrDeviceLinux::createDriver()
 	}
 }
 
+/*
+The functions X11_ReadProperty,X11_PickTarget, X11_PickTargetFromAtoms, X11_URIDecode, X11_URIToLocal
+and some parts of the Xnxd logic are from the SDL project, distributed under the zlib license:
+
+Simple DirectMedia Layer
+Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+*/
+
+
+struct x11Prop {
+	unsigned char *data;
+	int format, count;
+	Atom type;
+};
+
+/* Reads property
+   Must call XFree on results
+ */
+static void X11_ReadProperty(x11Prop *p, Display *disp, Window w, Atom prop)
+{
+    unsigned char *ret=NULL;
+    Atom type;
+    int fmt;
+    unsigned long count;
+    unsigned long bytes_left;
+    int bytes_fetch = 0;
+
+    do {
+        if (ret != 0) XFree(ret);
+        XGetWindowProperty(disp, w, prop, 0, bytes_fetch, False, AnyPropertyType, &type, &fmt, &count, &bytes_left, &ret);
+        bytes_fetch += bytes_left;
+    } while (bytes_left != 0);
+
+    p->data=ret;
+    p->format=fmt;
+    p->count=count;
+    p->type=type;
+}
+
+/* Find text-uri-list in a list of targets and return it's atom
+   if available, else return None */
+static Atom X11_PickTarget(Display *disp, Atom list[], int list_count, bool* isFile)
+{
+    Atom request = None;
+    char *name;
+    int i;
+    for (i=0; i < list_count && request == None; i++) {
+        name = XGetAtomName(disp, list[i]);
+        if ((strcmp("text/uri-list", name) == 0) || (strcmp("text/plain", name) == 0)) {
+             request = list[i];
+			 if(isFile)
+				 *isFile = name[5] == 'u';
+        }
+        XFree(name);
+    }
+    return request;
+}
+
+/* Wrapper for X11_PickTarget for a maximum of three targets, a special
+   case in the Xdnd protocol */
+static Atom X11_PickTargetFromAtoms(Display *disp, Atom a0, Atom a1, Atom a2, bool* isFile)
+{
+    int count=0;
+    Atom atom[3];
+    if (a0 != None) atom[count++] = a0;
+    if (a1 != None) atom[count++] = a1;
+    if (a2 != None) atom[count++] = a2;
+    return X11_PickTarget(disp, atom, count, isFile);
+}
+
+/* Decodes URI escape sequences in string buf of len bytes
+   (excluding the terminating NULL byte) in-place. Since
+   URI-encoded characters take three times the space of
+   normal characters, this should not be an issue.
+   Returns the number of decoded bytes that wound up in
+   the buffer, excluding the terminating NULL byte.
+   The buffer is guaranteed to be NULL-terminated but
+   may contain embedded NULL bytes.
+   On error, -1 is returned.
+ */
+static int X11_URIDecode(char *buf, int len) {
+	int ri, wi, di;
+	char decode = '\0';
+	if(buf == NULL || len < 0) {
+		errno = EINVAL;
+		return -1;
+	}
+	if(len == 0) {
+		len = strlen(buf);
+	}
+	for(ri = 0, wi = 0, di = 0; ri < len && wi < len; ri += 1) {
+		if(di == 0) {
+			/* start decoding */
+			if(buf[ri] == '%') {
+				decode = '\0';
+				di += 1;
+				continue;
+			}
+			/* normal write */
+			buf[wi] = buf[ri];
+			wi += 1;
+			continue;
+		} else if(di == 1 || di == 2) {
+			char off = '\0';
+			char isa = buf[ri] >= 'a' && buf[ri] <= 'f';
+			char isA = buf[ri] >= 'A' && buf[ri] <= 'F';
+			char isn = buf[ri] >= '0' && buf[ri] <= '9';
+			if(!(isa || isA || isn)) {
+				/* not a hexadecimal */
+				int sri;
+				for(sri = ri - di; sri <= ri; sri += 1) {
+					buf[wi] = buf[sri];
+					wi += 1;
+				}
+				di = 0;
+				continue;
+			}
+			/* itsy bitsy magicsy */
+			if(isn) {
+				off = 0 - '0';
+			} else if(isa) {
+				off = 10 - 'a';
+			} else if(isA) {
+				off = 10 - 'A';
+			}
+			decode |= (buf[ri] + off) << (2 - di) * 4;
+			if(di == 2) {
+				buf[wi] = decode;
+				wi += 1;
+				di = 0;
+			} else {
+				di += 1;
+			}
+			continue;
+		}
+	}
+	buf[wi] = '\0';
+	return wi;
+}
+
+/* Convert URI to local filename
+   return filename if possible, else NULL
+*/
+static char* X11_URIToLocal(char* uri) {
+	char *file = NULL;
+	bool local;
+
+	if(memcmp(uri, "file:/", 6) == 0) uri += 6;      /* local file? */
+	else if(strstr(uri, ":/") != NULL) return file; /* wrong scheme */
+
+	local = uri[0] != '/' || (uri[0] != '\0' && uri[1] == '/');
+
+	/* got a hostname? */
+	if(!local && uri[0] == '/' && uri[2] != '/') {
+		char* hostname_end = strchr(uri + 1, '/');
+		if(hostname_end != NULL) {
+			char hostname[257];
+			if(gethostname(hostname, 255) == 0) {
+				hostname[256] = '\0';
+				if(memcmp(uri + 1, hostname, hostname_end - (uri + 1)) == 0) {
+					uri = hostname_end + 1;
+					local = true;
+				}
+			}
+		}
+	}
+	if(local) {
+		file = uri;
+		/* Convert URI escape sequences to real characters */
+		X11_URIDecode(file, 0);
+		if(uri[1] == '/') {
+			file++;
+		} else {
+			file--;
+		}
+	}
+	return file;
+}
+
+
 #ifdef _IRR_COMPILE_WITH_X11_
 bool CIrrDeviceLinux::createInputContext()
 {
@@ -825,6 +1034,8 @@ bool CIrrDeviceLinux::run()
 		{
 			XEvent event;
 			XNextEvent(XDisplay, &event);
+			if(XFilterEvent(&event, XWindow))
+				continue;
 
 			switch (event.type)
 			{
@@ -1054,7 +1265,80 @@ bool CIrrDeviceLinux::run()
 
 			case ClientMessage:
 				{
-					if (static_cast<Atom>(event.xclient.data.l[0]) == X_ATOM_WM_DELETE_WINDOW && X_ATOM_WM_DELETE_WINDOW != None)
+					static int xdnd_version = 0;
+					if(event.xclient.message_type == X_ATOM_XDND_ENTER){
+						bool needs_list = event.xclient.data.l[1] & 1;
+						xdnd_source = event.xclient.data.l[0];
+						xdnd_version = (event.xclient.data.l[1] >> 24);
+						if(needs_list) {
+							/* fetch conversion targets */
+							x11Prop p;
+							X11_ReadProperty(&p, XDisplay, xdnd_source, X_ATOM_XDND_TYPE_LIST);
+							/* pick one */
+							xdnd_req = X11_PickTarget(XDisplay, (Atom*)p.data, p.count, &draggingFile);
+							XFree(p.data);
+						} else {
+							/* pick from list of three */
+							xdnd_req = X11_PickTargetFromAtoms(XDisplay, event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4], &draggingFile);
+						}
+						break;
+					}
+					else if(event.xclient.message_type == X_ATOM_XDND_POSITION) {
+						 /* reply with status */
+						int x = event.xclient.data.l[2] >> 16;
+						int y = event.xclient.data.l[2] & 0xffff;
+						int convx, convy;
+						Window child;
+						XTranslateCoordinates(XDisplay, RootWindow(XDisplay, visual->screen), XWindow, x, y, &convx, &convy, &child);
+						bool accept = 0;
+						drop_pos = core::vector2di(convx, convy);
+						if((xdnd_req != None) && (!dragAndDropCheck || dragAndDropCheck(drop_pos, draggingFile))) {
+							accept = 1;
+						}
+						XClientMessageEvent m;
+						memset(&m, 0, sizeof(XClientMessageEvent));
+						m.type = ClientMessage;
+						m.display = event.xclient.display;
+						m.window = event.xclient.data.l[0];
+						m.message_type = X_ATOM_XDND_STATUS;
+						m.format = 32;
+						m.data.l[0] = XWindow;
+						m.data.l[1] = accept;
+						m.data.l[2] = 0; /* specify an empty rectangle */
+						m.data.l[3] = 0;
+						m.data.l[4] = X_ATOM_XDND_ACTION_COPY; /* we only accept copying anyway */
+
+						XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
+						XFlush(XDisplay);
+					}
+					else if(event.xclient.message_type == X_ATOM_XDND_DROP) {
+						if(xdnd_req == None) {
+							/* say again - not interested! */
+							XClientMessageEvent m;
+							memset(&m, 0, sizeof(XClientMessageEvent));
+							m.type = ClientMessage;
+							m.display = event.xclient.display;
+							m.window = event.xclient.data.l[0];
+							m.message_type = X_ATOM_XDND_FINISHED;
+							m.format = 32;
+							m.data.l[0] = XWindow;
+							m.data.l[1] = 0;
+							m.data.l[2] = None; /* fail! */
+							XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
+						} else {
+							/* convert */
+							if(xdnd_version >= 1) {
+								XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, event.xclient.data.l[2]);
+							} else {
+								XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, CurrentTime);
+							}
+						}
+					}
+					if(event.xclient.message_type == X_ATOM_XDND_LEAVE){
+						xdnd_req = None;
+						break;
+					}
+					else if (static_cast<Atom>(event.xclient.data.l[0]) == X_ATOM_WM_DELETE_WINDOW && X_ATOM_WM_DELETE_WINDOW != None)
 					{
 						os::Printer::log("Quit message received.", ELL_INFORMATION);
 						Close = true;
@@ -1074,7 +1358,7 @@ bool CIrrDeviceLinux::run()
 				{
 					XEvent respond;
 					XSelectionRequestEvent *req = &(event.xselectionrequest);
-					if (  req->target == XA_STRING)
+					if (  req->target == X_ATOM_UTF8_STRING)
 					{
 						XChangeProperty (XDisplay,
 								req->requestor,
@@ -1090,7 +1374,7 @@ bool CIrrDeviceLinux::run()
 						long data[2];
 
 						data[0] = X_ATOM_TEXT;
-						data[1] = XA_STRING;
+						data[1] = X_ATOM_UTF8_STRING;
 
 						XChangeProperty (XDisplay, req->requestor,
 								req->property, req->target,
@@ -1111,6 +1395,74 @@ bool CIrrDeviceLinux::run()
 					respond.xselection.time = req->time;
 					XSendEvent (XDisplay, req->requestor,0,0,&respond);
 					XFlush (XDisplay);
+				}
+				break;
+			case SelectionNotify:
+				{
+					Atom target = event.xselection.target;
+					if(target == xdnd_req) {
+						xdnd_req = None;
+						/* read data */
+						x11Prop p;
+						X11_ReadProperty(&p, XDisplay, XWindow, XA_PRIMARY);
+
+						if(p.format == 8) {
+							irr::SEvent irrevent;
+							irrevent.EventType = irr::EET_DROP_EVENT;
+							irrevent.DropEvent.DropType = DROP_START;
+							irrevent.DropEvent.X = drop_pos.X;
+							irrevent.DropEvent.Y = drop_pos.Y;
+							irrevent.DropEvent.Text = nullptr;
+							postEventFromUser(irrevent);
+							irrevent.DropEvent.DropType = draggingFile ? DROP_FILE : DROP_TEXT;
+							char* saveptr = NULL;
+							char* name = XGetAtomName(XDisplay, target);
+							if(strcmp("text/plain", name) == 0) {
+								size_t lenOld = strlen((char *)p.data);
+								wchar_t *ws = new wchar_t[lenOld + 1];
+								core::utf8ToWchar((char*)p.data, ws, lenOld + 1);
+								irrevent.DropEvent.Text = ws;
+								postEventFromUser(irrevent);
+								delete[] ws;
+							} else if(strcmp("text/uri-list", name) == 0) {
+								char *token = strtok_r((char *)p.data, "\r\n", &saveptr);
+								while(token != NULL) {
+									char *fn = X11_URIToLocal(token);
+									if(fn) {
+										size_t lenOld = strlen(fn);
+										wchar_t *ws = new wchar_t[lenOld + 1];
+										core::utf8ToWchar(fn, ws, lenOld + 1);
+										irrevent.DropEvent.Text = ws;
+										postEventFromUser(irrevent);
+										delete[] ws;
+									}
+									token = strtok_r(NULL, "\r\n", &saveptr);
+								}
+							}
+							irrevent.DropEvent.DropType = DROP_END;
+							irrevent.DropEvent.Text = nullptr;
+							postEventFromUser(irrevent);
+						}
+						XFree(p.data);
+
+						XClientMessageEvent m;
+
+						/* send reply */
+						memset(&m, 0, sizeof(XClientMessageEvent));
+						m.type = ClientMessage;
+						m.display = XDisplay;
+						m.window = xdnd_source;
+						m.message_type = X_ATOM_XDND_FINISHED;
+						m.format = 32;
+						m.data.l[0] = XWindow;
+						m.data.l[1] = 1;
+						m.data.l[2] = X_ATOM_XDND_ACTION_COPY;
+						XSendEvent(XDisplay, xdnd_source, False, NoEventMask, (XEvent*)&m);
+
+						XSync(XDisplay, False);
+					} else {
+						ClipboardWaiting = false;
+					}
 				}
 				break;
 #if defined(_IRR_LINUX_X11_XINPUT2_)
@@ -1923,8 +2275,22 @@ const c8* CIrrDeviceLinux::getTextFromClipboard() const
 	Clipboard = "";
 	if (ownerWindow != None )
 	{
-		XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, XA_STRING, XA_PRIMARY, ownerWindow, CurrentTime);
+		XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, ownerWindow, CurrentTime);
 		XFlush (XDisplay);
+		ClipboardWaiting = true;
+		u32 startTime = getTimer()->getRealTime();
+		u32 elapsedTime = 0;
+		while(ClipboardWaiting) {
+			run();
+			if(!ClipboardWaiting) break;
+			elapsedTime = getTimer()->getRealTime() - startTime;
+			if(elapsedTime > 1000) {
+				os::Printer::log("Error: Timeout while querying clipboard.", ELL_ERROR);
+				ClipboardWaiting = false;
+				copyToClipboard("");
+				return Clipboard.c_str();
+			}
+		}
 
 		// check for data
 		Atom type;
@@ -1945,13 +2311,13 @@ const c8* CIrrDeviceLinux::getTextFromClipboard() const
 		if ( bytesLeft > 0 )
 		{
 			// there is some data to get
-			int result = XGetWindowProperty (XDisplay, ownerWindow, XA_PRIMARY, 0,
+			int result = XGetWindowProperty (XDisplay, XWindow, XA_PRIMARY, 0,
 										bytesLeft, 0, AnyPropertyType, &type, &format,
 										&numItems, &dummy, &data);
 			if (result == Success)
 				Clipboard = (irr::c8*)data;
-			XFree (data);
 		}
+		XFree(data);
 	}
 
 	return Clipboard.c_str();
@@ -2007,6 +2373,20 @@ void CIrrDeviceLinux::clearSystemMessages()
 #endif //_IRR_COMPILE_WITH_X11_
 }
 
+//register drag and drop support
+void CIrrDeviceLinux::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+	if(enable) {
+		dragAndDropCheck = dragCheck;
+		Atom xdnd_version = 5;
+		XChangeProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE, XA_ATOM, 32,
+						PropModeReplace, (unsigned char*)&xdnd_version, 1);
+	} else {
+		dragAndDropCheck = nullptr;
+		XDeleteProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE);
+	}
+
+}
+
 void CIrrDeviceLinux::initXAtoms()
 {
 #ifdef _IRR_COMPILE_WITH_X11_
@@ -2017,6 +2397,16 @@ void CIrrDeviceLinux::initXAtoms()
 	X_ATOM_NETWM_MAXIMIZE_VERT = XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", true);
 	X_ATOM_NETWM_MAXIMIZE_HORZ = XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", true);
 	X_ATOM_NETWM_STATE = XInternAtom(XDisplay, "_NET_WM_STATE", true);
+	X_ATOM_XDND_AWARE = XInternAtom(XDisplay, "XdndAware", False);
+	X_ATOM_XDND_ENTER = XInternAtom(XDisplay, "XdndEnter", False);
+	X_ATOM_XDND_LEAVE = XInternAtom(XDisplay, "XdndLeave", False);
+	X_ATOM_XDND_POSITION = XInternAtom(XDisplay, "XdndPosition", False);
+	X_ATOM_XDND_STATUS = XInternAtom(XDisplay, "XdndStatus", False);
+	X_ATOM_XDND_TYPE_LIST = XInternAtom(XDisplay, "XdndTypeList", False);
+	X_ATOM_XDND_ACTION_COPY = XInternAtom(XDisplay, "XdndActionCopy", False);
+	X_ATOM_XDND_DROP = XInternAtom(XDisplay, "XdndDrop", False);
+	X_ATOM_XDND_FINISHED = XInternAtom(XDisplay, "XdndFinished", False);
+	X_ATOM_XDND_SELECTION = XInternAtom(XDisplay, "XdndSelection", False);
 #endif
 }
 
