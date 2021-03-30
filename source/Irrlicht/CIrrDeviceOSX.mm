@@ -590,7 +590,7 @@ static bool firstLaunch = true;
 	NSPasteboard *pasteboard = [sender draggingPasteboard];
     _dropIsFile = [[pasteboard types] containsObject:NSFilenamesPboardType];
 
-	if (_device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile) &&
+	if (Device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile) &&
 		([sender draggingSourceOperationMask] & NSDragOperationGeneric) == NSDragOperationGeneric) {
 		return NSDragOperationCopy;
 	}
@@ -601,7 +601,7 @@ static bool firstLaunch = true;
 - (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)sender
 {
 	NSPoint dropPoint = [sender draggingLocation];
-	if (_device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile))
+	if (Device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile))
 		return NSDragOperationCopy;
 	return NSDragOperationNone;
 }
@@ -629,7 +629,7 @@ static bool firstLaunch = true;
 	irrevent.DropEvent.X = dropPoint.x;
 	irrevent.DropEvent.Y = dropPoint.y;
 	irrevent.DropEvent.Text = nullptr;
-	_device->postEventFromUser(irrevent);
+	Device->postEventFromUser(irrevent);
 
 	auto dispatch = ^ (irr::SEvent& irrevent, NSString *str) {
 		auto cstr = [str UTF8String];
@@ -638,10 +638,10 @@ static bool firstLaunch = true;
 		core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
 		irrevent.DropEvent.Text = wstr.c_str();
 
-		if (!_device->postEventFromUser(irrevent)) {
+		if (!Device->postEventFromUser(irrevent)) {
 			irrevent.DropEvent.Text = nullptr;
 			irrevent.DropEvent.DropType = irr::DROP_END;
-			_device->postEventFromUser(irrevent);
+			Device->postEventFromUser(irrevent);
 			return false;
 		}
 		return true;
@@ -684,7 +684,7 @@ static bool firstLaunch = true;
 
 	irrevent.DropEvent.Text = nullptr;
 	irrevent.DropEvent.DropType = irr::DROP_END;
-	_device->postEventFromUser(irrevent);
+	Device->postEventFromUser(irrevent);
 	return YES;
 }}
 
