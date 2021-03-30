@@ -635,7 +635,7 @@ static bool firstLaunch = true;
 		auto cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
-		core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
+		irr::core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
 		irrevent.DropEvent.Text = wstr.c_str();
 
 		if (!Device->postEventFromUser(irrevent)) {
@@ -962,7 +962,7 @@ bool CIrrDeviceMacOSX::createWindow()
 #endif
         }
 
-		[[Window contentView] addSubview:(AppDelegate*)[NSApp delegate]];
+		[[Window contentView] addSubview:(CIrrDelegateOSX*)[NSApp delegate]];
     }
     
     return result;
@@ -1092,7 +1092,7 @@ bool CIrrDeviceMacOSX::run()
 	}
 	else
 	{
-		// Send input events to fake NSTextView that is also the AppDelegate
+		// Send input events to fake NSTextView that is also the CIrrDelegateOSX
 		[Window makeFirstResponder:textView];
 	}
 
@@ -1111,9 +1111,9 @@ bool CIrrDeviceMacOSX::run()
 					[textView setFont:[NSFont userFontOfSize:crect.getHeight()]];
 					// Change origin from top left to bottom right
 					NSRect rect = {
-						crect.UpperLeftCorner.X,
+						static_cast<CGFloat>(crect.UpperLeftCorner.X),
 						[[textView superview] frame].size.height - crect.LowerRightCorner.Y,
-						crect.getWidth(), crect.getHeight(),
+						static_cast<CGFloat>(crect.getWidth()), static_cast<CGFloat>(crect.getHeight()),
 					};
 					// Workaround for correct IME positioning below the edit box
 					[textView setFrame:rect]; // Reset to 0 at the start of the loop to not break other events
