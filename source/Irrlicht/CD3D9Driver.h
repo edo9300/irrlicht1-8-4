@@ -21,6 +21,7 @@
 #include "irrMath.h"    // needed by borland for sqrtf define
 #endif
 #include <d3d9.h>
+#include <d3dx9core.h>
 
 namespace irr
 {
@@ -158,6 +159,11 @@ namespace video
 			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
 			const core::rect<s32>* clip) _IRR_OVERRIDE_;
 
+		//!Draws an 2d rectangle with a gradient and proper clip.
+		virtual void draw2DRectangleClip(const core::rect<s32>& pos,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp = 0, const core::rect<s32>* clip = 0) _IRR_OVERRIDE_;
+
 		//! Draws a 2d line.
 		virtual void draw2DLine(const core::position2d<s32>& start,
 					const core::position2d<s32>& end,
@@ -169,6 +175,12 @@ namespace video
 		//! Draws a 3d line.
 		virtual void draw3DLine(const core::vector3df& start,
 			const core::vector3df& end, SColor color = SColor(255,255,255,255)) _IRR_OVERRIDE_;
+
+		virtual void draw3DLineW(const core::vector3df& start,
+			const core::vector3df& end, SColor color = SColor(255,255,255,255), float width = 0.0f) _IRR_OVERRIDE_;
+
+		virtual void draw3DShapeW(const core::vector3df* vertices,
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff) _IRR_OVERRIDE_;
 
 		//! Draws a 3d box.
 		virtual void draw3DBox( const core::aabbox3d<f32>& box, SColor color = SColor(255,255,255,255 ) )  _IRR_OVERRIDE_;
@@ -331,6 +343,10 @@ namespace video
 		//! Get bridge calls.
 		CD3D9CallBridge* getBridgeCalls() const;
 
+		const HMODULE getD3dxHandle() { return d3dx9; };
+
+		const io::path& getD3dxHandleVersion() { return d3dxversion; };
+
 	private:
 
 		//! enumeration for rendering modes such as 2d and 3d for minimizing the switching of renderStates.
@@ -469,6 +485,16 @@ namespace video
 		bool DriverWasReset;
 		bool OcclusionQuerySupport;
 		bool AlphaToCoverageSupport;
+
+		ID3DXLine* line;
+
+		HMODULE d3dx9;
+		io::path d3dxversion;
+
+		void* SaveSurfaceToFileInMemory;
+
+		IImage* CaptureSurfaceD3dx();
+
 	};
 
 	//! This bridge between Irrlicht pseudo D3D9 calls

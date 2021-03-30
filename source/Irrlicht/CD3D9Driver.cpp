@@ -39,7 +39,8 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	MaxLightDistance(0.f), LastSetLight(-1),
 	ColorFormat(ECF_A8R8G8B8), DeviceLost(false),
 	DriverWasReset(true), OcclusionQuerySupport(false),
-	AlphaToCoverageSupport(false), Params(params)
+	AlphaToCoverageSupport(false), Params(params), line(nullptr), d3dx9(nullptr),
+	SaveSurfaceToFileInMemory(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9Driver");
@@ -68,6 +69,15 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	UnitMatrixD3D9 = *(D3DMATRIX*)((void*)mat.pointer());
 
 	// init direct 3d is done in the factory function
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+	d3dxversion = __TEXT("d3dx9_" STR(D3DX_SDK_VERSION) ".dll");
+#undef STR
+#undef STR_HELPER
+	d3dx9 = LoadLibrary(d3dxversion.c_str());
+	if(!d3dx9)
+		os::Printer::log("Could not load Direct3D Extension dll", d3dxversion, ELL_ERROR);
 }
 
 
@@ -86,11 +96,20 @@ CD3D9Driver::~CD3D9Driver()
 
 	// drop d3d9
 
+	if(line)
+		line->Release();
+
 	if (pID3DDevice)
 		pID3DDevice->Release();
 
 	if (pID3D)
 		pID3D->Release();
+
+	if(d3dx9)
+		FreeLibrary(d3dx9);
+
+	if(D3DLibrary)
+		FreeLibrary(D3DLibrary);
 }
 
 
@@ -493,6 +512,25 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 	for (u32 i = 0; i < ActiveRenderTarget.size(); ++i)
 		ActiveRenderTarget[i] = false;
 
+	{
+
+		HRESULT(WINAPI *pFn)(LPDIRECT3DDEVICE9 pDevice, LPD3DXLINE* ppLine) = nullptr;
+
+		if(d3dx9)
+			pFn = (decltype(pFn))GetProcAddress(d3dx9, "D3DXCreateLine");
+
+		if(!pFn) {
+			os::Printer::log("Could not load function D3DXCreateLine from dll, line stripple disabled",
+							 d3dxversion, ELL_ERROR);
+		} else {
+			if(SUCCEEDED(pFn(pID3DDevice, &line))) {
+				line->SetGLLines(true);
+			} else {
+				line = nullptr;
+			}
+		}
+	}
+
 	// so far so good.
 	return true;
 }
@@ -561,6 +599,8 @@ bool CD3D9Driver::endScene()
 	{
 		DeviceLost = true;
 		os::Printer::log("Present failed", "DIRECT3D9 device lost.", ELL_WARNING);
+		if(line)
+			line->OnLostDevice();
 	}
 #ifdef D3DERR_DEVICEREMOVED
 	else if (hr == D3DERR_DEVICEREMOVED)
@@ -1847,6 +1887,58 @@ void CD3D9Driver::draw2DRectangle(const core::rect<s32>& position,
 		D3DFMT_INDEX16, &vtx[0], sizeof(S3DVertex));
 }
 
+//!Draws a 2d rectangle with a gradient and proper clip.
+void CD3D9Driver::draw2DRectangleClip(const core::rect<s32>& position,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp, const core::rect<s32>* clipRect)
+{
+	core::rect<s32> pos(position);
+
+	if (clamp)
+		pos.clipAgainst(*clamp);
+
+	if (!pos.isValid())
+		return;
+
+	S3DVertex vtx[4];
+	vtx[0] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.UpperLeftCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorLeftUp, 0.0f, 0.0f);
+	vtx[1] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.UpperLeftCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorRightUp, 0.0f, 1.0f);
+	vtx[2] = S3DVertex((f32)pos.LowerRightCorner.X, (f32)pos.LowerRightCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorRightDown, 1.0f, 0.0f);
+	vtx[3] = S3DVertex((f32)pos.UpperLeftCorner.X, (f32)pos.LowerRightCorner.Y, 0.0f,
+			0.0f, 0.0f, 0.0f, colorLeftDown, 1.0f, 1.0f);
+
+	s16 indices[6] = {0,1,2,0,2,3};
+
+	setRenderStates2DMode(
+		colorLeftUp.getAlpha() < 255 ||
+		colorRightUp.getAlpha() < 255 ||
+		colorLeftDown.getAlpha() < 255 ||
+		colorRightDown.getAlpha() < 255, false, false);
+
+	setActiveTexture(0,0);
+
+	setVertexShader(EVT_STANDARD);
+
+	if(clipRect) {
+		pID3DDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
+		RECT scissor;
+		scissor.left = clipRect->UpperLeftCorner.X;
+		scissor.top = clipRect->UpperLeftCorner.Y;
+		scissor.right = clipRect->LowerRightCorner.X;
+		scissor.bottom = clipRect->LowerRightCorner.Y;
+		pID3DDevice->SetScissorRect(&scissor);
+	}
+
+	pID3DDevice->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 4, 2, &indices[0],
+		D3DFMT_INDEX16, &vtx[0], sizeof(S3DVertex));
+
+	if(clipRect)
+		pID3DDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+}
+
 
 //! Draws a 2d line.
 void CD3D9Driver::draw2DLine(const core::position2d<s32>& start,
@@ -2840,6 +2932,51 @@ void CD3D9Driver::draw3DLine(const core::vector3df& start,
 	pID3DDevice->DrawPrimitiveUP(D3DPT_LINELIST, 1, v, sizeof(S3DVertex));
 }
 
+void CD3D9Driver::draw3DLineW(const core::vector3df& start,
+							  const core::vector3df& end, SColor color, float width) {
+	if(width == 1) {
+		draw3DLine(start, end, color);
+		return;
+	}
+	core::vector3df v[2];
+	v[0] = start;
+	v[1] = end;
+
+	draw3DShapeW(v, 2, color, width);
+}
+
+
+void CD3D9Driver::draw3DShapeW(const core::vector3df* vertices,
+							   u32 vertexCount, SColor color, float width, unsigned short pattern) {
+	if(vertexCount < 2)
+		return;
+
+	if(!line || pattern == 0xffff) {
+		if(pattern == 0xffff) {
+			for(u32 i = 0; i < (vertexCount - 1); i++) {
+				draw3DLine(vertices[i], vertices[i + 1], color);
+			}
+			draw3DLine(vertices[vertexCount - 1], vertices[0], color);
+		}
+		return;
+	}
+
+	auto _transform = getTransform(ETS_PROJECTION) * getTransform(ETS_VIEW) * getTransform(ETS_WORLD);
+
+	D3DXMATRIX transform = *(D3DMATRIX*)&_transform;
+
+	D3DXVECTOR3* points = new D3DXVECTOR3[vertexCount + 1];
+	for(u32 i = 0; i < vertexCount; i++) {
+		points[i] = { vertices[i].X, vertices[i].Y, vertices[i].Z };
+	}
+	points[vertexCount] = { vertices[0].X, vertices[0].Y, vertices[0].Z };
+	line->SetWidth(width > 0.0f ? width : 1.0f);
+	line->SetPattern(pattern | (pattern<<16));
+	line->SetPatternScale(1);
+	line->DrawTransform(points, vertexCount + 1, &transform, color.color);
+	delete[] points;
+}
+
 void CD3D9Driver::draw3DBox( const core::aabbox3d<f32>& box, SColor color)
 {
 	core::vector3df edges[8];
@@ -2978,7 +3115,14 @@ bool CD3D9Driver::reset()
 
 	DriverWasReset=true;
 
+	if(line)
+		line->OnLostDevice();
+
 	HRESULT hr = pID3DDevice->Reset(&present);
+
+	if(line)
+		line->OnResetDevice();
+
 	if (FAILED(hr))
 	{
 		if (hr == D3DERR_DEVICELOST)
@@ -3358,114 +3502,124 @@ void CD3D9Driver::clearBuffers(u16 flag, SColor color, f32 depth, u8 stencil)
 	}
 }
 
+IImage* CD3D9Driver::CaptureSurfaceD3dx() {
+
+	typedef HRESULT(WINAPI *SaveSurfaceToFileInMemoryFunction)(LPD3DXBUFFER*             ppDestBuf,
+															   D3DXIMAGE_FILEFORMAT      DestFormat,
+															   LPDIRECT3DSURFACE9        pSrcSurface,
+															   CONST PALETTEENTRY*       pSrcPalette,
+															   CONST RECT*               pSrcRect);
+
+	if(!SaveSurfaceToFileInMemory) {
+		if(d3dx9) {
+			SaveSurfaceToFileInMemory = (void*)GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
+			if(!SaveSurfaceToFileInMemory) {
+				SaveSurfaceToFileInMemory = (void*)1;
+				os::Printer::log("Could not load D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
+								 d3dxversion, ELL_ERROR);
+			}
+		}
+	}
+
+	if((uintptr_t)SaveSurfaceToFileInMemory == 1)
+		return nullptr;
+	IImage* retimage = nullptr;
+	LPDIRECT3DSURFACE9 back_buffer = nullptr;
+	HRESULT hr;
+	hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
+	if(SUCCEEDED(hr)) {
+		LPD3DXBUFFER outbuffer = nullptr;
+		hr = reinterpret_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
+		if(SUCCEEDED(hr)) {
+			void* data = outbuffer->GetBufferPointer();
+			auto size = outbuffer->GetBufferSize();
+			auto file = FileSystem->createMemoryReadFile(data, size, L"", false);
+			retimage = createImageFromFile(file);
+			file->drop();
+			outbuffer->Release();
+		}
+		back_buffer->Release();
+	}
+	if(FAILED(hr)) {
+		os::Printer::log("CD3D9Driver CaptureSurfaceD3dx() failed.", core::stringc((int)hr).c_str(), ELL_ERROR);
+	}
+	return retimage;
+}
 
 //! Returns an image created from the last rendered frame.
-IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target)
-{
-	if (target != video::ERT_FRAME_BUFFER)
-		return 0;
+IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RENDER_TARGET target) {
+	if(target != video::ERT_FRAME_BUFFER) {
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Target is not framebuffer", ELL_ERROR);
+		return nullptr;
+	}
 
-	if (format==video::ECF_UNKNOWN)
-		format=getColorFormat();
+	if(format == video::ECF_UNKNOWN)
+		format = video::ECF_A8R8G8B8;
 
-	// TODO: Maybe we could support more formats (floating point and some of those beyond ECF_R8), didn't really try yet 
-	if (IImage::isCompressedFormat(format) || IImage::isDepthFormat(format) || IImage::isFloatingPointFormat(format) || format >= ECF_R8)
-		return 0;
+	IImage* newImage = CaptureSurfaceD3dx();
 
-	// query the screen dimensions of the current adapter
-	D3DDISPLAYMODE displayMode;
-	pID3DDevice->GetDisplayMode(0, &displayMode);
+	if(newImage)
+		return newImage;
 
-	// create the image surface to store the front buffer image [always A8R8G8B8]
+	newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
+	if(!newImage) {
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Couldn't create return image", ELL_ERROR);
+		return nullptr;
+	}
+
 	HRESULT hr;
-	LPDIRECT3DSURFACE9 lpSurface;
-	if (FAILED(hr = pID3DDevice->CreateOffscreenPlainSurface(displayMode.Width, displayMode.Height, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &lpSurface, 0)))
-		return 0;
+	IDirect3DSurface9* captureSurface = nullptr;
+	hr = pID3DDevice->CreateOffscreenPlainSurface(present.BackBufferWidth, present.BackBufferHeight, present.BackBufferFormat, D3DPOOL_SYSTEMMEM, &captureSurface, nullptr);
+	if(SUCCEEDED(hr)) {
+		IDirect3DSurface9* backBufferSurface = nullptr;
+		hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface);
+		if(SUCCEEDED(hr)) {
+			hr = pID3DDevice->GetRenderTargetData(backBufferSurface, captureSurface);
+			backBufferSurface->Release();
+			if(SUCCEEDED(hr)) {
+				RECT rc{ 0, 0, (LONG)present.BackBufferWidth, (LONG)present.BackBufferHeight };
+				D3DLOCKED_RECT lockedRect;
+				hr = captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY);
+				if(SUCCEEDED(hr)) {
+					// d3d pads the image, so we need to copy the correct number of bytes
+					u32* dP = (u32*)newImage->lock();
+					u8 * sP = (u8 *)lockedRect.pBits;
 
-	// read the front buffer into the image surface
-	if (FAILED(hr = pID3DDevice->GetFrontBufferData(0, lpSurface)))
-	{
-		lpSurface->Release();
-		return 0;
-	}
+					// If the display mode format doesn't promise anything about the Alpha value
+					// and it appears that it's not presenting 255, then we should manually
+					// set each pixel alpha value to 255.
+					if(D3DFMT_X8R8G8B8 == present.BackBufferFormat && (0xFF000000 != (*dP & 0xFF000000))) {
+						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+							for(u32 x = 0; x < present.BackBufferWidth; ++x) {
+								newImage->setPixel(x, y, *((u32*)sP) | 0xFF000000);
+								sP += 4;
+							}
 
-	RECT clientRect;
-	{
-		POINT clientPoint;
-		clientPoint.x = 0;
-		clientPoint.y = 0;
+							sP += lockedRect.Pitch - (4 * present.BackBufferWidth);
+						}
+					} else {
+						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+							convertColor(sP, video::ECF_A8R8G8B8, present.BackBufferWidth, dP, format);
+							sP += lockedRect.Pitch;
+							dP += present.BackBufferWidth;
+						}
+					}
 
-		ClientToScreen((HWND)getExposedVideoData().D3D9.HWnd, &clientPoint);
-
-		clientRect.left   = clientPoint.x;
-		clientRect.top	= clientPoint.y;
-		clientRect.right  = clientRect.left + ScreenSize.Width;
-		clientRect.bottom = clientRect.top  + ScreenSize.Height;
-
-		// window can be off-screen partly, we can't take screenshots from that
-		clientRect.left = core::max_(clientRect.left, 0l);
-		clientRect.top = core::max_(clientRect.top, 0l);
-		clientRect.right = core::min_(clientRect.right, (long)displayMode.Width);
-		clientRect.bottom = core::min_(clientRect.bottom, (long)displayMode.Height );
-	}
-
-	// lock our area of the surface
-	D3DLOCKED_RECT lockedRect;
-	if (FAILED(lpSurface->LockRect(&lockedRect, &clientRect, D3DLOCK_READONLY)))
-	{
-		lpSurface->Release();
-		return 0;
-	}
-
-	irr::core::dimension2d<u32> shotSize;
-	shotSize.Width = core::min_( ScreenSize.Width, (u32)(clientRect.right-clientRect.left) );
-	shotSize.Height = core::min_( ScreenSize.Height, (u32)(clientRect.bottom-clientRect.top) );
-
-	// this could throw, but we aren't going to worry about that case very much
-	IImage* newImage = createImage(format, shotSize);
-
-	if (newImage)
-	{
-		// d3d pads the image, so we need to copy the correct number of bytes
-		u32* dP = (u32*)newImage->lock();
-		u8 * sP = (u8 *)lockedRect.pBits;
-
-		// If the display mode format doesn't promise anything about the Alpha value
-		// and it appears that it's not presenting 255, then we should manually
-		// set each pixel alpha value to 255.
-		if (D3DFMT_X8R8G8B8 == displayMode.Format && (0xFF000000 != (*dP & 0xFF000000)))
-		{
-			for (u32 y = 0; y < shotSize.Height; ++y)
-			{
-				for (u32 x = 0; x < shotSize.Width; ++x)
-				{
-					newImage->setPixel(x,y,*((u32*)sP) | 0xFF000000);
-					sP += 4;
+					newImage->unlock();
+					// we can unlock and release the surface
+					captureSurface->UnlockRect();
 				}
 
-				sP += lockedRect.Pitch - (4 * shotSize.Width);
+				// release the image surface
+				captureSurface->Release();
 			}
 		}
-		else
-		{
-			for (u32 y = 0; y < shotSize.Height; ++y)
-			{
-				convertColor(sP, video::ECF_A8R8G8B8, shotSize.Width, dP, format);
-				sP += lockedRect.Pitch;
-				dP += shotSize.Width;
-			}
-		}
-
-		newImage->unlock();
 	}
-
-	// we can unlock and release the surface
-	lpSurface->UnlockRect();
-
-	// release the image surface
-	lpSurface->Release();
-
-	// return status of save operation to caller
+	if(FAILED(hr)) {
+		newImage->drop();
+		os::Printer::log("CD3D9Driver createScreenShot() failed.", core::stringc((int)hr).c_str(), ELL_ERROR);
+		return nullptr;
+	}
 	return newImage;
 }
 

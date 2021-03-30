@@ -96,6 +96,11 @@ protected:
 	IDirect3DVertexShader9* OldVertexShader;
 	IDirect3DPixelShader9* PixelShader;
 	s32 UserData;
+
+	void* AssembleShader;
+	void* AssembleShaderFile;
+	void* CompileShader;
+	void* CompileShaderFile;
 };
 
 
