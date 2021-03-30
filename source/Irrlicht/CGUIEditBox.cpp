@@ -1198,12 +1198,15 @@ bool CGUIEditBox::processMouse(const SEvent& event)
 }
 
 bool CGUIEditBox::processDrop(const SEvent& event) {
+	static bool textChanged = false;
 	switch(event.DropEvent.DropType) {
 		case DROP_START: {
+			textChanged = false;
 			CursorPos = getCursorPos(event.DropEvent.X, event.DropEvent.Y);
 			break;
 		}
 		case DROP_TEXT: {
+			textChanged = true;
 			core::stringw widep(event.DropEvent.Text);
 			core::stringw s = Text.subString(0, CursorPos);
 			s.append(widep);
@@ -1216,6 +1219,17 @@ bool CGUIEditBox::processDrop(const SEvent& event) {
 				CursorPos += s.size();
 			}
 			break;
+		}
+		case DROP_END: {
+			// break the text if it has changed
+			if(textChanged) {
+				breakText();
+				calculateScrollPos();
+				sendGuiEvent(EGET_EDITBOX_CHANGED);
+				textChanged = false;
+			} else {
+				calculateScrollPos();
+			}
 		}
 		case DROP_FILE: 
 			return false;
