@@ -1289,7 +1289,7 @@ bool CIrrDeviceLinux::run()
 						int y = event.xclient.data.l[2] & 0xffff;
 						int convx, convy;
 						Window child;
-						XTranslateCoordinates(XDisplay, RootWindow(XDisplay, visual->screen), XWindow, x, y, &convx, &convy, &child);
+						XTranslateCoordinates(XDisplay, RootWindow(XDisplay, VisualInfo->screen), XWindow, x, y, &convx, &convy, &child);
 						bool accept = 0;
 						drop_pos = core::vector2di(convx, convy);
 						if((xdnd_req != None) && (!dragAndDropCheck || dragAndDropCheck(drop_pos, draggingFile))) {
@@ -2264,7 +2264,7 @@ bool CIrrDeviceLinux::getGammaRamp( f32 &red, f32 &green, f32 &blue, f32 &bright
 
 //! gets text from the clipboard
 //! \return Returns 0 if no string is in there.
-const c8* CIrrDeviceLinux::getTextFromClipboard() const
+const c8* CIrrDeviceLinux::getTextFromClipboard()
 {
 #if defined(_IRR_COMPILE_WITH_X11_)
 	Window ownerWindow = XGetSelectionOwner (XDisplay, X_ATOM_CLIPBOARD);
