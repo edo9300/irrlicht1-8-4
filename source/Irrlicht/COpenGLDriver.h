@@ -193,6 +193,11 @@ namespace video
 			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
 			const core::rect<s32>* clip = 0) _IRR_OVERRIDE_;
 
+		//!Draws an 2d rectangle with a gradient and proper clip.
+		virtual void draw2DRectangleClip(const core::rect<s32>& pos,
+			SColor colorLeftUp, SColor colorRightUp, SColor colorLeftDown, SColor colorRightDown,
+			const core::rect<s32>* clamp = 0, const core::rect<s32>* clip = 0) _IRR_OVERRIDE_;
+
 		//! Draws a 2d line.
 		virtual void draw2DLine(const core::position2d<s32>& start,
 					const core::position2d<s32>& end,
@@ -208,6 +213,14 @@ namespace video
 		virtual void draw3DLine(const core::vector3df& start,
 					const core::vector3df& end,
 					SColor color = SColor(255,255,255,255)) _IRR_OVERRIDE_;
+
+		virtual void draw3DLineW(const core::vector3df& start,
+					const core::vector3df& end,
+					SColor color = SColor(255,255,255,255),
+					float width = 0.0f) _IRR_OVERRIDE_;
+
+		virtual void draw3DShapeW(const core::vector3df* vertices,
+								  u32 vertexCount, SColor color = SColor(255, 255, 255, 255), float width = 0.0f, unsigned short pattern = 0xffff) _IRR_OVERRIDE_;
 
 		//! \return Returns the name of the video driver. Example: In case of the Direct3D8
 		//! driver, it would return "Direct3D8.1".
