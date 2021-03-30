@@ -36,7 +36,6 @@ CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExpos
 	,pGlxSwapIntervalMESA(0)
 #endif // _IRR_OPENGL_USE_EXTPOINTER_
 {
-{
 	#ifdef _DEBUG
 	setDebugName("CGLXManager");
 	#endif
