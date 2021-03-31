@@ -48,7 +48,8 @@
 #endif
 #include <IOKit/hid/IOHIDLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
-
+extern "C" void c_utf8ToWchar(const char* in, wchar_t* out, const irr::u64 len);
+extern "C" void c_wcharToUtf8(const wchar_t* in, char* out, const irr::u64 len);
 struct JoystickComponent
 {
 	IOHIDElementCookie cookie; // unique value which identifies element, will NOT change
@@ -635,7 +636,7 @@ static bool firstLaunch = true;
 		auto cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
-		irr::core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
+		c_utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
 		irrevent.DropEvent.Text = wstr.c_str();
 
 		if (!Device->postEventFromUser(irrevent)) {
@@ -811,7 +812,7 @@ void CIrrDeviceMacOSX::handleInputEvent(const char *cStr)
 
 	size_t lenOld = strlen(cStr);
 	wchar_t *ws = new wchar_t[lenOld + 1];
-	core::utf8ToWchar(cStr, ws, (lenOld + 1)*sizeof(wchar_t));
+	c_utf8ToWchar(cStr, ws, (lenOld + 1)*sizeof(wchar_t));
 	irr::core::stringw widep(ws);
 	delete[] ws;
 
