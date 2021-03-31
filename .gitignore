@@ -1,2 +1,4 @@
 *.d
 *.o
+source/Irrlicht/Android/obj/*
+*.a
