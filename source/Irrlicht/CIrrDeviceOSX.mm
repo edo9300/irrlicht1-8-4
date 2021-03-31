@@ -701,7 +701,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 	IsActive(true), IsFullscreen(false), IsShiftDown(false), IsControlDown(false), IsResizable(false)
 {
 	struct utsname name;
-	NSString *path;
+	//NSString *path;
 
 #ifdef _DEBUG
 	setDebugName("CIrrDeviceMacOSX");
@@ -733,10 +733,10 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
             [NSApp finishLaunching];
 		}
 
-		path = [[NSBundle mainBundle] bundlePath];
+		/*path = [[NSBundle mainBundle] bundlePath];
         path = [path stringByAppendingString:@"/Contents/Resources"];
 		chdir([path fileSystemRepresentation]);
-        [path release];
+        [path release];*/
 	}
 
 	uname(&name);
