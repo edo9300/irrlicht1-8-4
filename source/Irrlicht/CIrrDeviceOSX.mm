@@ -1239,7 +1239,7 @@ bool CIrrDeviceMacOSX::run()
 
 	[Pool release];
 
-	return (![[NSApp delegate] isQuit] && IsActive);
+	return (![(CIrrDelegateOSX*)[NSApp delegate] isQuit] && IsActive);
 }
 
 
@@ -1351,7 +1351,7 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 			}
 			else
 			{
-				cStr = (unsigned char *)[str UTF8String:NSWindowsCP1252StringEncoding];
+				cStr = (unsigned char *)[str UTF8String];
 				if (cStr != NULL && strlen((char*)cStr) > 0)
 				{
 					mchar = cStr[0];
