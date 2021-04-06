@@ -24,7 +24,7 @@ void* X11Loader::LibXxf86vm{ nullptr };
 int X11Loader::amt{ 0 };
 
 void X11Loader::Load() {
-	LibX11 = dlopen("libX11.so.6", RTLD_LAZY); //libx11 has almost 2000 exported symbols
+	LibX11 = dlopen("libX11.so", RTLD_LAZY); //libx11 has almost 2000 exported symbols
 											   //there's no point in using RTDL_NOW
 	if(LibX11) {
 #define X(name) name=(decltype(name))dlsym(LibX11, #name);\
@@ -36,11 +36,11 @@ void X11Loader::Load() {
 #include "LibX11Loader.inl"
 #undef X
 	} else {
-		os::Printer::log("Failed to load libX11.so.6", ELL_ERROR);
+		os::Printer::log("Failed to load libX11.so", ELL_ERROR);
 		return;
 	}
 #ifdef _IRR_LINUX_X11_VIDMODE_
-	LibXxf86vm = dlopen("libXxf86vm.so.1", RTLD_NOW);
+	LibXxf86vm = dlopen("libXxf86vm.so", RTLD_NOW);
 	if(LibXxf86vm) {
 #define X(name) name=(decltype(name))dlsym(LibXxf86vm, #name);\
 	if(!name) {\
@@ -51,7 +51,7 @@ void X11Loader::Load() {
 #include "LibXxf86vmLoader.inl"
 #undef X
 	} else {
-		os::Printer::log("Failed to load libXxf86vm.so.1", ELL_ERROR);
+		os::Printer::log("Failed to load libXxf86vm.so", ELL_ERROR);
 		Unload();
 		return;
 	}
