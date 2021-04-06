@@ -1,6 +1,6 @@
-/*
-copyright 2020 edo9300 see LICENSE
-*/
+// Copyright (C) 2020 Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #ifndef WIN_DRAG_N_DROPPER_H
 #define WIN_DRAG_N_DROPPER_H
 #include <oleidl.h>
