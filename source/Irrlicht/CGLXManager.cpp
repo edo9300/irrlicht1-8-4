@@ -23,6 +23,8 @@
 #include "glxext.h"
 #endif
 
+#include "LibX11Loader.h"
+
 namespace irr
 {
 namespace video
@@ -201,7 +203,7 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 			if (configList)
 			{
 				glxFBConfig=configList[0];
-				XFree(configList);
+				X11Loader::XFree(configList);
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
 				typedef XVisualInfo * ( * PFNGLXGETVISUALFROMFBCONFIGPROC) (Display *dpy, GLXFBConfig config);
 				PFNGLXGETVISUALFROMFBCONFIGPROC glxGetVisualFromFBConfig= (PFNGLXGETVISUALFROMFBCONFIGPROC)glXGetProcAddress(reinterpret_cast<const GLubyte*>("glXGetVisualFromFBConfig"));

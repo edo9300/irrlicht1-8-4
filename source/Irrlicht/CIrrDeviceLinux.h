@@ -27,6 +27,7 @@
 #include <X11/extensions/Xrandr.h>
 #endif
 #include <X11/keysym.h>
+#include "LibX11Loader.h"
 
 #else
 #define KeySym s32
@@ -177,9 +178,9 @@ namespace irr
 				if (!Null)
 				{
 					if ( !IsVisible )
-						XDefineCursor( Device->XDisplay, Device->XWindow, InvisCursor );
+						X11Loader::XDefineCursor( Device->XDisplay, Device->XWindow, InvisCursor );
 					else
-						XUndefineCursor( Device->XDisplay, Device->XWindow );
+						X11Loader::XUndefineCursor( Device->XDisplay, Device->XWindow );
 				}
 #endif
 			}
@@ -217,7 +218,7 @@ namespace irr
 				{
 					if (UseReferenceRect)
 					{
-						XWarpPointer(Device->XDisplay,
+						X11Loader::XWarpPointer(Device->XDisplay,
 							None,
 							Device->XWindow, 0, 0,
 							Device->Width,
@@ -228,13 +229,13 @@ namespace irr
 					}
 					else
 					{
-						XWarpPointer(Device->XDisplay,
+						X11Loader::XWarpPointer(Device->XDisplay,
 							None,
 							Device->XWindow, 0, 0,
 							Device->Width,
 							Device->Height, x, y);
 					}
-					XFlush(Device->XDisplay);
+					X11Loader::XFlush(Device->XDisplay);
 				}
 #endif
 				CursorPos.X = x;
@@ -331,7 +332,7 @@ namespace irr
 				Window tmp;
 				int itmp1, itmp2;
 				unsigned  int maskreturn;
-				XQueryPointer(Device->XDisplay, Device->XWindow,
+				X11Loader::XQueryPointer(Device->XDisplay, Device->XWindow,
 					&tmp, &tmp,
 					&itmp1, &itmp2,
 					&CursorPos.X, &CursorPos.Y, &maskreturn);
@@ -405,6 +406,9 @@ namespace irr
 		bool(*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
 		bool draggingFile;
 		irr::core::vector2di drop_pos;
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+		irr::X11Loader libx11;
+#endif
 #endif
 		u32 Width, Height;
 		bool WindowHasFocus;

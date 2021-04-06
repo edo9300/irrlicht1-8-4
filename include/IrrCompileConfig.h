@@ -136,6 +136,7 @@
 #endif
 #define _IRR_POSIX_API_
 #define _IRR_COMPILE_WITH_X11_DEVICE_
+#define _IRR_X11_DYNAMIC_LOAD_
 #endif
 
 
@@ -314,6 +315,11 @@ define out. */
 #define _IRR_COMPILE_WITH_X11_
 #ifdef NO_IRR_COMPILE_WITH_X11_
 #undef _IRR_COMPILE_WITH_X11_
+#undef _IRR_X11_DYNAMIC_LOAD_
+#endif
+
+#ifdef NO_IRR_X11_DYNAMIC_LOAD_
+#undef _IRR_X11_DYNAMIC_LOAD_
 #endif
 
 //! On some Linux systems the XF86 vidmode extension, X11 RandR, or XInput2 are missing.

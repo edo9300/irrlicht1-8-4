@@ -123,6 +123,9 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
 	XInputMethod(0), XInputContext(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	libx11(),
+#endif
 #endif
 	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
 	WindowHasFocus(false), WindowMinimized(false),
@@ -146,6 +149,13 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	linuxversion += LinuxInfo.version;
 	linuxversion += " ";
 	linuxversion += LinuxInfo.machine;
+	
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	if(!libx11.Init()) {
+		os::Printer::log("Failed to initialize X11 functions", ELL_ERROR);
+		return;
+	}
+#endif //_IRR_X11_DYNAMIC_LOAD_
 
 	Operator = new COSOperator(linuxversion, this);
 	os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
@@ -184,7 +194,7 @@ CIrrDeviceLinux::~CIrrDeviceLinux()
 {
 #ifdef _IRR_COMPILE_WITH_X11_
 	if (StdHints)
-		XFree(StdHints);
+		X11Loader::XFree(StdHints);
 	// Disable cursor (it is drop'ed in stub)
 	if (CursorControl)
 	{
@@ -227,12 +237,12 @@ CIrrDeviceLinux::~CIrrDeviceLinux()
 
 		if (!ExternalWindow)
 		{
-			XDestroyWindow(XDisplay,XWindow);
-			XCloseDisplay(XDisplay);
+			X11Loader::XDestroyWindow(XDisplay,XWindow);
+			X11Loader::XCloseDisplay(XDisplay);
 		}
 	}
 	if (VisualInfo)
-		XFree(VisualInfo);
+		X11Loader::XFree(VisualInfo);
 
 #endif // #ifdef _IRR_COMPILE_WITH_X11_
 
@@ -255,8 +265,8 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 	char msg2[256];
 
 	snprintf_irr(msg, 256, "%d", event->request_code);
-	XGetErrorDatabaseText(display, "XRequest", msg, "unknown", msg2, 256);
-	XGetErrorText(display, event->error_code, msg, 256);
+	X11Loader::XGetErrorDatabaseText(display, "XRequest", msg, "unknown", msg2, 256);
+	X11Loader::XGetErrorText(display, event->error_code, msg, 256);
 	os::Printer::log("X Error", msg, ELL_WARNING);
 	os::Printer::log("From call ", msg2, ELL_WARNING);
 	return 0;
@@ -273,8 +283,8 @@ bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 #ifdef _IRR_LINUX_X11_VIDMODE_
 		if (UseXVidMode && CreationParams.Fullscreen)
 		{
-			XF86VidModeSwitchToMode(XDisplay, Screennr, &OldVideoMode);
-			XF86VidModeSetViewPort(XDisplay, Screennr, 0, 0);
+			X11Loader::XF86VidModeSwitchToMode(XDisplay, Screennr, &OldVideoMode);
+			X11Loader::XF86VidModeSetViewPort(XDisplay, Screennr, 0, 0);
 		}
 		#endif
 		#ifdef _IRR_LINUX_X11_RANDR_
@@ -295,13 +305,13 @@ bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 	#endif
 
 	#ifdef _IRR_LINUX_X11_VIDMODE_
-	if (XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
+	if (X11Loader::XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
 	{
 		// enumerate video modes
 		s32 modeCount;
 		XF86VidModeModeInfo** modes;
 
-		XF86VidModeGetAllModeLines(XDisplay, Screennr, &modeCount, &modes);
+		X11Loader::XF86VidModeGetAllModeLines(XDisplay, Screennr, &modeCount, &modes);
 
 		// find fitting mode
 		for (s32 i = 0; i<modeCount; ++i)
@@ -321,8 +331,8 @@ bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 			os::Printer::log("hdisplay: ", core::stringc(modes[bestMode]->hdisplay).c_str(), ELL_INFORMATION);
 			os::Printer::log("vdisplay: ", core::stringc(modes[bestMode]->vdisplay).c_str(), ELL_INFORMATION);
 
-			XF86VidModeSwitchToMode(XDisplay, Screennr, modes[bestMode]);
-			XF86VidModeSetViewPort(XDisplay, Screennr, 0, 0);
+			X11Loader::XF86VidModeSwitchToMode(XDisplay, Screennr, modes[bestMode]);
+			X11Loader::XF86VidModeSetViewPort(XDisplay, Screennr, 0, 0);
 			UseXVidMode=true;
 		}
 		else
@@ -331,7 +341,7 @@ bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 			CreationParams.Fullscreen = false;
 		}
 
-		XFree(modes);
+		X11Loader::XFree(modes);
 	}
 	else
 	#endif
@@ -411,14 +421,14 @@ bool CIrrDeviceLinux::createWindow()
 #ifdef _DEBUG
 	os::Printer::log("Creating X window...", ELL_INFORMATION);
 #endif
-	XSetErrorHandler(IrrPrintXError);
+	X11Loader::XSetErrorHandler(IrrPrintXError);
 
-	XDisplay = XOpenDisplay(0);
+	XDisplay = X11Loader::XOpenDisplay(0);
 	if (!XDisplay)
 	{
 		os::Printer::log("Error: Need running XServer to start Irrlicht Engine.", ELL_ERROR);
-		if (XDisplayName(0)[0])
-			os::Printer::log("Could not open display", XDisplayName(0), ELL_ERROR);
+		if (X11Loader::XDisplayName(0)[0])
+			os::Printer::log("Could not open display", X11Loader::XDisplayName(0), ELL_ERROR);
 		else
 			os::Printer::log("Could not open display, set DISPLAY variable", ELL_ERROR);
 		return false;
@@ -452,7 +462,7 @@ bool CIrrDeviceLinux::createWindow()
 		visTempl.depth = CreationParams.WithAlphaChannel?32:24;
 		while ((!VisualInfo) && (visTempl.depth>=16))
 		{
-			VisualInfo = XGetVisualInfo(XDisplay, VisualScreenMask|VisualDepthMask,
+			VisualInfo = X11Loader::XGetVisualInfo(XDisplay, VisualScreenMask|VisualDepthMask,
 				&visTempl, &visNumber);
 			visTempl.depth -= 8;
 		}
@@ -461,7 +471,7 @@ bool CIrrDeviceLinux::createWindow()
 	if (!VisualInfo)
 	{
 		os::Printer::log("Fatal error, could not get visual.", ELL_ERROR);
-		XCloseDisplay(XDisplay);
+		X11Loader::XCloseDisplay(XDisplay);
 		XDisplay=0;
 		return false;
 	}
@@ -472,7 +482,7 @@ bool CIrrDeviceLinux::createWindow()
 
 	// create color map
 	Colormap colormap;
-	colormap = XCreateColormap(XDisplay,
+	colormap = X11Loader::XCreateColormap(XDisplay,
 			RootWindow(XDisplay, VisualInfo->screen),
 			VisualInfo->visual, AllocNone);
 
@@ -500,32 +510,32 @@ bool CIrrDeviceLinux::createWindow()
 		// create new Window
 		// Remove window manager decoration in fullscreen
 		WndAttributes.override_redirect = CreationParams.Fullscreen;
-		XWindow = XCreateWindow(XDisplay,
+		XWindow = X11Loader::XCreateWindow(XDisplay,
 				RootWindow(XDisplay, VisualInfo->screen),
 				x, y, Width, Height, 0, VisualInfo->depth,
 				InputOutput, VisualInfo->visual,
 				CWBorderPixel | CWColormap | CWEventMask | CWOverrideRedirect,
 				&WndAttributes);
 
-		XMapRaised(XDisplay, XWindow);
+		X11Loader::XMapRaised(XDisplay, XWindow);
 		CreationParams.WindowId = (void*)XWindow;
-		X_ATOM_WM_DELETE_WINDOW = XInternAtom(XDisplay, "WM_DELETE_WINDOW", True);
-		XSetWMProtocols(XDisplay, XWindow, &X_ATOM_WM_DELETE_WINDOW, 1);
+		X_ATOM_WM_DELETE_WINDOW = X11Loader::XInternAtom(XDisplay, "WM_DELETE_WINDOW", True);
+		X11Loader::XSetWMProtocols(XDisplay, XWindow, &X_ATOM_WM_DELETE_WINDOW, 1);
 		if (CreationParams.Fullscreen)
 		{
-			XSetInputFocus(XDisplay, XWindow, RevertToParent, CurrentTime);
-			int grabKb = XGrabKeyboard(XDisplay, XWindow, True, GrabModeAsync,
+			X11Loader::XSetInputFocus(XDisplay, XWindow, RevertToParent, CurrentTime);
+			int grabKb = X11Loader::XGrabKeyboard(XDisplay, XWindow, True, GrabModeAsync,
 				GrabModeAsync, CurrentTime);
 			IrrPrintXGrabError(grabKb, "XGrabKeyboard");
-			int grabPointer = XGrabPointer(XDisplay, XWindow, True, ButtonPressMask,
+			int grabPointer = X11Loader::XGrabPointer(XDisplay, XWindow, True, ButtonPressMask,
 				GrabModeAsync, GrabModeAsync, XWindow, None, CurrentTime);
 			IrrPrintXGrabError(grabPointer, "XGrabPointer");
-			XWarpPointer(XDisplay, None, XWindow, 0, 0, 0, 0, 0, 0);
+			X11Loader::XWarpPointer(XDisplay, None, XWindow, 0, 0, 0, 0, 0, 0);
 		}
 		else if (CreationParams.WindowPosition.X >= 0 || CreationParams.WindowPosition.Y >= 0)	// default is -1, -1
 		{
 			// Window managers are free to ignore positions above, so give it another shot
-			XMoveWindow(XDisplay,XWindow,x,y);
+			X11Loader::XMoveWindow(XDisplay,XWindow,x,y);
 		}
 	}
 	else
@@ -534,7 +544,7 @@ bool CIrrDeviceLinux::createWindow()
 		XWindow = (Window)CreationParams.WindowId;
 		if (!CreationParams.IgnoreInput)
 		{
-			XCreateWindow(XDisplay,
+			X11Loader::XCreateWindow(XDisplay,
 					XWindow,
 					0, 0, Width, Height, 0, VisualInfo->depth,
 					InputOutput, VisualInfo->visual,
@@ -542,7 +552,7 @@ bool CIrrDeviceLinux::createWindow()
 					&WndAttributes);
 		}
 		XWindowAttributes wa;
-		XGetWindowAttributes(XDisplay, XWindow, &wa);
+		X11Loader::XGetWindowAttributes(XDisplay, XWindow, &wa);
 		CreationParams.WindowSize.Width = wa.width;
 		CreationParams.WindowSize.Height = wa.height;
 		CreationParams.Fullscreen = false;
@@ -558,21 +568,21 @@ bool CIrrDeviceLinux::createWindow()
 	int x,y;
 	unsigned int bits;
 
-	XGetGeometry(XDisplay, XWindow, &tmp, &x, &y, &Width, &Height, &borderWidth, &bits);
+	X11Loader::XGetGeometry(XDisplay, XWindow, &tmp, &x, &y, &Width, &Height, &borderWidth, &bits);
 	CreationParams.Bits = bits;
 	CreationParams.WindowSize.Width = Width;
 	CreationParams.WindowSize.Height = Height;
 
-	StdHints = XAllocSizeHints();
+	StdHints = X11Loader::XAllocSizeHints();
 	long num;
-	XGetWMNormalHints(XDisplay, XWindow, StdHints, &num);
+	X11Loader::XGetWMNormalHints(XDisplay, XWindow, StdHints, &num);
 
 	// create an XImage for the software renderer
 	//(thx to Nadav for some clues on how to do that!)
 
 	if (CreationParams.DriverType == video::EDT_SOFTWARE || CreationParams.DriverType == video::EDT_BURNINGSVIDEO)
 	{
-		SoftwareImage = XCreateImage(XDisplay,
+		SoftwareImage = X11Loader::XCreateImage(XDisplay,
 			VisualInfo->visual, VisualInfo->depth,
 			ZPixmap, 0, 0, Width, Height,
 			BitmapPad(XDisplay), 0);
@@ -585,7 +595,7 @@ bool CIrrDeviceLinux::createWindow()
 	initXAtoms();
 
 	// check netwm support
-	Atom WMCheck = XInternAtom(XDisplay, "_NET_SUPPORTING_WM_CHECK", true);
+	Atom WMCheck = X11Loader::XInternAtom(XDisplay, "_NET_SUPPORTING_WM_CHECK", true);
 	if (WMCheck != None)
 		HasNetWM = true;
 
@@ -745,8 +755,8 @@ static void X11_ReadProperty(x11Prop *p, Display *disp, Window w, Atom prop)
     int bytes_fetch = 0;
 
     do {
-        if (ret != 0) XFree(ret);
-        XGetWindowProperty(disp, w, prop, 0, bytes_fetch, False, AnyPropertyType, &type, &fmt, &count, &bytes_left, &ret);
+        if (ret != 0) X11Loader::XFree(ret);
+        X11Loader::XGetWindowProperty(disp, w, prop, 0, bytes_fetch, False, AnyPropertyType, &type, &fmt, &count, &bytes_left, &ret);
         bytes_fetch += bytes_left;
     } while (bytes_left != 0);
 
@@ -764,13 +774,13 @@ static Atom X11_PickTarget(Display *disp, Atom list[], int list_count, bool* isF
     char *name;
     int i;
     for (i=0; i < list_count && request == None; i++) {
-        name = XGetAtomName(disp, list[i]);
+        name = X11Loader::XGetAtomName(disp, list[i]);
         if ((strcmp("text/uri-list", name) == 0) || (strcmp("text/plain", name) == 0)) {
              request = list[i];
 			 if(isFile)
 				 *isFile = name[5] == 'u';
         }
-        XFree(name);
+        X11Loader::XFree(name);
     }
     return request;
 }
@@ -907,14 +917,14 @@ bool CIrrDeviceLinux::createInputContext()
 	core::stringc oldLocale(setlocale(LC_CTYPE, NULL));
 	setlocale(LC_CTYPE, "");	// use environment locale
 
-	if ( !XSupportsLocale() )
+	if ( !X11Loader::XSupportsLocale() )
 	{
 		os::Printer::log("Locale not supported. Falling back to non-i18n input.", ELL_WARNING);
 		setlocale(LC_CTYPE, oldLocale.c_str());
 		return false;
 	}
 
-	XInputMethod = XOpenIM(XDisplay, NULL, NULL, NULL);
+	XInputMethod = X11Loader::XOpenIM(XDisplay, NULL, NULL, NULL);
 	if ( !XInputMethod )
 	{
 		setlocale(LC_CTYPE, oldLocale.c_str());
@@ -923,7 +933,7 @@ bool CIrrDeviceLinux::createInputContext()
 	}
 
 	XIMStyles *im_supported_styles;
-	XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, (char*)NULL);
+	X11Loader::XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, (char*)NULL);
 	XIMStyle bestStyle = 0;
 	// TODO: If we want to support languages like chinese or japanese as well we probably have to work with callbacks here.
 	XIMStyle supportedStyle = XIMPreeditNothing | XIMStatusNothing;
@@ -936,11 +946,11 @@ bool CIrrDeviceLinux::createInputContext()
 			break;
 		}
     }
-	XFree(im_supported_styles);
+	X11Loader::XFree(im_supported_styles);
 
 	if ( !bestStyle )
 	{
-		XDestroyIC(XInputContext);
+		X11Loader::XDestroyIC(XInputContext);
 		XInputContext = 0;
 
 		os::Printer::log("XInputMethod has no input style we can use. Falling back to non-i18n input.", ELL_WARNING);
@@ -948,7 +958,7 @@ bool CIrrDeviceLinux::createInputContext()
 		return false;
 	}
 
-	XInputContext = XCreateIC(XInputMethod,
+	XInputContext = X11Loader::XCreateIC(XInputMethod,
 							XNInputStyle, bestStyle,
 							XNClientWindow, XWindow,
 							(char*)NULL);
@@ -958,7 +968,7 @@ bool CIrrDeviceLinux::createInputContext()
 		setlocale(LC_CTYPE, oldLocale.c_str());
 		return false;
 	}
-	XSetICFocus(XInputContext);
+	X11Loader::XSetICFocus(XInputContext);
 	setlocale(LC_CTYPE, oldLocale.c_str());
 	return true;
 }
@@ -967,13 +977,13 @@ void CIrrDeviceLinux::destroyInputContext()
 {
 	if ( XInputContext )
 	{
-		XUnsetICFocus(XInputContext);
-		XDestroyIC(XInputContext);
+		X11Loader::XUnsetICFocus(XInputContext);
+		X11Loader::XDestroyIC(XInputContext);
 		XInputContext = 0;
 	}
 	if ( XInputMethod )
 	{
-		XCloseIM(XInputMethod);
+		X11Loader::XCloseIM(XInputMethod);
 		XInputMethod = 0;
 	}
 }
@@ -983,7 +993,7 @@ EKEY_CODE CIrrDeviceLinux::getKeyCode(XEvent &event)
 	EKEY_CODE keyCode = (EKEY_CODE)0;
 
 	SKeyMap mp;
-	mp.X11Key = XkbKeycodeToKeysym(XDisplay, event.xkey.keycode, 0, 0);
+	mp.X11Key = X11Loader::XkbKeycodeToKeysym(XDisplay, event.xkey.keycode, 0, 0);
 	// mp.X11Key = XKeycodeToKeysym(XDisplay, event.xkey.keycode, 0);	// deprecated, if we still find platforms which need that we have to use some define
 	const s32 idx = KeyMap.binary_search(mp);
 	if (idx != -1)
@@ -1030,11 +1040,11 @@ bool CIrrDeviceLinux::run()
 		SEvent irrevent;
 		irrevent.MouseInput.ButtonStates = 0xffffffff;
 
-		while (XPending(XDisplay) > 0 && !Close)
+		while (X11Loader::XPending(XDisplay) > 0 && !Close)
 		{
 			XEvent event;
-			XNextEvent(XDisplay, &event);
-			if(XFilterEvent(&event, XWindow))
+			X11Loader::XNextEvent(XDisplay, &event);
+			if(X11Loader::XFilterEvent(&event, XWindow))
 				continue;
 
 			switch (event.type)
@@ -1052,7 +1062,7 @@ bool CIrrDeviceLinux::run()
 					{
 						XDestroyImage(SoftwareImage);
 
-						SoftwareImage = XCreateImage(XDisplay,
+						SoftwareImage = X11Loader::XCreateImage(XDisplay,
 							VisualInfo->visual, VisualInfo->depth,
 							ZPixmap, 0, 0, Width, Height,
 							BitmapPad(XDisplay), 0);
@@ -1177,17 +1187,17 @@ bool CIrrDeviceLinux::run()
 				break;
 
 			case MappingNotify:
-				XRefreshKeyboardMapping (&event.xmapping) ;
+				X11Loader::XRefreshKeyboardMapping (&event.xmapping) ;
 				break;
 
 			case KeyRelease:
-				if (0 == AutorepeatSupport && (XPending( XDisplay ) > 0) )
+				if (0 == AutorepeatSupport && (X11Loader::XPending( XDisplay ) > 0) )
 				{
 					// check for Autorepeat manually
 					// We'll do the same as Windows does: Only send KeyPressed
 					// So every KeyRelease is a real release
 					XEvent next_event;
-					XPeekEvent (event.xkey.display, &next_event);
+					X11Loader::XPeekEvent (event.xkey.display, &next_event);
 					if ((next_event.type == KeyPress) &&
 						(next_event.xkey.keycode == event.xkey.keycode) &&
 						(next_event.xkey.time - event.xkey.time) < 2)	// usually same time, but on some systems a difference of 1 is possible
@@ -1214,7 +1224,7 @@ bool CIrrDeviceLinux::run()
 					{
 						wchar_t buf[8]={0};
 						Status status;
-						int strLen = XwcLookupString(XInputContext, &event.xkey, buf, sizeof(buf), &mp.X11Key, &status);
+						int strLen = X11Loader::XwcLookupString(XInputContext, &event.xkey, buf, sizeof(buf), &mp.X11Key, &status);
 						if ( status == XBufferOverflow )
 						{
 							os::Printer::log("XwcLookupString needs a larger buffer", ELL_INFORMATION);
@@ -1249,7 +1259,7 @@ bool CIrrDeviceLinux::run()
 							char buf[8];
 							wchar_t wbuf[2];
 						} tmp = {{0}};
-						XLookupString(&event.xkey, tmp.buf, sizeof(tmp.buf), &mp.X11Key, NULL);
+						X11Loader::XLookupString(&event.xkey, tmp.buf, sizeof(tmp.buf), &mp.X11Key, NULL);
 						irrevent.KeyInput.Char = tmp.wbuf[0];
 					}
 
@@ -1276,7 +1286,7 @@ bool CIrrDeviceLinux::run()
 							X11_ReadProperty(&p, XDisplay, xdnd_source, X_ATOM_XDND_TYPE_LIST);
 							/* pick one */
 							xdnd_req = X11_PickTarget(XDisplay, (Atom*)p.data, p.count, &draggingFile);
-							XFree(p.data);
+							X11Loader::XFree(p.data);
 						} else {
 							/* pick from list of three */
 							xdnd_req = X11_PickTargetFromAtoms(XDisplay, event.xclient.data.l[2], event.xclient.data.l[3], event.xclient.data.l[4], &draggingFile);
@@ -1289,7 +1299,7 @@ bool CIrrDeviceLinux::run()
 						int y = event.xclient.data.l[2] & 0xffff;
 						int convx, convy;
 						Window child;
-						XTranslateCoordinates(XDisplay, RootWindow(XDisplay, VisualInfo->screen), XWindow, x, y, &convx, &convy, &child);
+						X11Loader::XTranslateCoordinates(XDisplay, RootWindow(XDisplay, VisualInfo->screen), XWindow, x, y, &convx, &convy, &child);
 						bool accept = 0;
 						drop_pos = core::vector2di(convx, convy);
 						if((xdnd_req != None) && (!dragAndDropCheck || dragAndDropCheck(drop_pos, draggingFile))) {
@@ -1308,8 +1318,8 @@ bool CIrrDeviceLinux::run()
 						m.data.l[3] = 0;
 						m.data.l[4] = X_ATOM_XDND_ACTION_COPY; /* we only accept copying anyway */
 
-						XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
-						XFlush(XDisplay);
+						X11Loader::XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
+						X11Loader::XFlush(XDisplay);
 					}
 					else if(event.xclient.message_type == X_ATOM_XDND_DROP) {
 						if(xdnd_req == None) {
@@ -1324,13 +1334,13 @@ bool CIrrDeviceLinux::run()
 							m.data.l[0] = XWindow;
 							m.data.l[1] = 0;
 							m.data.l[2] = None; /* fail! */
-							XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
+							X11Loader::XSendEvent(XDisplay, event.xclient.data.l[0], False, NoEventMask, (XEvent*)&m);
 						} else {
 							/* convert */
 							if(xdnd_version >= 1) {
-								XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, event.xclient.data.l[2]);
+								X11Loader::XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, event.xclient.data.l[2]);
 							} else {
-								XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, CurrentTime);
+								X11Loader::XConvertSelection(XDisplay, X_ATOM_XDND_SELECTION, xdnd_req, XA_PRIMARY, XWindow, CurrentTime);
 							}
 						}
 					}
@@ -1360,7 +1370,7 @@ bool CIrrDeviceLinux::run()
 					XSelectionRequestEvent *req = &(event.xselectionrequest);
 					if (  req->target == X_ATOM_UTF8_STRING)
 					{
-						XChangeProperty (XDisplay,
+						X11Loader::XChangeProperty (XDisplay,
 								req->requestor,
 								req->property, req->target,
 								8, // format
@@ -1376,7 +1386,7 @@ bool CIrrDeviceLinux::run()
 						data[0] = X_ATOM_TEXT;
 						data[1] = X_ATOM_UTF8_STRING;
 
-						XChangeProperty (XDisplay, req->requestor,
+						X11Loader::XChangeProperty (XDisplay, req->requestor,
 								req->property, req->target,
 								8, PropModeReplace,
 								(unsigned char *) &data,
@@ -1393,8 +1403,8 @@ bool CIrrDeviceLinux::run()
 					respond.xselection.selection=req->selection;
 					respond.xselection.target= req->target;
 					respond.xselection.time = req->time;
-					XSendEvent (XDisplay, req->requestor,0,0,&respond);
-					XFlush (XDisplay);
+					X11Loader::XSendEvent (XDisplay, req->requestor,0,0,&respond);
+					X11Loader::XFlush (XDisplay);
 				}
 				break;
 			case SelectionNotify:
@@ -1416,7 +1426,7 @@ bool CIrrDeviceLinux::run()
 							postEventFromUser(irrevent);
 							irrevent.DropEvent.DropType = draggingFile ? DROP_FILE : DROP_TEXT;
 							char* saveptr = NULL;
-							char* name = XGetAtomName(XDisplay, target);
+							char* name = X11Loader::XGetAtomName(XDisplay, target);
 							if(strcmp("text/plain", name) == 0) {
 								size_t lenOld = strlen((char *)p.data);
 								wchar_t *ws = new wchar_t[lenOld + 1];
@@ -1443,7 +1453,7 @@ bool CIrrDeviceLinux::run()
 							irrevent.DropEvent.Text = nullptr;
 							postEventFromUser(irrevent);
 						}
-						XFree(p.data);
+						X11Loader::XFree(p.data);
 
 						XClientMessageEvent m;
 
@@ -1457,9 +1467,9 @@ bool CIrrDeviceLinux::run()
 						m.data.l[0] = XWindow;
 						m.data.l[1] = 1;
 						m.data.l[2] = X_ATOM_XDND_ACTION_COPY;
-						XSendEvent(XDisplay, xdnd_source, False, NoEventMask, (XEvent*)&m);
+						X11Loader::XSendEvent(XDisplay, xdnd_source, False, NoEventMask, (XEvent*)&m);
 
-						XSync(XDisplay, False);
+						X11Loader::XSync(XDisplay, False);
 					} else {
 						ClipboardWaiting = false;
 					}
@@ -1538,12 +1548,12 @@ void CIrrDeviceLinux::setWindowCaption(const wchar_t* text)
 		return;
 
 	XTextProperty txt;
-	if (Success==XwcTextListToTextProperty(XDisplay, const_cast<wchar_t**>(&text),
+	if (Success==X11Loader::XwcTextListToTextProperty(XDisplay, const_cast<wchar_t**>(&text),
 				1, XStdICCTextStyle, &txt))
 	{
-		XSetWMName(XDisplay, XWindow, &txt);
-		XSetWMIconName(XDisplay, XWindow, &txt);
-		XFree(txt.value);
+		X11Loader::XSetWMName(XDisplay, XWindow, &txt);
+		X11Loader::XSetWMIconName(XDisplay, XWindow, &txt);
+		X11Loader::XFree(txt.value);
 	}
 #endif
 }
@@ -1597,7 +1607,7 @@ bool CIrrDeviceLinux::present(video::IImage* image, void* windowId, core::rect<s
 	Window myWindow=XWindow;
 	if (windowId)
 		myWindow = reinterpret_cast<Window>(windowId);
-	XPutImage(XDisplay, myWindow, gc, SoftwareImage, 0, 0, 0, 0, destwidth, destheight);
+	X11Loader::XPutImage(XDisplay, myWindow, gc, SoftwareImage, 0, 0, 0, 0, destwidth, destheight);
 #endif
 	return true;
 }
@@ -1653,18 +1663,18 @@ void CIrrDeviceLinux::setResizable(bool resize)
 	if ( !resize )
 	{
 		// Must be heap memory because data size depends on X Server
-		XSizeHints *hints = XAllocSizeHints();
+		XSizeHints *hints = X11Loader::XAllocSizeHints();
 		hints->flags=PSize|PMinSize|PMaxSize;
 		hints->min_width=hints->max_width=hints->base_width=Width;
 		hints->min_height=hints->max_height=hints->base_height=Height;
-		XSetWMNormalHints(XDisplay, XWindow, hints);
-		XFree(hints);
+		X11Loader::XSetWMNormalHints(XDisplay, XWindow, hints);
+		X11Loader::XFree(hints);
 	}
 	else
 	{
-		XSetWMNormalHints(XDisplay, XWindow, StdHints);
+		X11Loader::XSetWMNormalHints(XDisplay, XWindow, StdHints);
 	}
-	XFlush(XDisplay);
+	X11Loader::XFlush(XDisplay);
 #endif // #ifdef _IRR_COMPILE_WITH_X11_
 }
 
@@ -1678,8 +1688,8 @@ void CIrrDeviceLinux::setWindowSize(const irr::core::dimension2d<u32>& size)
 	XWindowChanges values;
 	values.width = size.Width;
 	values.height = size.Height;
-	XConfigureWindow(XDisplay, XWindow, CWWidth | CWHeight, &values);
-	XFlush(XDisplay);
+	X11Loader::XConfigureWindow(XDisplay, XWindow, CWWidth | CWHeight, &values);
+	X11Loader::XFlush(XDisplay);
 #endif // #ifdef _IRR_COMPILE_WITH_X11_
 }
 
@@ -1693,7 +1703,7 @@ video::IVideoModeList* CIrrDeviceLinux::getVideoModeList()
 
 		if (!XDisplay)
 		{
-			XDisplay = XOpenDisplay(0);
+			XDisplay = X11Loader::XOpenDisplay(0);
 			temporaryDisplay=true;
 		}
 		if (XDisplay)
@@ -1704,13 +1714,13 @@ video::IVideoModeList* CIrrDeviceLinux::getVideoModeList()
 			#endif
 
 			#ifdef _IRR_LINUX_X11_VIDMODE_
-			if (XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
+			if (X11Loader::XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
 			{
 				// enumerate video modes
 				int modeCount;
 				XF86VidModeModeInfo** modes;
 
-				XF86VidModeGetAllModeLines(XDisplay, Screennr, &modeCount, &modes);
+				X11Loader::XF86VidModeGetAllModeLines(XDisplay, Screennr, &modeCount, &modes);
 
 				// save current video mode
 				OldVideoMode = *modes[0];
@@ -1724,7 +1734,7 @@ video::IVideoModeList* CIrrDeviceLinux::getVideoModeList()
 					VideoModeList->addMode(core::dimension2d<u32>(
 						modes[i]->hdisplay, modes[i]->vdisplay), defaultDepth);
 				}
-				XFree(modes);
+				X11Loader::XFree(modes);
 			}
 			else
 			#endif
@@ -1752,7 +1762,7 @@ video::IVideoModeList* CIrrDeviceLinux::getVideoModeList()
 		}
 		if (XDisplay && temporaryDisplay)
 		{
-			XCloseDisplay(XDisplay);
+			X11Loader::XCloseDisplay(XDisplay);
 			XDisplay=0;
 		}
 	}
@@ -1766,7 +1776,7 @@ video::IVideoModeList* CIrrDeviceLinux::getVideoModeList()
 void CIrrDeviceLinux::minimizeWindow()
 {
 #ifdef _IRR_COMPILE_WITH_X11_
-	XIconifyWindow(XDisplay, XWindow, Screennr);
+	X11Loader::XIconifyWindow(XDisplay, XWindow, Screennr);
 #endif
 }
 
@@ -1788,11 +1798,11 @@ void CIrrDeviceLinux::maximizeWindow()
 		ev.xclient.data.l[1] = X_ATOM_NETWM_MAXIMIZE_VERT;
 		ev.xclient.data.l[2] = X_ATOM_NETWM_MAXIMIZE_HORZ;
 
-		XSendEvent(XDisplay, DefaultRootWindow(XDisplay), false,
+		X11Loader::XSendEvent(XDisplay, DefaultRootWindow(XDisplay), false,
 				SubstructureNotifyMask|SubstructureRedirectMask, &ev);
 	}
 
-	XMapWindow(XDisplay, XWindow);
+	X11Loader::XMapWindow(XDisplay, XWindow);
 #endif
 }
 
@@ -1814,11 +1824,11 @@ void CIrrDeviceLinux::restoreWindow()
 		ev.xclient.data.l[1] = X_ATOM_NETWM_MAXIMIZE_VERT;
 		ev.xclient.data.l[2] = X_ATOM_NETWM_MAXIMIZE_HORZ;
 
-		XSendEvent(XDisplay, DefaultRootWindow(XDisplay), false,
+		X11Loader::XSendEvent(XDisplay, DefaultRootWindow(XDisplay), false,
 				SubstructureNotifyMask|SubstructureRedirectMask, &ev);
 	}
 
-	XMapWindow(XDisplay, XWindow);
+	X11Loader::XMapWindow(XDisplay, XWindow);
 #endif
 }
 
@@ -1827,7 +1837,7 @@ core::position2di CIrrDeviceLinux::getWindowPosition()
 	int wx = 0, wy = 0;
 #ifdef _IRR_COMPILE_WITH_X11_
 	Window child;
-	XTranslateCoordinates(XDisplay, XWindow, DefaultRootWindow(XDisplay), 0, 0, &wx, &wy, &child);
+	X11Loader::XTranslateCoordinates(XDisplay, XWindow, DefaultRootWindow(XDisplay), 0, 0, &wx, &wy, &child);
 #endif
 	return core::position2di(wx, wy);
 }
@@ -2177,13 +2187,13 @@ bool CIrrDeviceLinux::setGammaRamp( f32 red, f32 green, f32 blue, f32 brightness
 	#if defined(_IRR_LINUX_X11_VIDMODE_) || defined(_IRR_LINUX_X11_RANDR_)
 	s32 eventbase, errorbase;
 	#ifdef _IRR_LINUX_X11_VIDMODE_
-	if (XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
+	if (X11Loader::XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
 	{
 		XF86VidModeGamma gamma;
 		gamma.red=red;
 		gamma.green=green;
 		gamma.blue=blue;
-		XF86VidModeSetGamma(XDisplay, Screennr, &gamma);
+		X11Loader::XF86VidModeSetGamma(XDisplay, Screennr, &gamma);
 		return true;
 	}
 	#endif
@@ -2224,10 +2234,10 @@ bool CIrrDeviceLinux::getGammaRamp( f32 &red, f32 &green, f32 &blue, f32 &bright
 	#if defined(_IRR_LINUX_X11_VIDMODE_) || defined(_IRR_LINUX_X11_RANDR_)
 	s32 eventbase, errorbase;
 	#ifdef _IRR_LINUX_X11_VIDMODE_
-	if (XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
+	if (X11Loader::XF86VidModeQueryExtension(XDisplay, &eventbase, &errorbase))
 	{
 		XF86VidModeGamma gamma;
-		XF86VidModeGetGamma(XDisplay, Screennr, &gamma);
+		X11Loader::XF86VidModeGetGamma(XDisplay, Screennr, &gamma);
 		red = gamma.red;
 		green = gamma.green;
 		blue = gamma.blue;
@@ -2267,7 +2277,7 @@ bool CIrrDeviceLinux::getGammaRamp( f32 &red, f32 &green, f32 &blue, f32 &bright
 const c8* CIrrDeviceLinux::getTextFromClipboard()
 {
 #if defined(_IRR_COMPILE_WITH_X11_)
-	Window ownerWindow = XGetSelectionOwner (XDisplay, X_ATOM_CLIPBOARD);
+	Window ownerWindow = X11Loader::XGetSelectionOwner (XDisplay, X_ATOM_CLIPBOARD);
 	if ( ownerWindow ==  XWindow )
 	{
 		return Clipboard.c_str();
@@ -2275,8 +2285,8 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 	Clipboard = "";
 	if (ownerWindow != None )
 	{
-		XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, XWindow, CurrentTime);
-		XFlush (XDisplay);
+		X11Loader::XConvertSelection (XDisplay, X_ATOM_CLIPBOARD, X_ATOM_UTF8_STRING, XA_PRIMARY, XWindow, CurrentTime);
+		X11Loader::XFlush (XDisplay);
 		ClipboardWaiting = true;
 		u32 startTime = getTimer()->getRealTime();
 		u32 elapsedTime = 0;
@@ -2297,7 +2307,7 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 		int format;
 		unsigned long numItems, bytesLeft, dummy;
 		unsigned char *data;
-		XGetWindowProperty (XDisplay, XWindow,
+		X11Loader::XGetWindowProperty (XDisplay, XWindow,
 				XA_PRIMARY, // property name
 				0, // offset
 				0, // length (we only check for data, so 0)
@@ -2308,16 +2318,16 @@ const c8* CIrrDeviceLinux::getTextFromClipboard()
 				&numItems, // number items
 				&bytesLeft, // remaining bytes for partial reads
 				&data); // data
-		XFree(data);
+		X11Loader::XFree(data);
 		if ( bytesLeft > 0 )
 		{
 			// there is some data to get
-			int result = XGetWindowProperty (XDisplay, XWindow, XA_PRIMARY, 0,
+			int result = X11Loader::XGetWindowProperty (XDisplay, XWindow, XA_PRIMARY, 0,
 										bytesLeft, 0, AnyPropertyType, &type, &format,
 										&numItems, &dummy, &data);
 			if (result == Success)
 				Clipboard = (irr::c8*)data;
-			XFree(data);
+			X11Loader::XFree(data);
 		}
 	}
 
@@ -2335,8 +2345,8 @@ void CIrrDeviceLinux::copyToClipboard(const c8* text) const
 	// Actually there is no clipboard on X but applications just say they own the clipboard and return text when asked.
 	// Which btw. also means that on X you lose clipboard content when closing applications.
 	Clipboard = text;
-	XSetSelectionOwner (XDisplay, X_ATOM_CLIPBOARD, XWindow, CurrentTime);
-	XFlush (XDisplay);
+	X11Loader::XSetSelectionOwner (XDisplay, X_ATOM_CLIPBOARD, XWindow, CurrentTime);
+	X11Loader::XFlush (XDisplay);
 #endif
 }
 
@@ -2361,15 +2371,15 @@ void CIrrDeviceLinux::clearSystemMessages()
 	{
 		XEvent event;
 		int usrArg = ButtonPress;
-		while ( XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
+		while ( X11Loader::XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
 		usrArg = ButtonRelease;
-		while ( XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
+		while ( X11Loader::XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
 		usrArg = MotionNotify;
-		while ( XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
+		while ( X11Loader::XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
 		usrArg = KeyRelease;
-		while ( XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
+		while ( X11Loader::XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
 		usrArg = KeyPress;
-		while ( XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
+		while ( X11Loader::XCheckIfEvent(XDisplay, &event, PredicateIsEventType, XPointer(&usrArg)) == True ) {}
 	}
 #endif //_IRR_COMPILE_WITH_X11_
 }
@@ -2379,11 +2389,11 @@ void CIrrDeviceLinux::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 	if(enable) {
 		dragAndDropCheck = dragCheck;
 		Atom xdnd_version = 5;
-		XChangeProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE, XA_ATOM, 32,
+		X11Loader::XChangeProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE, XA_ATOM, 32,
 						PropModeReplace, (unsigned char*)&xdnd_version, 1);
 	} else {
 		dragAndDropCheck = nullptr;
-		XDeleteProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE);
+		X11Loader::XDeleteProperty(XDisplay, XWindow, X_ATOM_XDND_AWARE);
 	}
 
 }
@@ -2391,23 +2401,23 @@ void CIrrDeviceLinux::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::ve
 void CIrrDeviceLinux::initXAtoms()
 {
 #ifdef _IRR_COMPILE_WITH_X11_
-	X_ATOM_CLIPBOARD = XInternAtom(XDisplay, "CLIPBOARD", False);
-	X_ATOM_TARGETS = XInternAtom(XDisplay, "TARGETS", False);
-	X_ATOM_UTF8_STRING = XInternAtom (XDisplay, "UTF8_STRING", False);
-	X_ATOM_TEXT = XInternAtom (XDisplay, "TEXT", False);
-	X_ATOM_NETWM_MAXIMIZE_VERT = XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", true);
-	X_ATOM_NETWM_MAXIMIZE_HORZ = XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", true);
-	X_ATOM_NETWM_STATE = XInternAtom(XDisplay, "_NET_WM_STATE", true);
-	X_ATOM_XDND_AWARE = XInternAtom(XDisplay, "XdndAware", False);
-	X_ATOM_XDND_ENTER = XInternAtom(XDisplay, "XdndEnter", False);
-	X_ATOM_XDND_LEAVE = XInternAtom(XDisplay, "XdndLeave", False);
-	X_ATOM_XDND_POSITION = XInternAtom(XDisplay, "XdndPosition", False);
-	X_ATOM_XDND_STATUS = XInternAtom(XDisplay, "XdndStatus", False);
-	X_ATOM_XDND_TYPE_LIST = XInternAtom(XDisplay, "XdndTypeList", False);
-	X_ATOM_XDND_ACTION_COPY = XInternAtom(XDisplay, "XdndActionCopy", False);
-	X_ATOM_XDND_DROP = XInternAtom(XDisplay, "XdndDrop", False);
-	X_ATOM_XDND_FINISHED = XInternAtom(XDisplay, "XdndFinished", False);
-	X_ATOM_XDND_SELECTION = XInternAtom(XDisplay, "XdndSelection", False);
+	X_ATOM_CLIPBOARD = X11Loader::XInternAtom(XDisplay, "CLIPBOARD", False);
+	X_ATOM_TARGETS = X11Loader::XInternAtom(XDisplay, "TARGETS", False);
+	X_ATOM_UTF8_STRING = X11Loader::XInternAtom (XDisplay, "UTF8_STRING", False);
+	X_ATOM_TEXT = X11Loader::XInternAtom (XDisplay, "TEXT", False);
+	X_ATOM_NETWM_MAXIMIZE_VERT = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", true);
+	X_ATOM_NETWM_MAXIMIZE_HORZ = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", true);
+	X_ATOM_NETWM_STATE = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE", true);
+	X_ATOM_XDND_AWARE = X11Loader::XInternAtom(XDisplay, "XdndAware", False);
+	X_ATOM_XDND_ENTER = X11Loader::XInternAtom(XDisplay, "XdndEnter", False);
+	X_ATOM_XDND_LEAVE = X11Loader::XInternAtom(XDisplay, "XdndLeave", False);
+	X_ATOM_XDND_POSITION = X11Loader::XInternAtom(XDisplay, "XdndPosition", False);
+	X_ATOM_XDND_STATUS = X11Loader::XInternAtom(XDisplay, "XdndStatus", False);
+	X_ATOM_XDND_TYPE_LIST = X11Loader::XInternAtom(XDisplay, "XdndTypeList", False);
+	X_ATOM_XDND_ACTION_COPY = X11Loader::XInternAtom(XDisplay, "XdndActionCopy", False);
+	X_ATOM_XDND_DROP = X11Loader::XInternAtom(XDisplay, "XdndDrop", False);
+	X_ATOM_XDND_FINISHED = X11Loader::XInternAtom(XDisplay, "XdndFinished", False);
+	X_ATOM_XDND_SELECTION = X11Loader::XInternAtom(XDisplay, "XdndSelection", False);
 #endif
 }
 
@@ -2452,7 +2462,7 @@ void CIrrDeviceLinux::initXInput2()
 
 Cursor CIrrDeviceLinux::TextureToMonochromeCursor(irr::video::ITexture * tex, const core::rect<s32>& sourceRect, const core::position2d<s32> &hotspot)
 {
-	XImage * sourceImage = XCreateImage(XDisplay, VisualInfo->visual,
+	XImage * sourceImage = X11Loader::XCreateImage(XDisplay, VisualInfo->visual,
 										1, // depth,
 										ZPixmap,	// XYBitmap (depth=1), ZPixmap(depth=x)
 										0, 0, sourceRect.getWidth(), sourceRect.getHeight(),
@@ -2460,7 +2470,7 @@ Cursor CIrrDeviceLinux::TextureToMonochromeCursor(irr::video::ITexture * tex, co
 										0// bytes_per_line (0 means continuos in memory)
 										);
 	sourceImage->data = new char[sourceImage->height * sourceImage->bytes_per_line];
-	XImage * maskImage = XCreateImage(XDisplay, VisualInfo->visual,
+	XImage * maskImage = X11Loader::XCreateImage(XDisplay, VisualInfo->visual,
 										1, // depth,
 										ZPixmap,
 										0, 0, sourceRect.getWidth(), sourceRect.getHeight(),
@@ -2503,18 +2513,18 @@ Cursor CIrrDeviceLinux::TextureToMonochromeCursor(irr::video::ITexture * tex, co
 	}
 	tex->unlock();
 
-	Pixmap sourcePixmap = XCreatePixmap(XDisplay, XWindow, sourceImage->width, sourceImage->height, sourceImage->depth);
-	Pixmap maskPixmap = XCreatePixmap(XDisplay, XWindow, maskImage->width, maskImage->height, maskImage->depth);
+	Pixmap sourcePixmap = X11Loader::XCreatePixmap(XDisplay, XWindow, sourceImage->width, sourceImage->height, sourceImage->depth);
+	Pixmap maskPixmap = X11Loader::XCreatePixmap(XDisplay, XWindow, maskImage->width, maskImage->height, maskImage->depth);
 
 	XGCValues values;
 	values.foreground = 1;
 	values.background = 1;
-	GC gc = XCreateGC( XDisplay, sourcePixmap, GCForeground | GCBackground, &values );
+	GC gc = X11Loader::XCreateGC( XDisplay, sourcePixmap, GCForeground | GCBackground, &values );
 
-	XPutImage(XDisplay, sourcePixmap, gc, sourceImage, 0, 0, 0, 0, sourceImage->width, sourceImage->height);
-	XPutImage(XDisplay, maskPixmap, gc, maskImage, 0, 0, 0, 0, maskImage->width, maskImage->height);
+	X11Loader::XPutImage(XDisplay, sourcePixmap, gc, sourceImage, 0, 0, 0, 0, sourceImage->width, sourceImage->height);
+	X11Loader::XPutImage(XDisplay, maskPixmap, gc, maskImage, 0, 0, 0, 0, maskImage->width, maskImage->height);
 
-	XFreeGC(XDisplay, gc);
+	X11Loader::XFreeGC(XDisplay, gc);
 	XDestroyImage(sourceImage);
 	XDestroyImage(maskImage);
 
@@ -2529,10 +2539,10 @@ Cursor CIrrDeviceLinux::TextureToMonochromeCursor(irr::video::ITexture * tex, co
 	background.blue = 0;
 	background.flags = DoRed | DoGreen | DoBlue;
 
-	cursorResult = XCreatePixmapCursor(XDisplay, sourcePixmap, maskPixmap, &foreground, &background, hotspot.X, hotspot.Y);
+	cursorResult = X11Loader::XCreatePixmapCursor(XDisplay, sourcePixmap, maskPixmap, &foreground, &background, hotspot.X, hotspot.Y);
 
-	XFreePixmap(XDisplay, sourcePixmap);
-	XFreePixmap(XDisplay, maskPixmap);
+	X11Loader::XFreePixmap(XDisplay, sourcePixmap);
+	X11Loader::XFreePixmap(XDisplay, maskPixmap);
 
 	return cursorResult;
 }
@@ -2608,22 +2618,22 @@ CIrrDeviceLinux::CCursorControl::CCursorControl(CIrrDeviceLinux* dev, bool null)
 		// Sirshane, thank your very much!
 
 
-		Pixmap invisBitmap = XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
-		Pixmap maskBitmap = XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
+		Pixmap invisBitmap = X11Loader::XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
+		Pixmap maskBitmap = X11Loader::XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
 		Colormap screen_colormap = DefaultColormap( Device->XDisplay, DefaultScreen( Device->XDisplay ) );
-		XAllocNamedColor( Device->XDisplay, screen_colormap, "black", &fg, &fg );
-		XAllocNamedColor( Device->XDisplay, screen_colormap, "white", &bg, &bg );
+		X11Loader::XAllocNamedColor( Device->XDisplay, screen_colormap, "black", &fg, &fg );
+		X11Loader::XAllocNamedColor( Device->XDisplay, screen_colormap, "white", &bg, &bg );
 
-		GC gc = XCreateGC( Device->XDisplay, invisBitmap, valuemask, &values );
+		GC gc = X11Loader::XCreateGC( Device->XDisplay, invisBitmap, valuemask, &values );
 
-		XSetForeground( Device->XDisplay, gc, BlackPixel( Device->XDisplay, DefaultScreen( Device->XDisplay ) ) );
-		XFillRectangle( Device->XDisplay, invisBitmap, gc, 0, 0, 32, 32 );
-		XFillRectangle( Device->XDisplay, maskBitmap, gc, 0, 0, 32, 32 );
+		X11Loader::XSetForeground( Device->XDisplay, gc, BlackPixel( Device->XDisplay, DefaultScreen( Device->XDisplay ) ) );
+		X11Loader::XFillRectangle( Device->XDisplay, invisBitmap, gc, 0, 0, 32, 32 );
+		X11Loader::XFillRectangle( Device->XDisplay, maskBitmap, gc, 0, 0, 32, 32 );
 
-		InvisCursor = XCreatePixmapCursor( Device->XDisplay, invisBitmap, maskBitmap, &fg, &bg, 1, 1 );
-		XFreeGC(Device->XDisplay, gc);
-		XFreePixmap(Device->XDisplay, invisBitmap);
-		XFreePixmap(Device->XDisplay, maskBitmap);
+		InvisCursor = X11Loader::XCreatePixmapCursor( Device->XDisplay, invisBitmap, maskBitmap, &fg, &bg, 1, 1 );
+		X11Loader::XFreeGC(Device->XDisplay, gc);
+		X11Loader::XFreePixmap(Device->XDisplay, invisBitmap);
+		X11Loader::XFreePixmap(Device->XDisplay, maskBitmap);
 
 		initCursors();
 	}
@@ -2640,31 +2650,31 @@ CIrrDeviceLinux::CCursorControl::~CCursorControl()
 void CIrrDeviceLinux::CCursorControl::clearCursors()
 {
 	if (!Null)
-		XFreeCursor(Device->XDisplay, InvisCursor);
+		X11Loader::XFreeCursor(Device->XDisplay, InvisCursor);
 	for ( u32 i=0; i < Cursors.size(); ++i )
 	{
 		for ( u32 f=0; f < Cursors[i].Frames.size(); ++f )
 		{
-			XFreeCursor(Device->XDisplay, Cursors[i].Frames[f].IconHW);
+			X11Loader::XFreeCursor(Device->XDisplay, Cursors[i].Frames[f].IconHW);
 		}
 	}
 }
 
 void CIrrDeviceLinux::CCursorControl::initCursors()
 {
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_top_left_arrow)) ); //  (or XC_arrow?)
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_crosshair)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_hand2)) ); // (or XC_hand1? )
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_question_arrow)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_xterm)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_X_cursor)) );	//  (or XC_pirate?)
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_watch)) );	// (or XC_clock?)
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_fleur)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_top_right_corner)) );	// NESW not available in X11
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_top_left_corner)) );	// NWSE not available in X11
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_sb_v_double_arrow)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_sb_h_double_arrow)) );
-	Cursors.push_back( CursorX11(XCreateFontCursor(Device->XDisplay, XC_sb_up_arrow)) );	// (or XC_center_ptr?)
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_top_left_arrow)) ); //  (or XC_arrow?)
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_crosshair)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_hand2)) ); // (or XC_hand1? )
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_question_arrow)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_xterm)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_X_cursor)) );	//  (or XC_pirate?)
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_watch)) );	// (or XC_clock?)
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_fleur)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_top_right_corner)) );	// NESW not available in X11
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_top_left_corner)) );	// NWSE not available in X11
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_sb_v_double_arrow)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_sb_h_double_arrow)) );
+	Cursors.push_back( CursorX11(X11Loader::XCreateFontCursor(Device->XDisplay, XC_sb_up_arrow)) );	// (or XC_center_ptr?)
 }
 
 void CIrrDeviceLinux::CCursorControl::update()
@@ -2674,7 +2684,7 @@ void CIrrDeviceLinux::CCursorControl::update()
 		// update animated cursors. This could also be done by X11 in case someone wants to figure that out (this way was just easier to implement)
 		u32 now = Device->getTimer()->getRealTime();
 		u32 frame = ((now - ActiveIconStartTime) / Cursors[ActiveIcon].FrameTime) % Cursors[ActiveIcon].Frames.size();
-		XDefineCursor(Device->XDisplay, Device->XWindow, Cursors[ActiveIcon].Frames[frame].IconHW);
+		X11Loader::XDefineCursor(Device->XDisplay, Device->XWindow, Cursors[ActiveIcon].Frames[frame].IconHW);
 	}
 }
 #endif
@@ -2687,7 +2697,7 @@ void CIrrDeviceLinux::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
 		return;
 
 	if ( Cursors[iconId].Frames.size() )
-		XDefineCursor(Device->XDisplay, Device->XWindow, Cursors[iconId].Frames[0].IconHW);
+		X11Loader::XDefineCursor(Device->XDisplay, Device->XWindow, Cursors[iconId].Frames[0].IconHW);
 
 	ActiveIconStartTime = Device->getTimer()->getRealTime();
 	ActiveIcon = iconId;
@@ -2728,7 +2738,7 @@ void CIrrDeviceLinux::CCursorControl::changeIcon(gui::ECURSOR_ICON iconId, const
 		return;
 
 	for ( u32 i=0; i < Cursors[iconId].Frames.size(); ++i )
-		XFreeCursor(Device->XDisplay, Cursors[iconId].Frames[i].IconHW);
+		X11Loader::XFreeCursor(Device->XDisplay, Cursors[iconId].Frames[i].IconHW);
 
 	if ( icon.SpriteId >= 0 )
 	{
@@ -2753,7 +2763,7 @@ irr::core::dimension2di CIrrDeviceLinux::CCursorControl::getSupportedIconSize() 
 	// this returns the closest match that is smaller or same size, so we just pass a value which should be large enough for cursors
 	unsigned int width=0, height=0;
 #ifdef _IRR_COMPILE_WITH_X11_
-	XQueryBestCursor(Device->XDisplay, Device->XWindow, 64, 64, &width, &height);
+	X11Loader::XQueryBestCursor(Device->XDisplay, Device->XWindow, 64, 64, &width, &height);
 #endif
 	return core::dimension2di(width, height);
 }
