@@ -1,6 +1,5 @@
-// Copyright (C) 2002-2012 Nikolaus Gebhardt
-// This file is part of the "Irrlicht Engine".
-// For conditions of distribution and use, see copyright notice in irrlicht.h
+// Copyright (C) 2021 Edoardo Lolletti
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #ifndef __LIB_X11_LOADER_H_INCLUDED__
 #define __LIB_X11_LOADER_H_INCLUDED__
