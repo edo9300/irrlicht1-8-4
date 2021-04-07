@@ -756,7 +756,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 	if (!success)
 		return;
 
-	setResizable(false);
+	setResizable(CreationParams.WindowResizable);
 	CursorControl = new CCursorControl(CreationParams.WindowSize, this);
 
 	createDriver();
