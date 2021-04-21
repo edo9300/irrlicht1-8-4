@@ -4554,6 +4554,12 @@ COpenGLCacheHandler* COpenGLDriver::getCacheHandler() const
 	return CacheHandler;
 }
 
+void COpenGLDriver::setVsync(bool enabled) {
+	if(Params.Vsync == enabled)
+		return;
+	ContextManager->swapInterval((Params.Vsync = enabled) ? 1 : 0);
+}
+
 
 } // end namespace
 } // end namespace

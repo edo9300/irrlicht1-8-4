@@ -428,6 +428,9 @@ namespace video
 
 		COpenGLCacheHandler* getCacheHandler() const;
 
+		//! Toggles vsync
+		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
+
 	private:
 
 		bool updateVertexHardwareBuffer(SHWBufferLink_opengl *HWBuffer);
