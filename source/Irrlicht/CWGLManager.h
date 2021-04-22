@@ -68,7 +68,8 @@ namespace video
 		s32 PixelFormat;
 		PIXELFORMATDESCRIPTOR pfd;
 		ECOLOR_FORMAT ColorFormat;
-		void* pWglSwapIntervalEXT;
+		BOOL(WINAPI* pWglSwapIntervalEXT) (int interval);
+		HGLRC(WINAPI* wglCreateContextAttribs_ARB) (HDC hDC, HGLRC hShareContext, const int* attribList);
 	};
 }
 }

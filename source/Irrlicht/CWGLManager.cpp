@@ -21,13 +21,11 @@ namespace video
 {
 
 CWGLManager::CWGLManager()
-	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0), pWglSwapIntervalEXT(0)
+	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0), pWglSwapIntervalEXT(0), wglCreateContextAttribs_ARB(0)
 {
 	#ifdef _DEBUG
 	setDebugName("CWGLManager");
 	#endif
-	
-	pWglSwapIntervalEXT = (void*)wglGetProcAddress("wglSwapIntervalEXT");
 }
 
 CWGLManager::~CWGLManager()
@@ -288,6 +286,11 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 	else
 #endif
 		Params.AntiAlias=0;
+#ifdef WGL_ARB_create_context
+	wglCreateContextAttribs_ARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+#endif
+
+	pWglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 
 	// this only terminates the temporary HRc
 	destroyContext();
@@ -402,7 +405,6 @@ bool CWGLManager::generateContext()
 	HGLRC hrc;
 	// create rendering context
 #ifdef WGL_ARB_create_context
-	PFNWGLCREATECONTEXTATTRIBSARBPROC wglCreateContextAttribs_ARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 	if (wglCreateContextAttribs_ARB)
 	{
 		// with 3.0 all available profiles should be usable, higher versions impose restrictions
