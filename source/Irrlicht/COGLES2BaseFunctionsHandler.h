@@ -14,7 +14,7 @@
 #include "IContextManager.h"
 #include "os.h"
 
-#include "COGLESCommon.h"
+#include "COGLES2Common.h"
 #include "GLES/glplatform.h"
 
 namespace irr {
