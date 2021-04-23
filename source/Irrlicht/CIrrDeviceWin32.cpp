@@ -838,7 +838,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 
 	{
-		if(dev) {
+		if(dev && dev->getGUIEnvironment()) {
 			irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
 			if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
 				HIMC hIMC = ImmGetContext(hWnd);
