@@ -57,11 +57,15 @@ CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExpos
 	LibGL = dlopen("libGL.so", RTLD_LAZY);
 	if(!LibGL)
 		LibGL = dlopen("libGL.so.1", RTLD_LAZY);
+	if(!LibGL)
+		os::Printer::log("Failed to load LibGL.so", ELL_ERROR);
 	LibGLX = dlopen("libGLX.so", RTLD_LAZY);
 	if(!LibGLX)
 		LibGLX = dlopen("libGLX.so.1", RTLD_LAZY);
-	if(!LibGLX)
+	if(!LibGLX) {
+		os::Printer::log("Failed to load libGLX.so", ELL_ERROR);
 		return;
+	}
 	#define GLX_FUNC(name) p##name = (void*)dlsym(LibGLX, #name); if(!p##name) { dlclose(LibGLX); LibGLX=0; return; }
 		#include "CGLXFunctions.inl"
 	#undef GLX_FUNC
