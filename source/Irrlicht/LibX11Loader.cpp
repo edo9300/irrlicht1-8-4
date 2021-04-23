@@ -26,6 +26,8 @@ int X11Loader::amt{ 0 };
 void X11Loader::Load() {
 	LibX11 = dlopen("libX11.so", RTLD_LAZY); //libx11 has almost 2000 exported symbols
 											   //there's no point in using RTDL_NOW
+	if(!LibX11)
+		LibX11 = dlopen("libX11.so.6", RTLD_LAZY);
 	if(LibX11) {
 #define X(name) name=(decltype(name))dlsym(LibX11, #name);\
 	if(!name) {\
@@ -41,6 +43,8 @@ void X11Loader::Load() {
 	}
 #ifdef _IRR_LINUX_X11_VIDMODE_
 	LibXxf86vm = dlopen("libXxf86vm.so", RTLD_NOW);
+	if(!LibX11)
+		LibX11 = dlopen("libXxf86vm.so.1", RTLD_LAZY);
 	if(LibXxf86vm) {
 #define X(name) name=(decltype(name))dlsym(LibXxf86vm, #name);\
 	if(!name) {\
