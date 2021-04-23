@@ -58,8 +58,11 @@ namespace video
         // Swap buffers.
         virtual bool swapBuffers() _IRR_OVERRIDE_;
 		
-		// generic vsync setting method for several extensions
+		// Generic vsync setting method for several extensions
 		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
+
+        // Context dependent getProcAddress or equivalent function
+		virtual void* loadFunction(const char* function_name) _IRR_OVERRIDE_;
 
     private:
         SIrrlichtCreationParameters Params;
@@ -70,6 +73,18 @@ namespace video
 		ECOLOR_FORMAT ColorFormat;
 		BOOL(WINAPI* pWglSwapIntervalEXT) (int interval);
 		HGLRC(WINAPI* wglCreateContextAttribs_ARB) (HDC hDC, HGLRC hShareContext, const int* attribList);
+#ifdef _IRR_DYNAMIC_OPENGL_
+		PROC(WINAPI* pwglGetProcAddress)(LPCSTR name);
+		HGLRC(WINAPI* pwglCreateContext)(HDC);
+		BOOL(WINAPI* pwglDeleteContext)(HGLRC);
+		BOOL(WINAPI* pwglMakeCurrent)(HDC, HGLRC);
+#else
+		PROC(WINAPI* pwglGetProcAddress)(LPCSTR name) = wglGetProcAddress;
+		HGLRC(WINAPI* pwglCreateContext)(HDC) = wglCreateContext;
+		BOOL(WINAPI* pwglDeleteContext)(HGLRC) = wglDeleteContext;
+		BOOL(WINAPI* pwglMakeCurrent)(HDC, HGLRC) = wglMakeCurrent;
+#endif
+		HMODULE Opengl32;
 	};
 }
 }

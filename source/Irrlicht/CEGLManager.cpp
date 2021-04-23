@@ -597,6 +597,11 @@ void CEGLManager::swapInterval(int interval)
 	eglSwapInterval(EglDisplay, interval);
 }
 
+void* CEGLManager::loadFunction(const char* function_name)
+{
+	return eglGetProcAddress(function_name);
+}
+
 bool CEGLManager::testEGLError()
 {
 #if defined(EGL_VERSION_1_0) && defined(_DEBUG)

@@ -61,6 +61,8 @@
 #define _IRR_WINDOWS_
 #define _IRR_WINDOWS_API_
 #define _IRR_COMPILE_WITH_WINDOWS_DEVICE_
+#define _IRR_DYNAMIC_OPENGL_ES_1_
+#define _IRR_DYNAMIC_OPENGL_ES_2_
 #endif
 
 #if defined(_MSC_VER) && (_MSC_VER < 1500)
@@ -99,6 +101,9 @@
 #define NO_IRR_COMPILE_WITH_OGLES2_
 #define NO_IRR_COMPILE_WITH_WEBGL1_
 #endif
+#define NO_IRR_DYNAMIC_OPENGL_
+#define NO_IRR_DYNAMIC_OPENGL_ES_1_
+#define NO_IRR_DYNAMIC_OPENGL_ES_2_
 #endif
 
 #if defined(__EMSCRIPTEN__)
@@ -106,6 +111,7 @@
 #define NO_IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 #define NO_IRR_COMPILE_WITH_OPENGL_
 #define NO_IRR_COMPILE_WITH_OGLES1_
+#define NO_IRR_DYNAMIC_OPENGL_ES_2_
 #define _IRR_COMPILE_WITH_OGLES2_
 #define _IRR_COMPILE_WITH_WEBGL1_
 #define _IRR_COMPILE_WITH_EGL_MANAGER_
@@ -121,6 +127,8 @@
 #define _IRR_COMPILE_WITH_ANDROID_DEVICE_
 #define _IRR_COMPILE_ANDROID_ASSET_READER_
 #define NO_IRR_COMPILE_WITH_OPENGL_
+#define NO_IRR_DYNAMIC_OPENGL_ES_1_
+#define NO_IRR_DYNAMIC_OPENGL_ES_2_
 #endif
 
 #if defined(__SVR4) && defined(__sun)
@@ -137,6 +145,7 @@
 #define _IRR_POSIX_API_
 #define _IRR_COMPILE_WITH_X11_DEVICE_
 #define _IRR_X11_DYNAMIC_LOAD_
+#define _IRR_DYNAMIC_OPENGL_
 #endif
 
 
@@ -252,6 +261,9 @@ Depending on platform you may have to enable _IRR_OGLES1_USE_KHRONOS_API_HEADERS
 #ifndef _IRR_COMPILE_WITH_EGL_MANAGER_
 #define _IRR_COMPILE_WITH_EGL_MANAGER_
 #endif
+#ifndef _IRR_COMPILE_WITH_WGL_MANAGER_
+#define _IRR_COMPILE_WITH_WGL_MANAGER_
+#endif
 #elif defined(_IRR_COMPILE_WITH_IOS_DEVICE_)
 #ifndef _IRR_COMPILE_WITH_EAGL_MANAGER_
 #define _IRR_COMPILE_WITH_EAGL_MANAGER_
@@ -284,11 +296,18 @@ define out. */
 #ifndef _IRR_COMPILE_WITH_EGL_MANAGER_
 #define _IRR_COMPILE_WITH_EGL_MANAGER_
 #endif
+#ifndef _IRR_COMPILE_WITH_WGL_MANAGER_
+#define _IRR_COMPILE_WITH_WGL_MANAGER_
+#endif
 #elif defined(_IRR_COMPILE_WITH_IOS_DEVICE_)
 #ifndef _IRR_COMPILE_WITH_EAGL_MANAGER_
 #define _IRR_COMPILE_WITH_EAGL_MANAGER_
 #endif
 #endif
+#endif
+
+#ifdef NO__IRR_COMPILE_WITH_EGL_MANAGER_
+#undef _IRR_COMPILE_WITH_EGL_MANAGER_
 #endif
 
 
@@ -320,6 +339,17 @@ define out. */
 
 #ifdef NO_IRR_X11_DYNAMIC_LOAD_
 #undef _IRR_X11_DYNAMIC_LOAD_
+#endif
+
+#ifdef NO_IRR_DYNAMIC_OPENGL_
+#undef _IRR_DYNAMIC_OPENGL_
+#endif
+
+#ifdef NO_IRR_DYNAMIC_OPENGL_ES_1_
+#undef _IRR_DYNAMIC_OPENGL_ES_1_
+#endif
+#ifdef NO_IRR_DYNAMIC_OPENGL_ES_2_
+#undef _IRR_DYNAMIC_OPENGL_ES_2_
 #endif
 
 //! On some Linux systems the XF86 vidmode extension, X11 RandR, or XInput2 are missing.

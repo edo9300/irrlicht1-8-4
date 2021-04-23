@@ -20,6 +20,13 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/eglplatform.h>
+#elif defined(_IRR_DYNAMIC_OPENGL_ES_2_)
+#include "GLES2/gl2.h"
+#include "GLES2/gl2ext.h"
+typedef char GLchar;
+#if defined(_IRR_OGLES2_USE_EXTPOINTER_)
+#include "gles2-ext.h"
+#endif
 #else
 #if defined(_IRR_OGLES2_USE_EXTPOINTER_)
 	#define GL_GLEXT_PROTOTYPES 1

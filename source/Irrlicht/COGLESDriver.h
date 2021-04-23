@@ -26,10 +26,6 @@
 #include <windows.h>
 #endif
 
-#ifdef _MSC_VER
-#pragma comment(lib, "libGLES_CM.lib")
-#endif
-
 namespace irr
 {
 namespace video
@@ -326,6 +322,8 @@ namespace video
 		//! inits the opengl-es driver
 		bool genericDriverInit(const core::dimension2d<u32>& screenSize, bool stencilBuffer);
 
+		bool driverInitialized() { return initialized; };
+
 		virtual ITexture* createDeviceDependentTexture(const io::path& name, IImage* image) _IRR_OVERRIDE_;
 
 		virtual ITexture* createDeviceDependentTextureCubemap(const io::path& name, const core::array<IImage*>& image) _IRR_OVERRIDE_;
@@ -367,6 +365,7 @@ namespace video
 			ERM_3D		// 3d rendering mode
 		};
 
+		bool initialized;
 		E_RENDER_MODE CurrentRenderMode;
 		//! bool to make all renderstates reset if set to true.
 		bool ResetRenderStates;

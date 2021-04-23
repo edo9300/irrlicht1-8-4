@@ -34,7 +34,8 @@ const u16 COpenGLDriver::Quad2DIndices[4] = { 0, 1, 2, 3 };
 
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 COpenGLDriver::COpenGLDriver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager)
-	: CNullDriver(io, params.WindowSize), COpenGLExtensionHandler(), CacheHandler(0), CurrentRenderMode(ERM_NONE), ResetRenderStates(true),
+	: CNullDriver(io, params.WindowSize), COpenGLExtensionHandler(contextManager), CacheHandler(0),
+	CurrentRenderMode(ERM_NONE), ResetRenderStates(true),
 	Transformation3DChanged(true), AntiAlias(params.AntiAlias), ColorFormat(ECF_R8G8B8), FixedPipelineState(EOFPS_ENABLE), Params(params),
 	ContextManager(contextManager),
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
@@ -69,12 +70,16 @@ COpenGLDriver::COpenGLDriver(const SIrrlichtCreationParameters& params, io::IFil
 
 bool COpenGLDriver::initDriver()
 {
-	ContextManager->generateSurface();
-	ContextManager->generateContext();
+	if(!ContextManager->generateSurface())
+		return (ContextManager = 0);
+	if(!ContextManager->generateContext())
+		return (ContextManager = 0);
 	ExposedData = ContextManager->getContext();
-	ContextManager->activateContext(ExposedData, false);
+	if(!ContextManager->activateContext(ExposedData, false))
+		return (ContextManager = 0);
 
-	genericDriverInit();
+	if(!genericDriverInit())
+		return false;
 	
 	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
 
@@ -88,16 +93,16 @@ COpenGLDriver::~COpenGLDriver()
 
 	deleteMaterialRenders();
 
-	CacheHandler->getTextureCache().clear();
-	// I get a blue screen on my laptop, when I do not delete the
-	// textures manually before releasing the dc. Oh how I love this.
-	removeAllRenderTargets();
-	deleteAllTextures();
-	removeAllOcclusionQueries();
-	removeAllHardwareBuffers();
-
-	delete CacheHandler;
-
+	if(CacheHandler) {
+		CacheHandler->getTextureCache().clear();
+		// I get a blue screen on my laptop, when I do not delete the
+		// textures manually before releasing the dc. Oh how I love this.
+		removeAllRenderTargets();
+		deleteAllTextures();
+		removeAllOcclusionQueries();
+		removeAllHardwareBuffers();
+		delete CacheHandler;
+	}
 	if (ContextManager)
 	{
 		ContextManager->destroyContext();
@@ -116,16 +121,19 @@ bool COpenGLDriver::genericDriverInit()
 	if (ContextManager)
 		ContextManager->grab();
 
+	if(!initBaseFunctions())
+		return false;
+
 	Name=L"OpenGL ";
-	Name.append(glGetString(GL_VERSION));
+	Name.append(pglGetString(GL_VERSION));
 	s32 pos=Name.findNext(L' ', 7);
 	if (pos != -1)
 		Name=Name.subString(0, pos);
 	printVersion();
 
 	// print renderer information
-	const GLubyte* renderer = glGetString(GL_RENDERER);
-	const GLubyte* vendor = glGetString(GL_VENDOR);
+	const GLubyte* renderer = pglGetString(GL_RENDERER);
+	const GLubyte* vendor = pglGetString(GL_VENDOR);
 	if (renderer && vendor)
 	{
 		os::Printer::log(reinterpret_cast<const c8*>(renderer), reinterpret_cast<const c8*>(vendor), ELL_INFORMATION);
@@ -165,7 +173,7 @@ bool COpenGLDriver::genericDriverInit()
 	DriverAttributes->setAttribute("ShaderLanguageVersion", ShaderLanguageVersion);
 	DriverAttributes->setAttribute("AntiAlias", AntiAlias);
 
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
 
 	UserClipPlanes.reallocate(MaxUserClipPlanes);
 	for (i=0; i<MaxUserClipPlanes; ++i)
@@ -177,29 +185,29 @@ bool COpenGLDriver::genericDriverInit()
 	setAmbientLight(SColorf(0.0f,0.0f,0.0f,0.0f));
 #ifdef GL_EXT_separate_specular_color
 	if (FeatureAvailable[IRR_EXT_separate_specular_color])
-		glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+		pglLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 #endif
-	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, 1);
+	pglLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, 1);
 
 	Params.HandleSRGB &= ((FeatureAvailable[IRR_ARB_framebuffer_sRGB] || FeatureAvailable[IRR_EXT_framebuffer_sRGB]) &&
 		FeatureAvailable[IRR_EXT_texture_sRGB]);
 #if defined(GL_ARB_framebuffer_sRGB)
 	if (Params.HandleSRGB)
-		glEnable(GL_FRAMEBUFFER_SRGB);
+		pglEnable(GL_FRAMEBUFFER_SRGB);
 #elif defined(GL_EXT_framebuffer_sRGB)
 	if (Params.HandleSRGB)
-		glEnable(GL_FRAMEBUFFER_SRGB_EXT);
+		pglEnable(GL_FRAMEBUFFER_SRGB_EXT);
 #endif
 
 // This is a fast replacement for NORMALIZE_NORMALS
 //	if ((Version>101) || FeatureAvailable[IRR_EXT_rescale_normal])
-//		glEnable(GL_RESCALE_NORMAL_EXT);
+//		pglEnable(GL_RESCALE_NORMAL_EXT);
 
-	glClearDepth(1.0);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-	glHint(GL_POINT_SMOOTH_HINT, GL_FASTEST);
-	glFrontFace(GL_CW);
+	pglClearDepth(1.0);
+	pglHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
+	pglHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	pglHint(GL_POINT_SMOOTH_HINT, GL_FASTEST);
+	pglFrontFace(GL_CW);
 	// adjust flat coloring scheme to DirectX version
 #if defined(GL_ARB_provoking_vertex) || defined(GL_EXT_provoking_vertex)
 	extGlProvokingVertex(GL_FIRST_VERTEX_CONVENTION_EXT);
@@ -290,7 +298,7 @@ bool COpenGLDriver::beginScene(u16 clearFlag, SColor clearColor, f32 clearDepth,
 
 #if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
 	if ( DeviceType == EIDT_SDL )
-		glFrontFace(GL_CW);
+		pglFrontFace(GL_CW);
 #endif
 
 	clearBuffers(clearFlag, clearColor, clearDepth, clearStencil);
@@ -302,7 +310,7 @@ bool COpenGLDriver::endScene()
 {
 	CNullDriver::endScene();
 
-	glFlush();
+	pglFlush();
 
 	bool status = false;
 
@@ -345,7 +353,7 @@ void COpenGLDriver::setTransform(E_TRANSFORMATION_STATE state, const core::matri
 			CacheHandler->setMatrixMode(GL_MODELVIEW);
 
 			// first load the viewing transformation for user clip planes
-			glLoadMatrixf((Matrices[ETS_VIEW]).pointer());
+			pglLoadMatrixf((Matrices[ETS_VIEW]).pointer());
 
 			// we have to update the clip planes to the latest view matrix
 			for (u32 i=0; i<MaxUserClipPlanes; ++i)
@@ -353,13 +361,13 @@ void COpenGLDriver::setTransform(E_TRANSFORMATION_STATE state, const core::matri
 					uploadClipPlane(i);
 
 			// now the real model-view matrix
-			glMultMatrixf(Matrices[ETS_WORLD].pointer());
+			pglMultMatrixf(Matrices[ETS_WORLD].pointer());
 		}
 		break;
 	case ETS_PROJECTION:
 		{
 			CacheHandler->setMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(mat.pointer());
+			pglLoadMatrixf(mat.pointer());
 		}
 		break;
 	default:
@@ -851,13 +859,13 @@ void COpenGLDriver::drawVertexPrimitiveList(const void* vertices, u32 vertexCoun
 			switch (vType)
 			{
 				case EVT_STANDARD:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
 					break;
 				case EVT_2TCOORDS:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Color);
 					break;
 				case EVT_TANGENTS:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Color);
 					break;
 			}
 		}
@@ -865,7 +873,7 @@ void COpenGLDriver::drawVertexPrimitiveList(const void* vertices, u32 vertexCoun
 		{
 			// avoid passing broken pointer to OpenGL
 			_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-			glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+			pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 		}
 	}
 
@@ -874,84 +882,84 @@ void COpenGLDriver::drawVertexPrimitiveList(const void* vertices, u32 vertexCoun
 		case EVT_STANDARD:
 			if (vertices)
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Normal);
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Normal);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertex), buffer_offset(12));
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), 0);
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertex), buffer_offset(12));
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), 0);
 			}
 
 			if (Feature.MaxTextureUnits > 0 && CacheHandler->getTextureCache()[1])
 			{
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
 				else
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
 			}
 			break;
 		case EVT_2TCOORDS:
 			if (vertices)
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Normal);
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords);
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Pos);
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Normal);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords);
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(12));
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(28));
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(0));
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(12));
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(28));
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(0));
 			}
 
 
 			if (Feature.MaxTextureUnits > 0)
 			{
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
 				else
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(36));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(36));
 			}
 			break;
 		case EVT_TANGENTS:
 			if (vertices)
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Normal);
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].TCoords);
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Pos);
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Normal);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].TCoords);
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glNormalPointer(GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(12));
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(28));
-				glVertexPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(0));
+				pglNormalPointer(GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(12));
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(28));
+				pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(0));
 			}
 
 			if (Feature.MaxTextureUnits > 0)
 			{
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Tangent);
+					pglTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Tangent);
 				else
-					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(36));
+					pglTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(36));
 
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 2);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Binormal);
+					pglTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Binormal);
 				else
-					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(48));
+					pglTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(48));
 			}
 			break;
 	}
@@ -963,12 +971,12 @@ void COpenGLDriver::drawVertexPrimitiveList(const void* vertices, u32 vertexCoun
 		if (vType==EVT_TANGENTS)
 		{
 			CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 2);
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			pglDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 		if ((vType!=EVT_STANDARD) || CacheHandler->getTextureCache()[1])
 		{
 			CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			pglDisable(GL_TEXTURE_COORD_ARRAY);
 		}
 		CacheHandler->setClientActiveTexture(GL_TEXTURE0);
 	}
@@ -1044,7 +1052,7 @@ void COpenGLDriver::renderArray(const void* indexList, u32 primitiveCount,
 		{
 #ifdef GL_ARB_point_sprite
 			if (pType==scene::EPT_POINT_SPRITES && FeatureAvailable[IRR_ARB_point_sprite])
-				glEnable(GL_POINT_SPRITE_ARB);
+				pglEnable(GL_POINT_SPRITE_ARB);
 #endif
 
 			// prepare size and attenuation (where supported)
@@ -1077,53 +1085,53 @@ void COpenGLDriver::renderArray(const void* indexList, u32 primitiveCount,
 			extGlPointParameterf(GL_POINT_FADE_THRESHOLD_SIZE_SGIS, 1.0f);
 #endif
 #endif
-			glPointSize(particleSize);
+			pglPointSize(particleSize);
 
 #ifdef GL_ARB_point_sprite
 			if (pType == scene::EPT_POINT_SPRITES && FeatureAvailable[IRR_ARB_point_sprite])
 			{
 				CacheHandler->setActiveTexture(GL_TEXTURE0_ARB);
-				glTexEnvf(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE, GL_TRUE);
+				pglTexEnvf(GL_POINT_SPRITE_ARB, GL_COORD_REPLACE, GL_TRUE);
 			}
 #endif
-			glDrawArrays(GL_POINTS, 0, primitiveCount);
+			pglDrawArrays(GL_POINTS, 0, primitiveCount);
 #ifdef GL_ARB_point_sprite
 			if (pType==scene::EPT_POINT_SPRITES && FeatureAvailable[IRR_ARB_point_sprite])
 			{
-				glDisable(GL_POINT_SPRITE_ARB);
+				pglDisable(GL_POINT_SPRITE_ARB);
 
 				CacheHandler->setActiveTexture(GL_TEXTURE0_ARB);
-				glTexEnvf(GL_POINT_SPRITE_ARB,GL_COORD_REPLACE, GL_FALSE);
+				pglTexEnvf(GL_POINT_SPRITE_ARB,GL_COORD_REPLACE, GL_FALSE);
 			}
 #endif
 		}
 			break;
 		case scene::EPT_LINE_STRIP:
-			glDrawElements(GL_LINE_STRIP, primitiveCount+1, indexSize, indexList);
+			pglDrawElements(GL_LINE_STRIP, primitiveCount+1, indexSize, indexList);
 			break;
 		case scene::EPT_LINE_LOOP:
-			glDrawElements(GL_LINE_LOOP, primitiveCount, indexSize, indexList);
+			pglDrawElements(GL_LINE_LOOP, primitiveCount, indexSize, indexList);
 			break;
 		case scene::EPT_LINES:
-			glDrawElements(GL_LINES, primitiveCount*2, indexSize, indexList);
+			pglDrawElements(GL_LINES, primitiveCount*2, indexSize, indexList);
 			break;
 		case scene::EPT_TRIANGLE_STRIP:
-			glDrawElements(GL_TRIANGLE_STRIP, primitiveCount+2, indexSize, indexList);
+			pglDrawElements(GL_TRIANGLE_STRIP, primitiveCount+2, indexSize, indexList);
 			break;
 		case scene::EPT_TRIANGLE_FAN:
-			glDrawElements(GL_TRIANGLE_FAN, primitiveCount+2, indexSize, indexList);
+			pglDrawElements(GL_TRIANGLE_FAN, primitiveCount+2, indexSize, indexList);
 			break;
 		case scene::EPT_TRIANGLES:
-			glDrawElements(GL_TRIANGLES, primitiveCount*3, indexSize, indexList);
+			pglDrawElements(GL_TRIANGLES, primitiveCount*3, indexSize, indexList);
 			break;
 		case scene::EPT_QUAD_STRIP:
-			glDrawElements(GL_QUAD_STRIP, primitiveCount*2+2, indexSize, indexList);
+			pglDrawElements(GL_QUAD_STRIP, primitiveCount*2+2, indexSize, indexList);
 			break;
 		case scene::EPT_QUADS:
-			glDrawElements(GL_QUADS, primitiveCount*4, indexSize, indexList);
+			pglDrawElements(GL_QUADS, primitiveCount*4, indexSize, indexList);
 			break;
 		case scene::EPT_POLYGON:
-			glDrawElements(GL_POLYGON, primitiveCount, indexSize, indexList);
+			pglDrawElements(GL_POLYGON, primitiveCount, indexSize, indexList);
 			break;
 	}
 }
@@ -1178,13 +1186,13 @@ void COpenGLDriver::draw2DVertexPrimitiveList(const void* vertices, u32 vertexCo
 			switch (vType)
 			{
 				case EVT_STANDARD:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Color);
 					break;
 				case EVT_2TCOORDS:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Color);
 					break;
 				case EVT_TANGENTS:
-					glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Color);
+					pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Color);
 					break;
 			}
 		}
@@ -1192,7 +1200,7 @@ void COpenGLDriver::draw2DVertexPrimitiveList(const void* vertices, u32 vertexCo
 		{
 			// avoid passing broken pointer to OpenGL
 			_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-			glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+			pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 		}
 	}
 
@@ -1201,60 +1209,60 @@ void COpenGLDriver::draw2DVertexPrimitiveList(const void* vertices, u32 vertexCo
 		case EVT_STANDARD:
 			if (vertices)
 			{
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), 0);
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), 0);
 			}
 
 			if (Feature.MaxTextureUnits > 0 && CacheHandler->getTextureCache()[1])
 			{
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
 				else
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), buffer_offset(28));
 			}
 			break;
 		case EVT_2TCOORDS:
 			if (vertices)
 			{
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords);
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Pos);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords);
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(28));
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(0));
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex2TCoords), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(28));
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(0));
 			}
 
 			if (Feature.MaxTextureUnits > 0)
 			{
 				CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+				pglEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
 				else
-					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(36));
+					pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), buffer_offset(36));
 			}
 			break;
 		case EVT_TANGENTS:
 			if (vertices)
 			{
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].TCoords);
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Pos);
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].TCoords);
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Pos);
 			}
 			else
 			{
-				glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), buffer_offset(24));
-				glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(28));
-				glVertexPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(0));
+				pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertexTangents), buffer_offset(24));
+				pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(28));
+				pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(0));
 			}
 
 			break;
@@ -1267,7 +1275,7 @@ void COpenGLDriver::draw2DVertexPrimitiveList(const void* vertices, u32 vertexCo
 		if ((vType!=EVT_STANDARD) || CacheHandler->getTextureCache()[1])
 		{
 			CacheHandler->setClientActiveTexture(GL_TEXTURE0 + 1);
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			pglDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 		CacheHandler->setClientActiveTexture(GL_TEXTURE0);
 	}
@@ -1337,8 +1345,8 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, const core::posi
 
 	CacheHandler->setClientState(true, false, true, true);
 
-	glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize = (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra]) ? GL_BGRA : 4;
@@ -1346,14 +1354,14 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, const core::posi
 	const GLint colorSize = 4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size() == 0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 }
 
 
@@ -1395,9 +1403,9 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, const core::rect
 		if (!clipRect->isValid())
 			return;
 
-		glEnable(GL_SCISSOR_TEST);
+		pglEnable(GL_SCISSOR_TEST);
 		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
-		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
+		pglScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
 			clipRect->getWidth(), clipRect->getHeight());
 	}
 
@@ -1421,8 +1429,8 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, const core::rect
 
 	CacheHandler->setClientState(true, false, true, true);
 
-	glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize = (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra]) ? GL_BGRA : 4;
@@ -1430,17 +1438,17 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, const core::rect
 	const GLint colorSize = 4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size() == 0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 
 	if (clipRect)
-		glDisable(GL_SCISSOR_TEST);
+		pglDisable(GL_SCISSOR_TEST);
 }
 
 
@@ -1454,9 +1462,9 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, u32 layer, bool 
 	setRenderStates2DMode(false, true, true);
 
 	CacheHandler->setMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	pglLoadIdentity();
 	CacheHandler->setMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	pglLoadIdentity();
 
 	Transformation3DChanged = true;
 
@@ -1469,7 +1477,7 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, u32 layer, bool 
 		core::vector3df(-1.f, -1.f, 0.f)
 	};
 
-	glVertexPointer(2, GL_FLOAT, sizeof(core::vector3df), positionData);
+	pglVertexPointer(2, GL_FLOAT, sizeof(core::vector3df), positionData);
 
 	if (texture && texture->getType() == ETT_CUBEMAP)
 	{
@@ -1531,7 +1539,7 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, u32 layer, bool 
 			texcoordCubeData[layer][(flip) ? 0 : 3]
 		};
 
-		glTexCoordPointer(3, GL_FLOAT, sizeof(core::vector3df), texcoordData);
+		pglTexCoordPointer(3, GL_FLOAT, sizeof(core::vector3df), texcoordData);
 	}
 	else
 	{
@@ -1544,10 +1552,10 @@ void COpenGLDriver::draw2DImage(const video::ITexture* texture, u32 layer, bool 
 			core::vector2df(0.f, 1.f - modificator)
 		};
 
-		glTexCoordPointer(2, GL_FLOAT, sizeof(core::vector2df), texcoordData);
+		pglTexCoordPointer(2, GL_FLOAT, sizeof(core::vector2df), texcoordData);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 }
 
 
@@ -1585,8 +1593,8 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 
 	CacheHandler->setClientState(true, false, true, true);
 
-	glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -1594,11 +1602,11 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
 	for (u32 i=0; i<drawCount; ++i)
@@ -1704,7 +1712,7 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 		Quad2DVertices[2].TCoords = core::vector2df(tcoords.LowerRightCorner.X, tcoords.LowerRightCorner.Y);
 		Quad2DVertices[3].TCoords = core::vector2df(tcoords.UpperLeftCorner.X, tcoords.LowerRightCorner.Y);
 
-		glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+		pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 	}
 }
 
@@ -1735,9 +1743,9 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 		if (!clipRect->isValid())
 			return;
 
-		glEnable(GL_SCISSOR_TEST);
+		pglEnable(GL_SCISSOR_TEST);
 		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
-		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
+		pglScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
 			clipRect->getWidth(),clipRect->getHeight());
 	}
 
@@ -1756,8 +1764,8 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 
 	CacheHandler->setClientState(true, false, true, true);
 
-	glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].TCoords);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -1765,11 +1773,11 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
 	for (u32 i=0; i<indices.size(); ++i)
@@ -1796,13 +1804,13 @@ void COpenGLDriver::draw2DImageBatch(const video::ITexture* texture,
 		Quad2DVertices[2].TCoords = core::vector2df(tcoords.LowerRightCorner.X, tcoords.LowerRightCorner.Y);
 		Quad2DVertices[3].TCoords = core::vector2df(tcoords.UpperLeftCorner.X, tcoords.LowerRightCorner.Y);
 
-		glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+		pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 
 		targetPos.X += sourceRects[currentIndex].getWidth();
 	}
 
 	if (clipRect)
-		glDisable(GL_SCISSOR_TEST);
+		pglDisable(GL_SCISSOR_TEST);
 }
 
 
@@ -1821,8 +1829,8 @@ void COpenGLDriver::draw2DRectangle(SColor color, const core::rect<s32>& positio
 	if (!pos.isValid())
 		return;
 
-	glColor4ub(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
-	glRectf(GLfloat(pos.UpperLeftCorner.X), GLfloat(pos.UpperLeftCorner.Y),
+	pglColor4ub(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+	pglRectf(GLfloat(pos.UpperLeftCorner.X), GLfloat(pos.UpperLeftCorner.Y),
 		GLfloat(pos.LowerRightCorner.X), GLfloat(pos.LowerRightCorner.Y));
 }
 
@@ -1862,7 +1870,7 @@ void COpenGLDriver::draw2DRectangle(const core::rect<s32>& position,
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -1870,14 +1878,14 @@ void COpenGLDriver::draw2DRectangle(const core::rect<s32>& position,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 }
 
 
@@ -1900,9 +1908,9 @@ void COpenGLDriver::draw2DRectangleClip(const core::rect<s32>& position,
 		if (!clipRect->isValid())
 			return;
 
-		glEnable(GL_SCISSOR_TEST);
+		pglEnable(GL_SCISSOR_TEST);
 		const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
-		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
+		pglScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height-clipRect->LowerRightCorner.Y,
 			clipRect->getWidth(), clipRect->getHeight());
 	}
 
@@ -1926,7 +1934,7 @@ void COpenGLDriver::draw2DRectangleClip(const core::rect<s32>& position,
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -1934,17 +1942,17 @@ void COpenGLDriver::draw2DRectangleClip(const core::rect<s32>& position,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 
 	if(clipRect)
-		glDisable(GL_SCISSOR_TEST);
+		pglDisable(GL_SCISSOR_TEST);
 }
 
 
@@ -1972,7 +1980,7 @@ void COpenGLDriver::draw2DLine(const core::position2d<s32>& start,
 
 		CacheHandler->setClientState(true, false, true, false);
 
-		glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+		pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 		const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -1980,14 +1988,14 @@ void COpenGLDriver::draw2DLine(const core::position2d<s32>& start,
 		const GLint colorSize=4;
 #endif
 		if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-			glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+			pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 		else
 		{
 			_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-			glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+			pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 		}
 
-		glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Quad2DIndices);
+		pglDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Quad2DIndices);
 	}
 }
 
@@ -2010,7 +2018,7 @@ void COpenGLDriver::drawPixel(u32 x, u32 y, const SColor &color)
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglVertexPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -2018,14 +2026,14 @@ void COpenGLDriver::drawPixel(u32 x, u32 y, const SColor &color)
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawArrays(GL_POINTS, 0, 1);
+	pglDrawArrays(GL_POINTS, 0, 1);
 }
 
 //! disables all textures beginning with the optional fromStage parameter. Otherwise all texture stages are disabled.
@@ -2096,9 +2104,9 @@ void COpenGLDriver::disableFeature(E_VIDEO_DRIVER_FEATURE feature, bool flag)
 	if ( feature == EVDF_TEXTURE_CUBEMAP_SEAMLESS )
 	{
 		if ( queryFeature(feature) )
-			glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+			pglEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 		else if (COpenGLExtensionHandler::queryFeature(feature))
-			glDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+			pglDisable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	}
 }
 
@@ -2124,7 +2132,7 @@ void COpenGLDriver::setMaterial(const SMaterial& material)
 bool COpenGLDriver::testGLError(int code)
 {
 #ifdef _DEBUG
-	GLenum g = glGetError();
+	GLenum g = pglGetError();
 	switch (g)
 	{
 	case GL_NO_ERROR:
@@ -2166,19 +2174,19 @@ void COpenGLDriver::setRenderStates3DMode()
 		CacheHandler->setAlphaTest(false);
 		CacheHandler->setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		CacheHandler->setActiveTexture(GL_TEXTURE0_ARB);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 		// switch back the matrices
 		CacheHandler->setMatrixMode(GL_MODELVIEW);
-		glLoadMatrixf((Matrices[ETS_VIEW] * Matrices[ETS_WORLD]).pointer());
+		pglLoadMatrixf((Matrices[ETS_VIEW] * Matrices[ETS_WORLD]).pointer());
 
 		CacheHandler->setMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(Matrices[ETS_PROJECTION].pointer());
+		pglLoadMatrixf(Matrices[ETS_PROJECTION].pointer());
 
 		ResetRenderStates = true;
 #ifdef GL_EXT_clip_volume_hint
 		if (FeatureAvailable[IRR_EXT_clip_volume_hint])
-			glHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_NICEST);
+			pglHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_NICEST);
 #endif
 	}
 
@@ -2326,26 +2334,26 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			switch (material.ColorMaterial)
 			{
 			case ECM_NONE:
-				glDisable(GL_COLOR_MATERIAL);
+				pglDisable(GL_COLOR_MATERIAL);
 				break;
 			case ECM_DIFFUSE:
-				glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+				pglColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 				break;
 			case ECM_AMBIENT:
-				glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
+				pglColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT);
 				break;
 			case ECM_EMISSIVE:
-				glColorMaterial(GL_FRONT_AND_BACK, GL_EMISSION);
+				pglColorMaterial(GL_FRONT_AND_BACK, GL_EMISSION);
 				break;
 			case ECM_SPECULAR:
-				glColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
+				pglColorMaterial(GL_FRONT_AND_BACK, GL_SPECULAR);
 				break;
 			case ECM_DIFFUSE_AND_AMBIENT:
-				glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+				pglColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 				break;
 			}
 			if (material.ColorMaterial != ECM_NONE)
-				glEnable(GL_COLOR_MATERIAL);
+				pglEnable(GL_COLOR_MATERIAL);
 		}
 
 		if (resetAllRenderStates || tempState == EOFPS_DISABLE_TO_ENABLE ||
@@ -2365,7 +2373,7 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 				color[1] = material.AmbientColor.getGreen() * inv;
 				color[2] = material.AmbientColor.getBlue() * inv;
 				color[3] = material.AmbientColor.getAlpha() * inv;
-				glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, color);
+				pglMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, color);
 			}
 
 			if ((material.ColorMaterial != video::ECM_DIFFUSE) &&
@@ -2375,7 +2383,7 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 				color[1] = material.DiffuseColor.getGreen() * inv;
 				color[2] = material.DiffuseColor.getBlue() * inv;
 				color[3] = material.DiffuseColor.getAlpha() * inv;
-				glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color);
+				pglMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color);
 			}
 
 			if (material.ColorMaterial != video::ECM_EMISSIVE)
@@ -2384,7 +2392,7 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 				color[1] = material.EmissiveColor.getGreen() * inv;
 				color[2] = material.EmissiveColor.getBlue() * inv;
 				color[3] = material.EmissiveColor.getAlpha() * inv;
-				glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color);
+				pglMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color);
 			}
 		}
 
@@ -2396,14 +2404,14 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			GLfloat color[4]={0.f,0.f,0.f,1.f};
 			const f32 inv = 1.0f / 255.0f;
 
-			glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, material.Shininess);
+			pglMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, material.Shininess);
 			// disable Specular colors if no shininess is set
 			if ((material.Shininess != 0.0f) &&
 				(material.ColorMaterial != video::ECM_SPECULAR))
 			{
 #ifdef GL_EXT_separate_specular_color
 				if (FeatureAvailable[IRR_EXT_separate_specular_color])
-					glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+					pglLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 #endif
 				color[0] = material.SpecularColor.getRed() * inv;
 				color[1] = material.SpecularColor.getGreen() * inv;
@@ -2412,9 +2420,9 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			}
 #ifdef GL_EXT_separate_specular_color
 			else if (FeatureAvailable[IRR_EXT_separate_specular_color])
-				glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
+				pglLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SINGLE_COLOR);
 #endif
-			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, color);
+			pglMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, color);
 		}
 
 		// shademode
@@ -2422,9 +2430,9 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			lastmaterial.GouraudShading != material.GouraudShading)
 		{
 			if (material.GouraudShading)
-				glShadeModel(GL_SMOOTH);
+				pglShadeModel(GL_SMOOTH);
 			else
-				glShadeModel(GL_FLAT);
+				pglShadeModel(GL_FLAT);
 		}
 
 		// lighting
@@ -2432,9 +2440,9 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			lastmaterial.Lighting != material.Lighting)
 		{
 			if (material.Lighting)
-				glEnable(GL_LIGHTING);
+				pglEnable(GL_LIGHTING);
 			else
-				glDisable(GL_LIGHTING);
+				pglDisable(GL_LIGHTING);
 		}
 
 		// fog
@@ -2442,9 +2450,9 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			lastmaterial.FogEnable != material.FogEnable)
 		{
 			if (material.FogEnable)
-				glEnable(GL_FOG);
+				pglEnable(GL_FOG);
 			else
-				glDisable(GL_FOG);
+				pglDisable(GL_FOG);
 		}
 
 		// normalization
@@ -2452,9 +2460,9 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 			lastmaterial.NormalizeNormals != material.NormalizeNormals)
 		{
 			if (material.NormalizeNormals)
-				glEnable(GL_NORMALIZE);
+				pglEnable(GL_NORMALIZE);
 			else
-				glDisable(GL_NORMALIZE);
+				pglDisable(GL_NORMALIZE);
 		}
 
 		// Set fixed pipeline as active.
@@ -2462,10 +2470,10 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 	}
 	else if (tempState == EOFPS_ENABLE_TO_DISABLE)
 	{
-		glDisable(GL_COLOR_MATERIAL);
-		glDisable(GL_LIGHTING);
-		glDisable(GL_FOG);
-		glDisable(GL_NORMALIZE);
+		pglDisable(GL_COLOR_MATERIAL);
+		pglDisable(GL_LIGHTING);
+		pglDisable(GL_FOG);
+		pglDisable(GL_NORMALIZE);
 
 		// Set programmable pipeline as active.
 		tempState = EOFPS_DISABLE;
@@ -2475,7 +2483,7 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 
 	// fillmode - fixed pipeline call, but it emulate GL_LINES behaviour in rendering, so it stay here.
 	if (resetAllRenderStates || (lastmaterial.Wireframe != material.Wireframe) || (lastmaterial.PointCloud != material.PointCloud))
-		glPolygonMode(GL_FRONT_AND_BACK, material.Wireframe ? GL_LINE : material.PointCloud? GL_POINT : GL_FILL);
+		pglPolygonMode(GL_FRONT_AND_BACK, material.Wireframe ? GL_LINE : material.PointCloud? GL_POINT : GL_FILL);
 
 	// ZBuffer
 	switch (material.ZBuffer)
@@ -2683,25 +2691,25 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 		lastmaterial.PolygonOffsetSlopeScale != material.PolygonOffsetSlopeScale ||
 		lastmaterial.PolygonOffsetDepthBias != material.PolygonOffsetDepthBias ))
 	{
-		glDisable(lastmaterial.Wireframe?GL_POLYGON_OFFSET_LINE:lastmaterial.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
+		pglDisable(lastmaterial.Wireframe?GL_POLYGON_OFFSET_LINE:lastmaterial.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
 		if ( material.PolygonOffsetSlopeScale || material.PolygonOffsetDepthBias )
 		{
-			glEnable(material.Wireframe?GL_POLYGON_OFFSET_LINE:material.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
+			pglEnable(material.Wireframe?GL_POLYGON_OFFSET_LINE:material.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
 
-			glPolygonOffset(material.PolygonOffsetSlopeScale, material.PolygonOffsetDepthBias);
+			pglPolygonOffset(material.PolygonOffsetSlopeScale, material.PolygonOffsetDepthBias);
 		}
 		else if (material.PolygonOffsetFactor)
 		{
-			glEnable(material.Wireframe?GL_POLYGON_OFFSET_LINE:material.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
+			pglEnable(material.Wireframe?GL_POLYGON_OFFSET_LINE:material.PointCloud?GL_POLYGON_OFFSET_POINT:GL_POLYGON_OFFSET_FILL);
 
 			if (material.PolygonOffsetDirection==EPO_BACK)
-				glPolygonOffset(1.0f, (GLfloat)material.PolygonOffsetFactor);
+				pglPolygonOffset(1.0f, (GLfloat)material.PolygonOffsetFactor);
 			else
-				glPolygonOffset(-1.0f, (GLfloat)-material.PolygonOffsetFactor);
+				pglPolygonOffset(-1.0f, (GLfloat)-material.PolygonOffsetFactor);
 		}
 		else
 		{
-			glPolygonOffset(0.0f, 0.f);
+			pglPolygonOffset(0.0f, 0.f);
 		}
 	}
 
@@ -2710,15 +2718,15 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 	{
 		if (AntiAlias)
 		{
-//			glPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimSmoothedPoint[0], DimSmoothedPoint[1]));
+//			pglPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimSmoothedPoint[0], DimSmoothedPoint[1]));
 			// we don't use point smoothing
-			glPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedPoint[0], DimAliasedPoint[1]));
-			glLineWidth(core::clamp(static_cast<GLfloat>(material.Thickness), DimSmoothedLine[0], DimSmoothedLine[1]));
+			pglPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedPoint[0], DimAliasedPoint[1]));
+			pglLineWidth(core::clamp(static_cast<GLfloat>(material.Thickness), DimSmoothedLine[0], DimSmoothedLine[1]));
 		}
 		else
 		{
-			glPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedPoint[0], DimAliasedPoint[1]));
-			glLineWidth(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedLine[0], DimAliasedLine[1]));
+			pglPointSize(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedPoint[0], DimAliasedPoint[1]));
+			pglLineWidth(core::clamp(static_cast<GLfloat>(material.Thickness), DimAliasedLine[0], DimAliasedLine[1]));
 		}
 	}
 
@@ -2728,40 +2736,40 @@ void COpenGLDriver::setBasicRenderStates(const SMaterial& material, const SMater
 		if (FeatureAvailable[IRR_ARB_multisample])
 		{
 			if (material.AntiAliasing & EAAM_ALPHA_TO_COVERAGE)
-				glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
+				pglEnable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
 			else if (lastmaterial.AntiAliasing & EAAM_ALPHA_TO_COVERAGE)
-				glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
+				pglDisable(GL_SAMPLE_ALPHA_TO_COVERAGE_ARB);
 
 			if ((AntiAlias >= 2) && (material.AntiAliasing & (EAAM_SIMPLE|EAAM_QUALITY)))
 			{
-				glEnable(GL_MULTISAMPLE_ARB);
+				pglEnable(GL_MULTISAMPLE_ARB);
 #ifdef GL_NV_multisample_filter_hint
 				if (FeatureAvailable[IRR_NV_multisample_filter_hint])
 				{
 					if ((material.AntiAliasing & EAAM_QUALITY) == EAAM_QUALITY)
-						glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
+						pglHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
 					else
-						glHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
+						pglHint(GL_MULTISAMPLE_FILTER_HINT_NV, GL_NICEST);
 				}
 #endif
 			}
 			else
-				glDisable(GL_MULTISAMPLE_ARB);
+				pglDisable(GL_MULTISAMPLE_ARB);
 		}
 		if ((material.AntiAliasing & EAAM_LINE_SMOOTH) != (lastmaterial.AntiAliasing & EAAM_LINE_SMOOTH))
 		{
 			if (material.AntiAliasing & EAAM_LINE_SMOOTH)
-				glEnable(GL_LINE_SMOOTH);
+				pglEnable(GL_LINE_SMOOTH);
 			else if (lastmaterial.AntiAliasing & EAAM_LINE_SMOOTH)
-				glDisable(GL_LINE_SMOOTH);
+				pglDisable(GL_LINE_SMOOTH);
 		}
 		if ((material.AntiAliasing & EAAM_POINT_SMOOTH) != (lastmaterial.AntiAliasing & EAAM_POINT_SMOOTH))
 		{
 			if (material.AntiAliasing & EAAM_POINT_SMOOTH)
 				// often in software, and thus very slow
-				glEnable(GL_POINT_SMOOTH);
+				pglEnable(GL_POINT_SMOOTH);
 			else if (lastmaterial.AntiAliasing & EAAM_POINT_SMOOTH)
-				glDisable(GL_POINT_SMOOTH);
+				pglDisable(GL_POINT_SMOOTH);
 		}
 	}
 
@@ -2797,7 +2805,7 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 				CacheHandler->setMatrixMode(GL_TEXTURE);
 
 				if (!isRTT && Matrices[ETS_TEXTURE_0 + i].isIdentity())
-					glLoadIdentity();
+					pglLoadIdentity();
 				else
 				{
 					GLfloat glmat[16];
@@ -2805,7 +2813,7 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 						getGLTextureMatrix(glmat, Matrices[ETS_TEXTURE_0 + i] * TextureFlipMatrix);
 					else
 						getGLTextureMatrix(glmat, Matrices[ETS_TEXTURE_0 + i]);
-					glLoadMatrixf(glmat);
+					pglLoadMatrixf(glmat);
 				}
 			}
 
@@ -2824,10 +2832,10 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 					if (material.TextureLayer[i].LODBias)
 					{
 						const float tmp = core::clamp(material.TextureLayer[i].LODBias * 0.125f, -MaxTextureLODBias, MaxTextureLODBias);
-						glTexParameterf(tmpType, GL_TEXTURE_LOD_BIAS, tmp);
+						pglTexParameterf(tmpType, GL_TEXTURE_LOD_BIAS, tmp);
 					}
 					else
-						glTexParameterf(tmpType, GL_TEXTURE_LOD_BIAS, 0.f);
+						pglTexParameterf(tmpType, GL_TEXTURE_LOD_BIAS, 0.f);
 
 					statesCache.LODBias = material.TextureLayer[i].LODBias;
 				}
@@ -2837,10 +2845,10 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 				if (material.TextureLayer[i].LODBias)
 				{
 					const float tmp = core::clamp(material.TextureLayer[i].LODBias * 0.125f, -MaxTextureLODBias, MaxTextureLODBias);
-					glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, tmp);
+					pglTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, tmp);
 				}
 				else
-					glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, 0.f);
+					pglTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, 0.f);
 			}
 #elif defined(GL_EXT_texture_lod_bias)
 			if (FeatureAvailable[IRR_EXT_texture_lod_bias])
@@ -2848,17 +2856,17 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 				if (material.TextureLayer[i].LODBias)
 				{
 					const float tmp = core::clamp(material.TextureLayer[i].LODBias * 0.125f, -MaxTextureLODBias, MaxTextureLODBias);
-					glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, tmp);
+					pglTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, tmp);
 				}
 				else
-					glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, 0.f);
+					pglTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, 0.f);
 			}
 #endif
 
 			if (!statesCache.IsCached || material.TextureLayer[i].BilinearFilter != statesCache.BilinearFilter ||
 				material.TextureLayer[i].TrilinearFilter != statesCache.TrilinearFilter)
 			{
-				glTexParameteri(tmpType, GL_TEXTURE_MAG_FILTER,
+				pglTexParameteri(tmpType, GL_TEXTURE_MAG_FILTER,
 					(material.TextureLayer[i].BilinearFilter || material.TextureLayer[i].TrilinearFilter) ? GL_LINEAR : GL_NEAREST);
 
 				statesCache.BilinearFilter = material.TextureLayer[i].BilinearFilter;
@@ -2870,7 +2878,7 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 				if (!statesCache.IsCached || material.TextureLayer[i].BilinearFilter != statesCache.BilinearFilter ||
 					material.TextureLayer[i].TrilinearFilter != statesCache.TrilinearFilter || !statesCache.MipMapStatus)
 				{
-					glTexParameteri(tmpType, GL_TEXTURE_MIN_FILTER,
+					pglTexParameteri(tmpType, GL_TEXTURE_MIN_FILTER,
 						material.TextureLayer[i].TrilinearFilter ? GL_LINEAR_MIPMAP_LINEAR :
 						material.TextureLayer[i].BilinearFilter ? GL_LINEAR_MIPMAP_NEAREST :
 						GL_NEAREST_MIPMAP_NEAREST);
@@ -2885,7 +2893,7 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 				if (!statesCache.IsCached || material.TextureLayer[i].BilinearFilter != statesCache.BilinearFilter ||
 					material.TextureLayer[i].TrilinearFilter != statesCache.TrilinearFilter || statesCache.MipMapStatus)
 				{
-					glTexParameteri(tmpType, GL_TEXTURE_MIN_FILTER,
+					pglTexParameteri(tmpType, GL_TEXTURE_MIN_FILTER,
 						(material.TextureLayer[i].BilinearFilter || material.TextureLayer[i].TrilinearFilter) ? GL_LINEAR : GL_NEAREST);
 
 					statesCache.BilinearFilter = material.TextureLayer[i].BilinearFilter;
@@ -2898,7 +2906,7 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 			if (FeatureAvailable[IRR_EXT_texture_filter_anisotropic] &&
 				(!statesCache.IsCached || material.TextureLayer[i].AnisotropicFilter != statesCache.AnisotropicFilter))
 			{
-				glTexParameteri(tmpType, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+				pglTexParameteri(tmpType, GL_TEXTURE_MAX_ANISOTROPY_EXT,
 					material.TextureLayer[i].AnisotropicFilter > 1 ? core::min_(MaxAnisotropy, material.TextureLayer[i].AnisotropicFilter) : 1);
 
 				statesCache.AnisotropicFilter = material.TextureLayer[i].AnisotropicFilter;
@@ -2907,19 +2915,19 @@ void COpenGLDriver::setTextureRenderStates(const SMaterial& material, bool reset
 
 			if (!statesCache.IsCached || material.TextureLayer[i].TextureWrapU != statesCache.WrapU)
 			{
-				glTexParameteri(tmpType, GL_TEXTURE_WRAP_S, getTextureWrapMode(material.TextureLayer[i].TextureWrapU));
+				pglTexParameteri(tmpType, GL_TEXTURE_WRAP_S, getTextureWrapMode(material.TextureLayer[i].TextureWrapU));
 				statesCache.WrapU = material.TextureLayer[i].TextureWrapU;
 			}
 
 			if (!statesCache.IsCached || material.TextureLayer[i].TextureWrapV != statesCache.WrapV)
 			{
-				glTexParameteri(tmpType, GL_TEXTURE_WRAP_T, getTextureWrapMode(material.TextureLayer[i].TextureWrapV));
+				pglTexParameteri(tmpType, GL_TEXTURE_WRAP_T, getTextureWrapMode(material.TextureLayer[i].TextureWrapV));
 				statesCache.WrapV = material.TextureLayer[i].TextureWrapV;
 			}
 
 			if (!statesCache.IsCached || material.TextureLayer[i].TextureWrapW != statesCache.WrapW)
 			{
-				glTexParameteri(tmpType, GL_TEXTURE_WRAP_R, getTextureWrapMode(material.TextureLayer[i].TextureWrapW));
+				pglTexParameteri(tmpType, GL_TEXTURE_WRAP_R, getTextureWrapMode(material.TextureLayer[i].TextureWrapW));
 				statesCache.WrapW = material.TextureLayer[i].TextureWrapW;
 			}
 
@@ -2966,11 +2974,11 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
 			core::matrix4 m(core::matrix4::EM4CONST_NOTHING);
 			m.buildProjectionMatrixOrthoLH(f32(renderTargetSize.Width), f32(-(s32)(renderTargetSize.Height)), -1.0f, 1.0f);
 			m.setTranslation(core::vector3df(-1,1,0));
-			glLoadMatrixf(m.pointer());
+			pglLoadMatrixf(m.pointer());
 
 			CacheHandler->setMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
-			glTranslatef(0.375f, 0.375f, 0.0f);
+			pglLoadIdentity();
+			pglTranslatef(0.375f, 0.375f, 0.0f);
 
 			Transformation3DChanged = false;
 		}
@@ -2979,7 +2987,7 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
 
 #ifdef GL_EXT_clip_volume_hint
 		if (FeatureAvailable[IRR_EXT_clip_volume_hint])
-			glHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_FASTEST);
+			pglHint(GL_CLIP_VOLUME_CLIPPING_HINT_EXT, GL_FASTEST);
 #endif
 
 		resetAllRenderStates = true;
@@ -3030,7 +3038,7 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
 			// if alpha and alpha texture just modulate, otherwise use only the alpha channel
 			if (alpha)
 			{
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			}
 			else
 			{
@@ -3038,26 +3046,26 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
 				if (FeatureAvailable[IRR_ARB_texture_env_combine]||FeatureAvailable[IRR_EXT_texture_env_combine])
 				{
 #ifdef GL_ARB_texture_env_combine
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_ARB, GL_REPLACE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_ARB, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_ARB, GL_REPLACE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_ARB, GL_TEXTURE);
 					// rgb always modulates
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB);
 #else
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_EXT, GL_REPLACE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_EXT, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_EXT, GL_REPLACE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_EXT, GL_TEXTURE);
 					// rgb always modulates
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
 #endif
 				}
 				else
 #endif
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			}
 		}
 		else
@@ -3068,30 +3076,30 @@ void COpenGLDriver::setRenderStates2DMode(bool alpha, bool texture, bool alphaCh
 				if (FeatureAvailable[IRR_ARB_texture_env_combine]||FeatureAvailable[IRR_EXT_texture_env_combine])
 				{
 #ifdef GL_ARB_texture_env_combine
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_ARB, GL_REPLACE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_ARB, GL_PRIMARY_COLOR_ARB);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_ARB);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_ARB, GL_REPLACE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_ARB, GL_PRIMARY_COLOR_ARB);
 					// rgb always modulates
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB_ARB, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_RGB_ARB, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE1_RGB_ARB, GL_PRIMARY_COLOR_ARB);
 #else
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_EXT, GL_REPLACE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_EXT, GL_PRIMARY_COLOR_EXT);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA_EXT, GL_REPLACE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA_EXT, GL_PRIMARY_COLOR_EXT);
 					// rgb always modulates
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
-					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
 #endif
 				}
 				else
 #endif
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+					pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			}
 			else
 			{
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+				pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			}
 		}
 	}
@@ -3111,7 +3119,7 @@ const wchar_t* COpenGLDriver::getName() const
 void COpenGLDriver::deleteAllDynamicLights()
 {
 	for (s32 i=0; i<MaxLights; ++i)
-		glDisable(GL_LIGHT0 + i);
+		pglDisable(GL_LIGHT0 + i);
 
 	RequestedLights.clear();
 
@@ -3142,7 +3150,7 @@ void COpenGLDriver::assignHardwareLight(u32 lightIndex)
 	s32 lidx;
 	for (lidx=GL_LIGHT0; lidx < GL_LIGHT0 + MaxLights; ++lidx)
 	{
-		if(!glIsEnabled(lidx))
+		if(!pglIsEnabled(lidx))
 		{
 			RequestedLights[lightIndex].HardwareLightIndex = lidx;
 			break;
@@ -3162,17 +3170,17 @@ void COpenGLDriver::assignHardwareLight(u32 lightIndex)
 		data[1] = light.Direction.Y;
 		data[2] = light.Direction.Z;
 		data[3] = 0.0f;
-		glLightfv(lidx, GL_SPOT_DIRECTION, data);
+		pglLightfv(lidx, GL_SPOT_DIRECTION, data);
 
 		// set position
 		data[0] = light.Position.X;
 		data[1] = light.Position.Y;
 		data[2] = light.Position.Z;
 		data[3] = 1.0f; // 1.0f for positional light
-		glLightfv(lidx, GL_POSITION, data);
+		pglLightfv(lidx, GL_POSITION, data);
 
-		glLightf(lidx, GL_SPOT_EXPONENT, light.Falloff);
-		glLightf(lidx, GL_SPOT_CUTOFF, light.OuterCone);
+		pglLightf(lidx, GL_SPOT_EXPONENT, light.Falloff);
+		pglLightf(lidx, GL_SPOT_CUTOFF, light.OuterCone);
 	break;
 	case video::ELT_POINT:
 		// set position
@@ -3180,10 +3188,10 @@ void COpenGLDriver::assignHardwareLight(u32 lightIndex)
 		data[1] = light.Position.Y;
 		data[2] = light.Position.Z;
 		data[3] = 1.0f; // 1.0f for positional light
-		glLightfv(lidx, GL_POSITION, data);
+		pglLightfv(lidx, GL_POSITION, data);
 
-		glLightf(lidx, GL_SPOT_EXPONENT, 0.0f);
-		glLightf(lidx, GL_SPOT_CUTOFF, 180.0f);
+		pglLightf(lidx, GL_SPOT_EXPONENT, 0.0f);
+		pglLightf(lidx, GL_SPOT_CUTOFF, 180.0f);
 	break;
 	case video::ELT_DIRECTIONAL:
 		// set direction
@@ -3191,10 +3199,10 @@ void COpenGLDriver::assignHardwareLight(u32 lightIndex)
 		data[1] = -light.Direction.Y;
 		data[2] = -light.Direction.Z;
 		data[3] = 0.0f; // 0.0f for directional light
-		glLightfv(lidx, GL_POSITION, data);
+		pglLightfv(lidx, GL_POSITION, data);
 
-		glLightf(lidx, GL_SPOT_EXPONENT, 0.0f);
-		glLightf(lidx, GL_SPOT_CUTOFF, 180.0f);
+		pglLightf(lidx, GL_SPOT_EXPONENT, 0.0f);
+		pglLightf(lidx, GL_SPOT_CUTOFF, 180.0f);
 	break;
 	default:
 	break;
@@ -3205,30 +3213,30 @@ void COpenGLDriver::assignHardwareLight(u32 lightIndex)
 	data[1] = light.DiffuseColor.g;
 	data[2] = light.DiffuseColor.b;
 	data[3] = light.DiffuseColor.a;
-	glLightfv(lidx, GL_DIFFUSE, data);
+	pglLightfv(lidx, GL_DIFFUSE, data);
 
 	// set specular color
 	data[0] = light.SpecularColor.r;
 	data[1] = light.SpecularColor.g;
 	data[2] = light.SpecularColor.b;
 	data[3] = light.SpecularColor.a;
-	glLightfv(lidx, GL_SPECULAR, data);
+	pglLightfv(lidx, GL_SPECULAR, data);
 
 	// set ambient color
 	data[0] = light.AmbientColor.r;
 	data[1] = light.AmbientColor.g;
 	data[2] = light.AmbientColor.b;
 	data[3] = light.AmbientColor.a;
-	glLightfv(lidx, GL_AMBIENT, data);
+	pglLightfv(lidx, GL_AMBIENT, data);
 
 	// 1.0f / (constant + linear * d + quadratic*(d*d);
 
 	// set attenuation
-	glLightf(lidx, GL_CONSTANT_ATTENUATION, light.Attenuation.X);
-	glLightf(lidx, GL_LINEAR_ATTENUATION, light.Attenuation.Y);
-	glLightf(lidx, GL_QUADRATIC_ATTENUATION, light.Attenuation.Z);
+	pglLightf(lidx, GL_CONSTANT_ATTENUATION, light.Attenuation.X);
+	pglLightf(lidx, GL_LINEAR_ATTENUATION, light.Attenuation.Y);
+	pglLightf(lidx, GL_QUADRATIC_ATTENUATION, light.Attenuation.Z);
 
-	glEnable(lidx);
+	pglEnable(lidx);
 }
 
 
@@ -3254,7 +3262,7 @@ void COpenGLDriver::turnLightOn(s32 lightIndex, bool turnOn)
 		if(-1 != requestedLight.HardwareLightIndex)
 		{
 			// It's currently assigned, so free up the hardware light
-			glDisable(requestedLight.HardwareLightIndex);
+			pglDisable(requestedLight.HardwareLightIndex);
 			requestedLight.HardwareLightIndex = -1;
 
 			// Now let the first light that's waiting on a free hardware light grab it
@@ -3285,11 +3293,11 @@ void COpenGLDriver::setAmbientLight(const SColorf& color)
 {
 	CNullDriver::setAmbientLight(color);
 	GLfloat data[4] = {color.r, color.g, color.b, color.a};
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, data);
+	pglLightModelfv(GL_LIGHT_MODEL_AMBIENT, data);
 }
 
 
-// this code was sent in by Oliver Klems, thank you! (I modified the glViewport
+// this code was sent in by Oliver Klems, thank you! (I modified the pglViewport
 // method just a bit.
 void COpenGLDriver::setViewPort(const core::rect<s32>& area)
 {
@@ -3322,27 +3330,27 @@ void COpenGLDriver::drawStencilShadowVolume(const core::array<core::vector3df>& 
 	}
 
 	// store current OpenGL state
-	glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT |
+	pglPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT |
 		GL_POLYGON_BIT | GL_STENCIL_BUFFER_BIT);
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_FOG);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LESS);
-	glDepthMask(GL_FALSE);
+	pglDisable(GL_LIGHTING);
+	pglDisable(GL_FOG);
+	pglEnable(GL_DEPTH_TEST);
+	pglDepthFunc(GL_LESS);
+	pglDepthMask(GL_FALSE);
 
 	if (debugDataVisible & scene::EDS_MESH_WIRE_OVERLAY)
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		pglPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	if (!(debugDataVisible & (scene::EDS_SKELETON|scene::EDS_MESH_WIRE_OVERLAY)))
 	{
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); // no color buffer drawing
-		glEnable(GL_STENCIL_TEST);
+		pglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); // no color buffer drawing
+		pglEnable(GL_STENCIL_TEST);
 	}
 
 	CacheHandler->setClientState(true, false, false, false);
-	glVertexPointer(3,GL_FLOAT,sizeof(core::vector3df),triangles.const_pointer());
-	glStencilMask(~0);
-	glStencilFunc(GL_ALWAYS, 0, ~0);
+	pglVertexPointer(3,GL_FLOAT,sizeof(core::vector3df),triangles.const_pointer());
+	pglStencilMask(~0);
+	pglStencilFunc(GL_ALWAYS, 0, ~0);
 
 	GLenum incr = GL_INCR;
 	GLenum decr = GL_DECR;
@@ -3355,11 +3363,11 @@ void COpenGLDriver::drawStencilShadowVolume(const core::array<core::vector3df>& 
 #endif
 #ifdef GL_NV_depth_clamp
 	if (FeatureAvailable[IRR_NV_depth_clamp])
-		glEnable(GL_DEPTH_CLAMP_NV);
+		pglEnable(GL_DEPTH_CLAMP_NV);
 #elif defined(GL_ARB_depth_clamp)
 	if (FeatureAvailable[IRR_ARB_depth_clamp])
 	{
-		glEnable(GL_DEPTH_CLAMP);
+		pglEnable(GL_DEPTH_CLAMP);
 	}
 #endif
 
@@ -3368,38 +3376,38 @@ void COpenGLDriver::drawStencilShadowVolume(const core::array<core::vector3df>& 
 #ifdef GL_EXT_stencil_two_side
 	if (FeatureAvailable[IRR_EXT_stencil_two_side])
 	{
-		glEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
-		glDisable(GL_CULL_FACE);
+		pglEnable(GL_STENCIL_TEST_TWO_SIDE_EXT);
+		pglDisable(GL_CULL_FACE);
 		if (zfail)
 		{
 			extGlActiveStencilFace(GL_BACK);
-			glStencilOp(GL_KEEP, incr, GL_KEEP);
-			glStencilMask(~0);
-			glStencilFunc(GL_ALWAYS, 0, ~0);
+			pglStencilOp(GL_KEEP, incr, GL_KEEP);
+			pglStencilMask(~0);
+			pglStencilFunc(GL_ALWAYS, 0, ~0);
 
 			extGlActiveStencilFace(GL_FRONT);
-			glStencilOp(GL_KEEP, decr, GL_KEEP);
+			pglStencilOp(GL_KEEP, decr, GL_KEEP);
 		}
 		else // zpass
 		{
 			extGlActiveStencilFace(GL_BACK);
-			glStencilOp(GL_KEEP, GL_KEEP, decr);
-			glStencilMask(~0);
-			glStencilFunc(GL_ALWAYS, 0, ~0);
+			pglStencilOp(GL_KEEP, GL_KEEP, decr);
+			pglStencilMask(~0);
+			pglStencilFunc(GL_ALWAYS, 0, ~0);
 
 			extGlActiveStencilFace(GL_FRONT);
-			glStencilOp(GL_KEEP, GL_KEEP, incr);
+			pglStencilOp(GL_KEEP, GL_KEEP, incr);
 		}
-		glStencilMask(~0);
-		glStencilFunc(GL_ALWAYS, 0, ~0);
-		glDrawArrays(GL_TRIANGLES,0,count);
-		glDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
+		pglStencilMask(~0);
+		pglStencilFunc(GL_ALWAYS, 0, ~0);
+		pglDrawArrays(GL_TRIANGLES,0,count);
+		pglDisable(GL_STENCIL_TEST_TWO_SIDE_EXT);
 	}
 	else
 #endif
 	if (FeatureAvailable[IRR_ATI_separate_stencil])
 	{
-		glDisable(GL_CULL_FACE);
+		pglDisable(GL_CULL_FACE);
 		if (zfail)
 		{
 			extGlStencilOpSeparate(GL_BACK, GL_KEEP, incr, GL_KEEP);
@@ -3411,46 +3419,46 @@ void COpenGLDriver::drawStencilShadowVolume(const core::array<core::vector3df>& 
 			extGlStencilOpSeparate(GL_FRONT, GL_KEEP, GL_KEEP, incr);
 		}
 		extGlStencilFuncSeparate(GL_ALWAYS, GL_ALWAYS, 0, ~0);
-		glStencilMask(~0);
-		glDrawArrays(GL_TRIANGLES,0,count);
+		pglStencilMask(~0);
+		pglDrawArrays(GL_TRIANGLES,0,count);
 	}
 	else
 #endif
 	{
-		glEnable(GL_CULL_FACE);
+		pglEnable(GL_CULL_FACE);
 		if (zfail)
 		{
-			glCullFace(GL_FRONT);
-			glStencilOp(GL_KEEP, incr, GL_KEEP);
-			glDrawArrays(GL_TRIANGLES,0,count);
+			pglCullFace(GL_FRONT);
+			pglStencilOp(GL_KEEP, incr, GL_KEEP);
+			pglDrawArrays(GL_TRIANGLES,0,count);
 
-			glCullFace(GL_BACK);
-			glStencilOp(GL_KEEP, decr, GL_KEEP);
-			glDrawArrays(GL_TRIANGLES,0,count);
+			pglCullFace(GL_BACK);
+			pglStencilOp(GL_KEEP, decr, GL_KEEP);
+			pglDrawArrays(GL_TRIANGLES,0,count);
 		}
 		else // zpass
 		{
-			glCullFace(GL_BACK);
-			glStencilOp(GL_KEEP, GL_KEEP, incr);
-			glDrawArrays(GL_TRIANGLES,0,count);
+			pglCullFace(GL_BACK);
+			pglStencilOp(GL_KEEP, GL_KEEP, incr);
+			pglDrawArrays(GL_TRIANGLES,0,count);
 
-			glCullFace(GL_FRONT);
-			glStencilOp(GL_KEEP, GL_KEEP, decr);
-			glDrawArrays(GL_TRIANGLES,0,count);
+			pglCullFace(GL_FRONT);
+			pglStencilOp(GL_KEEP, GL_KEEP, decr);
+			pglDrawArrays(GL_TRIANGLES,0,count);
 		}
 	}
 #ifdef GL_NV_depth_clamp
 	if (FeatureAvailable[IRR_NV_depth_clamp])
-		glDisable(GL_DEPTH_CLAMP_NV);
+		pglDisable(GL_DEPTH_CLAMP_NV);
 #elif defined(GL_ARB_depth_clamp)
 	if (FeatureAvailable[IRR_ARB_depth_clamp])
 	{
-		glDisable(GL_DEPTH_CLAMP);
+		pglDisable(GL_DEPTH_CLAMP);
 	}
 #endif
 
-	glDisable(GL_POLYGON_OFFSET_FILL);
-	glPopAttrib();
+	pglDisable(GL_POLYGON_OFFSET_FILL);
+	pglPopAttrib();
 }
 
 //! Fills the stencil shadow with color. After the shadow volume has been drawn
@@ -3465,29 +3473,29 @@ void COpenGLDriver::drawStencilShadow(bool clearStencilBuffer, video::SColor lef
 	disableTextures();
 
 	// store attributes
-	glPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT | GL_POLYGON_BIT | GL_STENCIL_BUFFER_BIT | GL_LIGHTING_BIT);
+	pglPushAttrib(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ENABLE_BIT | GL_POLYGON_BIT | GL_STENCIL_BUFFER_BIT | GL_LIGHTING_BIT);
 
-	glDisable(GL_LIGHTING);
-	glDisable(GL_FOG);
-	glDepthMask(GL_FALSE);
+	pglDisable(GL_LIGHTING);
+	pglDisable(GL_FOG);
+	pglDepthMask(GL_FALSE);
 
-	glShadeModel(GL_FLAT);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	pglShadeModel(GL_FLAT);
+	pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	pglEnable(GL_BLEND);
+	pglBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_NOTEQUAL, 0, ~0);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	pglEnable(GL_STENCIL_TEST);
+	pglStencilFunc(GL_NOTEQUAL, 0, ~0);
+	pglStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
 	// draw a shadow rectangle covering the entire screen using stencil buffer
 	CacheHandler->setMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	pglPushMatrix();
+	pglLoadIdentity();
 	CacheHandler->setMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	pglPushMatrix();
+	pglLoadIdentity();
 
 	Quad2DVertices[0].Color = leftDownEdge;
 	Quad2DVertices[1].Color = leftUpEdge;
@@ -3504,7 +3512,7 @@ void COpenGLDriver::drawStencilShadow(bool clearStencilBuffer, video::SColor lef
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -3512,23 +3520,23 @@ void COpenGLDriver::drawStencilShadow(bool clearStencilBuffer, video::SColor lef
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_TRIANGLE_FAN, 4, GL_UNSIGNED_SHORT, Quad2DIndices);
 
 	if (clearStencilBuffer)
-		glClear(GL_STENCIL_BUFFER_BIT);
+		pglClear(GL_STENCIL_BUFFER_BIT);
 
 	// restore settings
-	glPopMatrix();
+	pglPopMatrix();
 	CacheHandler->setMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-	glPopAttrib();
+	pglPopMatrix();
+	pglPopAttrib();
 }
 
 
@@ -3538,38 +3546,38 @@ void COpenGLDriver::setFog(SColor c, E_FOG_TYPE fogType, f32 start,
 {
 	CNullDriver::setFog(c, fogType, start, end, density, pixelFog, rangeFog);
 
-	glFogf(GL_FOG_MODE, GLfloat((fogType==EFT_FOG_LINEAR)? GL_LINEAR : (fogType==EFT_FOG_EXP)?GL_EXP:GL_EXP2));
+	pglFogf(GL_FOG_MODE, GLfloat((fogType==EFT_FOG_LINEAR)? GL_LINEAR : (fogType==EFT_FOG_EXP)?GL_EXP:GL_EXP2));
 
 #ifdef GL_EXT_fog_coord
 	if (FeatureAvailable[IRR_EXT_fog_coord])
-		glFogi(GL_FOG_COORDINATE_SOURCE, GL_FRAGMENT_DEPTH);
+		pglFogi(GL_FOG_COORDINATE_SOURCE, GL_FRAGMENT_DEPTH);
 #endif
 #ifdef GL_NV_fog_distance
 	if (FeatureAvailable[IRR_NV_fog_distance])
 	{
 		if (rangeFog)
-			glFogi(GL_FOG_DISTANCE_MODE_NV, GL_EYE_RADIAL_NV);
+			pglFogi(GL_FOG_DISTANCE_MODE_NV, GL_EYE_RADIAL_NV);
 		else
-			glFogi(GL_FOG_DISTANCE_MODE_NV, GL_EYE_PLANE_ABSOLUTE_NV);
+			pglFogi(GL_FOG_DISTANCE_MODE_NV, GL_EYE_PLANE_ABSOLUTE_NV);
 	}
 #endif
 
 	if (fogType==EFT_FOG_LINEAR)
 	{
-		glFogf(GL_FOG_START, start);
-		glFogf(GL_FOG_END, end);
+		pglFogf(GL_FOG_START, start);
+		pglFogf(GL_FOG_END, end);
 	}
 	else
-		glFogf(GL_FOG_DENSITY, density);
+		pglFogf(GL_FOG_DENSITY, density);
 
 	if (pixelFog)
-		glHint(GL_FOG_HINT, GL_NICEST);
+		pglHint(GL_FOG_HINT, GL_NICEST);
 	else
-		glHint(GL_FOG_HINT, GL_FASTEST);
+		pglHint(GL_FOG_HINT, GL_FASTEST);
 
 	SColorf color(c);
 	GLfloat data[4] = {color.r, color.g, color.b, color.a};
-	glFogfv(GL_FOG_COLOR, data);
+	pglFogfv(GL_FOG_COLOR, data);
 }
 
 //! Draws a 3d box.
@@ -3615,7 +3623,7 @@ void COpenGLDriver::draw3DBox( const core::aabbox3d<f32>& box, SColor color )
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(v))[0].Pos);
+	pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(v))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -3623,14 +3631,14 @@ void COpenGLDriver::draw3DBox( const core::aabbox3d<f32>& box, SColor color )
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(v))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(v))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawArrays(GL_LINES, 0, 24);
+	pglDrawArrays(GL_LINES, 0, 24);
 }
 
 
@@ -3656,8 +3664,8 @@ void COpenGLDriver::draw3DLineW(const core::vector3df& start,
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glLineWidth((width > 0.0f) ? width : 1.0f);
-	glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglLineWidth((width > 0.0f) ? width : 1.0f);
+	pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -3665,14 +3673,14 @@ void COpenGLDriver::draw3DLineW(const core::vector3df& start,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, Quad2DIndices);
 }
 
 void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
@@ -3682,7 +3690,7 @@ void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
 
 	setRenderStates3DMode();
 
-	for(int i = 0; i < vertexCount; i++) {
+	for(u32 i = 0; i < vertexCount; i++) {
 		Quad2DVertices[i].Color = color;
 		Quad2DVertices[i].Pos = core::vector3df((f32)vertices[i].X, (f32)vertices[i].Y, (f32)vertices[i].Z);
 	}
@@ -3692,12 +3700,12 @@ void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
 
 	CacheHandler->setClientState(true, false, true, false);
 
-	glLineWidth((width > 0.0f) ? width : 1.0f);
-	glLineStipple(1, pattern);
+	pglLineWidth((width > 0.0f) ? width : 1.0f);
+	pglLineStipple(1, pattern);
 	if(pattern != 0xffff) {
-		glEnable(GL_LINE_STIPPLE);
+		pglEnable(GL_LINE_STIPPLE);
 	}
-	glVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
+	pglVertexPointer(3, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Pos);
 
 #ifdef GL_BGRA
 	const GLint colorSize=(FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])?GL_BGRA:4;
@@ -3705,15 +3713,15 @@ void COpenGLDriver::draw3DShapeW(const core::vector3df* vertices,
 	const GLint colorSize=4;
 #endif
 	if (FeatureAvailable[IRR_ARB_vertex_array_bgra] || FeatureAvailable[IRR_EXT_vertex_array_bgra])
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(Quad2DVertices))[0].Color);
 	else
 	{
 		_IRR_DEBUG_BREAK_IF(ColorBuffer.size()==0);
-		glColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
+		pglColorPointer(colorSize, GL_UNSIGNED_BYTE, 0, &ColorBuffer[0]);
 	}
 
-	glDrawElements(GL_LINE_LOOP, vertexCount, GL_UNSIGNED_SHORT, Quad2DIndices);
-	glDisable(GL_LINE_STIPPLE);
+	pglDrawElements(GL_LINE_LOOP, vertexCount, GL_UNSIGNED_SHORT, Quad2DIndices);
+	pglDisable(GL_LINE_STIPPLE);
 }
 
 
@@ -4001,7 +4009,7 @@ bool COpenGLDriver::setRenderTargetEx(IRenderTarget* target, u16 clearFlag, SCol
 				CacheHandler->getTextureCache().set(0, renderTargetTexture);
 
 				const core::dimension2d<u32> size = renderTargetTexture->getSize();
-				glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, size.Width, size.Height);
+				pglCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, size.Width, size.Height);
 
 				CacheHandler->getTextureCache().set(0, prevTexture);
 			}
@@ -4047,7 +4055,7 @@ void COpenGLDriver::clearBuffers(u16 flag, SColor color, f32 depth, u8 stencil)
 		CacheHandler->setColorMask(ECP_ALL);
 
 		const f32 inv = 1.0f / 255.0f;
-		glClearColor(color.getRed() * inv, color.getGreen() * inv,
+		pglClearColor(color.getRed() * inv, color.getGreen() * inv,
 			color.getBlue() * inv, color.getAlpha() * inv);
 
 		mask |= GL_COLOR_BUFFER_BIT;
@@ -4056,18 +4064,18 @@ void COpenGLDriver::clearBuffers(u16 flag, SColor color, f32 depth, u8 stencil)
 	if (flag & ECBF_DEPTH)
 	{
 		CacheHandler->setDepthMask(true);
-		glClearDepth(depth);
+		pglClearDepth(depth);
 		mask |= GL_DEPTH_BUFFER_BIT;
 	}
 
 	if (flag & ECBF_STENCIL)
 	{
-		glClearStencil(stencil);
+		pglClearStencil(stencil);
 		mask |= GL_STENCIL_BUFFER_BIT;
 	}
 
 	if (mask)
-		glClear(mask);
+		pglClear(mask);
 
 	CacheHandler->setColorMask(colorMask);
 	CacheHandler->setDepthMask(depthMask);
@@ -4090,7 +4098,7 @@ IImage* COpenGLDriver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RE
 	// allows to read pixels in top-to-bottom order
 #ifdef GL_MESA_pack_invert
 	if (FeatureAvailable[IRR_MESA_pack_invert])
-		glPixelStorei(GL_PACK_INVERT_MESA, GL_TRUE);
+		pglPixelStorei(GL_PACK_INVERT_MESA, GL_TRUE);
 #endif
 
 	GLenum fmt;
@@ -4144,15 +4152,15 @@ IImage* COpenGLDriver::createScreenShot(video::ECOLOR_FORMAT format, video::E_RE
 			tgt=GL_AUX0+(target-video::ERT_AUX_BUFFER0);
 			break;
 		}
-		glReadBuffer(tgt);
-		glReadPixels(0, 0, ScreenSize.Width, ScreenSize.Height, fmt, type, pixels);
+		pglReadBuffer(tgt);
+		pglReadPixels(0, 0, ScreenSize.Width, ScreenSize.Height, fmt, type, pixels);
 		testGLError(__LINE__);
-		glReadBuffer(GL_BACK);
+		pglReadBuffer(GL_BACK);
 	}
 
 #ifdef GL_MESA_pack_invert
 	if (FeatureAvailable[IRR_MESA_pack_invert])
-		glPixelStorei(GL_PACK_INVERT_MESA, GL_FALSE);
+		pglPixelStorei(GL_PACK_INVERT_MESA, GL_FALSE);
 	else
 #endif
 	if (pixels)
@@ -4212,7 +4220,7 @@ void COpenGLDriver::uploadClipPlane(u32 index)
 	clip_plane[1] = UserClipPlanes[index].Plane.Normal.Y;
 	clip_plane[2] = UserClipPlanes[index].Plane.Normal.Z;
 	clip_plane[3] = UserClipPlanes[index].Plane.D;
-	glClipPlane(GL_CLIP_PLANE0 + index, clip_plane);
+	pglClipPlane(GL_CLIP_PLANE0 + index, clip_plane);
 }
 
 
@@ -4226,11 +4234,11 @@ void COpenGLDriver::enableClipPlane(u32 index, bool enable)
 		if (!UserClipPlanes[index].Enabled)
 		{
 			uploadClipPlane(index);
-			glEnable(GL_CLIP_PLANE0 + index);
+			pglEnable(GL_CLIP_PLANE0 + index);
 		}
 	}
 	else
-		glDisable(GL_CLIP_PLANE0 + index);
+		pglDisable(GL_CLIP_PLANE0 + index);
 
 	UserClipPlanes[index].Enabled=enable;
 }

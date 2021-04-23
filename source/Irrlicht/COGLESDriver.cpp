@@ -30,7 +30,7 @@ namespace video
 {
 
 COGLES1Driver::COGLES1Driver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager) :
-    CNullDriver(io, params.WindowSize), COGLES1ExtensionHandler(), CacheHandler(0), CurrentRenderMode(ERM_NONE),
+    CNullDriver(io, params.WindowSize), COGLES1ExtensionHandler(contextManager), initialized(false), CacheHandler(0), CurrentRenderMode(ERM_NONE),
     ResetRenderStates(true), Transformation3DChanged(true), AntiAlias(params.AntiAlias),
     ColorFormat(ECF_R8G8B8), Params(params), ContextManager(contextManager)
 {
@@ -51,7 +51,7 @@ COGLES1Driver::COGLES1Driver(const SIrrlichtCreationParameters& params, io::IFil
 
 	windowSize = params.WindowSize;
 
-    genericDriverInit(windowSize, params.Stencilbuffer);
+	initialized = genericDriverInit(windowSize, params.Stencilbuffer);
 	
 	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
 }
@@ -86,6 +86,8 @@ COGLES1Driver::~COGLES1Driver()
 
 bool COGLES1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, bool stencilBuffer)
 {
+	if(!initBaseFunctions())
+		return false;
 	Name=glGetString(GL_VERSION);
 	printVersion();
 
@@ -126,7 +128,7 @@ bool COGLES1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, 
 		setTransform(static_cast<E_TRANSFORMATION_STATE>(i), core::IdentityMatrix);
 
 	setAmbientLight(SColorf(0.0f, 0.0f, 0.0f, 0.0f));
-	glClearDepthf(1.0f);
+	pglClearDepthf(1.0f);
 
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 	glHint(GL_GENERATE_MIPMAP_HINT, GL_FASTEST);
@@ -330,7 +332,7 @@ bool COGLES1Driver::updateVertexHardwareBuffer(SHWBufferLink_opengl *HWBuffer)
 	bool newBuffer=false;
 	if (!HWBuffer->vbo_verticesID)
 	{
-		glGenBuffers(1, &HWBuffer->vbo_verticesID);
+		pglGenBuffers(1, &HWBuffer->vbo_verticesID);
 		if (!HWBuffer->vbo_verticesID) return false;
 		newBuffer=true;
 	}
@@ -339,22 +341,22 @@ bool COGLES1Driver::updateVertexHardwareBuffer(SHWBufferLink_opengl *HWBuffer)
 		newBuffer=true;
 	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, HWBuffer->vbo_verticesID );
+	pglBindBuffer(GL_ARRAY_BUFFER, HWBuffer->vbo_verticesID );
 
 	// copy data to graphics card
 	if (!newBuffer)
-		glBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * vertexSize, buffer.const_pointer());
+		pglBufferSubData(GL_ARRAY_BUFFER, 0, vertexCount * vertexSize, buffer.const_pointer());
 	else
 	{
 		HWBuffer->vbo_verticesSize = vertexCount*vertexSize;
 
 		if (HWBuffer->Mapped_Vertex==scene::EHM_STATIC)
-			glBufferData(GL_ARRAY_BUFFER, vertexCount * vertexSize, buffer.const_pointer(), GL_STATIC_DRAW);
+			pglBufferData(GL_ARRAY_BUFFER, vertexCount * vertexSize, buffer.const_pointer(), GL_STATIC_DRAW);
 		else
-			glBufferData(GL_ARRAY_BUFFER, vertexCount * vertexSize, buffer.const_pointer(), GL_DYNAMIC_DRAW);
+			pglBufferData(GL_ARRAY_BUFFER, vertexCount * vertexSize, buffer.const_pointer(), GL_DYNAMIC_DRAW);
 	}
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	return (!testGLError(__LINE__));
 }
@@ -394,7 +396,7 @@ bool COGLES1Driver::updateIndexHardwareBuffer(SHWBufferLink_opengl *HWBuffer)
 	bool newBuffer=false;
 	if (!HWBuffer->vbo_indicesID)
 	{
-		glGenBuffers(1, &HWBuffer->vbo_indicesID);
+		pglGenBuffers(1, &HWBuffer->vbo_indicesID);
 		if (!HWBuffer->vbo_indicesID) return false;
 		newBuffer=true;
 	}
@@ -403,22 +405,22 @@ bool COGLES1Driver::updateIndexHardwareBuffer(SHWBufferLink_opengl *HWBuffer)
 		newBuffer=true;
 	}
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, HWBuffer->vbo_indicesID);
+	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, HWBuffer->vbo_indicesID);
 
 	// copy data to graphics card
 	if (!newBuffer)
-		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indexCount * indexSize, indices);
+		pglBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, indexCount * indexSize, indices);
 	else
 	{
 		HWBuffer->vbo_indicesSize = indexCount*indexSize;
 
 		if (HWBuffer->Mapped_Index==scene::EHM_STATIC)
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * indexSize, indices, GL_STATIC_DRAW);
+			pglBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * indexSize, indices, GL_STATIC_DRAW);
 		else
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * indexSize, indices, GL_DYNAMIC_DRAW);
+			pglBufferData(GL_ELEMENT_ARRAY_BUFFER, indexCount * indexSize, indices, GL_DYNAMIC_DRAW);
 	}
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	return (!testGLError(__LINE__));
 }
@@ -499,12 +501,12 @@ void COGLES1Driver::deleteHardwareBuffer(SHWBufferLink *_HWBuffer)
 	SHWBufferLink_opengl *HWBuffer=static_cast<SHWBufferLink_opengl*>(_HWBuffer);
 	if (HWBuffer->vbo_verticesID)
 	{
-		glDeleteBuffers(1, &HWBuffer->vbo_verticesID);
+		pglDeleteBuffers(1, &HWBuffer->vbo_verticesID);
 		HWBuffer->vbo_verticesID=0;
 	}
 	if (HWBuffer->vbo_indicesID)
 	{
-		glDeleteBuffers(1, &HWBuffer->vbo_indicesID);
+		pglDeleteBuffers(1, &HWBuffer->vbo_indicesID);
 		HWBuffer->vbo_indicesID=0;
 	}
 
@@ -530,13 +532,13 @@ void COGLES1Driver::drawHardwareBuffer(SHWBufferLink *_HWBuffer)
 
 	if (HWBuffer->Mapped_Vertex!=scene::EHM_NEVER)
 	{
-		glBindBuffer(GL_ARRAY_BUFFER, HWBuffer->vbo_verticesID);
+		pglBindBuffer(GL_ARRAY_BUFFER, HWBuffer->vbo_verticesID);
 		vertices=0;
 	}
 
 	if (HWBuffer->Mapped_Index!=scene::EHM_NEVER)
 	{
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, HWBuffer->vbo_indicesID);
+		pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, HWBuffer->vbo_indicesID);
 		indexList=0;
 	}
 
@@ -546,10 +548,10 @@ void COGLES1Driver::drawHardwareBuffer(SHWBufferLink *_HWBuffer)
 			mb->getPrimitiveType(), mb->getIndexType());
 
 	if (HWBuffer->Mapped_Vertex!=scene::EHM_NEVER)
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		pglBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	if (HWBuffer->Mapped_Index!=scene::EHM_NEVER)
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		pglBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 
@@ -638,7 +640,7 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 	}
 
 	// draw everything
-	glClientActiveTexture(GL_TEXTURE0);
+	pglClientActiveTexture(GL_TEXTURE0);
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	if ((pType!=scene::EPT_POINTS) && (pType!=scene::EPT_POINT_SPRITES))
@@ -673,7 +675,7 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 
 			if (Feature.MaxTextureUnits > 0 && CacheHandler->getTextureCache().get(1))
 			{
-				glClientActiveTexture(GL_TEXTURE0 + 1);
+				pglClientActiveTexture(GL_TEXTURE0 + 1);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
 					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex), &(static_cast<const S3DVertex*>(vertices))[0].TCoords);
@@ -699,7 +701,7 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 
 			if (Feature.MaxTextureUnits > 0)
 			{
-				glClientActiveTexture(GL_TEXTURE0 + 1);
+				pglClientActiveTexture(GL_TEXTURE0 + 1);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
 					glTexCoordPointer(2, GL_FLOAT, sizeof(S3DVertex2TCoords), &(static_cast<const S3DVertex2TCoords*>(vertices))[0].TCoords2);
@@ -725,14 +727,14 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 
 			if (Feature.MaxTextureUnits > 0)
 			{
-				glClientActiveTexture(GL_TEXTURE0 + 1);
+				pglClientActiveTexture(GL_TEXTURE0 + 1);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
 					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Tangent);
 				else
 					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), buffer_offset(36));
 
-				glClientActiveTexture(GL_TEXTURE0 + 2);
+				pglClientActiveTexture(GL_TEXTURE0 + 2);
 				glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 				if (vertices)
 					glTexCoordPointer(3, GL_FLOAT, sizeof(S3DVertexTangents), &(static_cast<const S3DVertexTangents*>(vertices))[0].Binormal);
@@ -779,13 +781,13 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 			if (Material.Thickness!=0.f)
 			{
 				float quadratic[] = {0.0f, 0.0f, 10.01f};
-				glPointParameterfv(GL_POINT_DISTANCE_ATTENUATION, quadratic);
+				pglPointParameterfv(GL_POINT_DISTANCE_ATTENUATION, quadratic);
 				float maxParticleSize=1.0f;
 				glGetFloatv(GL_POINT_SIZE_MAX, &maxParticleSize);
 //				maxParticleSize=maxParticleSize<Material.Thickness?maxParticleSize:Material.Thickness;
 //				extGlPointParameterf(GL_POINT_SIZE_MAX,maxParticleSize);
 //				extGlPointParameterf(GL_POINT_SIZE_MIN,Material.Thickness);
-				glPointParameterf(GL_POINT_FADE_THRESHOLD_SIZE, 60.0f);
+				pglPointParameterf(GL_POINT_FADE_THRESHOLD_SIZE, 60.0f);
 				glPointSize(Material.Thickness);
 			}
 #ifdef GL_OES_point_sprite
@@ -830,15 +832,15 @@ void COGLES1Driver::drawVertexPrimitiveList2d3d(const void* vertices, u32 vertex
 	{
 		if (vType == EVT_TANGENTS)
 		{
-			glClientActiveTexture(GL_TEXTURE0 + 2);
+			pglClientActiveTexture(GL_TEXTURE0 + 2);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
 		if ((vType != EVT_STANDARD) || CacheHandler->getTextureCache().get(1))
 		{
-			glClientActiveTexture(GL_TEXTURE0 + 1);
+			pglClientActiveTexture(GL_TEXTURE0 + 1);
 			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		}
-		glClientActiveTexture(GL_TEXTURE0);
+		pglClientActiveTexture(GL_TEXTURE0);
 	}
 
 #ifdef GL_OES_point_size_array
@@ -2930,7 +2932,7 @@ void COGLES1Driver::clearBuffers(u16 flag, SColor color, f32 depth, u8 stencil)
 	if (flag & ECBF_DEPTH)
 	{
 		glDepthMask(GL_TRUE);
-		glClearDepthf(depth);
+		pglClearDepthf(depth);
 		mask |= GL_DEPTH_BUFFER_BIT;
 	}
 
@@ -3052,7 +3054,7 @@ void COGLES1Driver::uploadClipPlane(u32 index)
 	clip_plane[1] = UserClipPlane[index].Normal.Y;
 	clip_plane[2] = UserClipPlane[index].Normal.Z;
 	clip_plane[3] = UserClipPlane[index].D;
-	glClipPlanef(GL_CLIP_PLANE0 + index, clip_plane);
+	pglClipPlanef(GL_CLIP_PLANE0 + index, clip_plane);
 }
 
 

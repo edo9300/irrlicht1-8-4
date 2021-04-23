@@ -12,9 +12,11 @@
 
 #include "EDriverFeatures.h"
 #include "irrTypes.h"
+#include "IContextManager.h"
 #include "os.h"
 
 #include "COGLES2Common.h"
+#include "COGLES2BaseFunctionsHandler.h"
 
 #include "COGLESCoreExtensionHandler.h"
 
@@ -23,10 +25,10 @@ namespace irr
 namespace video
 {
 
-	class COGLES2ExtensionHandler : public COGLESCoreExtensionHandler
+	class COGLES2ExtensionHandler : public COGLESCoreExtensionHandler, public COGLES2BaseFunctionsHandler
 	{
 	public:
-		COGLES2ExtensionHandler() : COGLESCoreExtensionHandler() {}
+		COGLES2ExtensionHandler(IContextManager* contextManager) : COGLESCoreExtensionHandler(), COGLES2BaseFunctionsHandler(contextManager){}
 
 		void initExtensions();
 
@@ -86,39 +88,39 @@ namespace video
 
 		inline void irrGlActiveTexture(GLenum texture)
 		{
-			glActiveTexture(texture);
+			pglActiveTexture(texture);
 		}
 
 		inline void irrGlCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border,
 			GLsizei imageSize, const void* data)
 		{
-			glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+			pglCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
 		}
 
 		inline void irrGlCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height,
 			GLenum format, GLsizei imageSize, const void* data)
 		{
-			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+			pglCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
 		}
 
 		inline void irrGlUseProgram(GLuint prog)
 		{
-			glUseProgram(prog);
+			pglUseProgram(prog);
 		}
 
 		inline void irrGlBindFramebuffer(GLenum target, GLuint framebuffer)
 		{
-			glBindFramebuffer(target, framebuffer);
+			pglBindFramebuffer(target, framebuffer);
 		}
 
 		inline void irrGlDeleteFramebuffers(GLsizei n, const GLuint *framebuffers)
 		{
-			glDeleteFramebuffers(n, framebuffers);
+			pglDeleteFramebuffers(n, framebuffers);
 		}
 
 		inline void irrGlGenFramebuffers(GLsizei n, GLuint *framebuffers)
 		{
-			glGenFramebuffers(n, framebuffers);
+			pglGenFramebuffers(n, framebuffers);
 		}
 
 		inline GLenum irrGlCheckFramebufferStatus(GLenum target)
@@ -128,12 +130,12 @@ namespace video
 
 		inline void irrGlFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 		{
-			glFramebufferTexture2D(target, attachment, textarget, texture, level);
+			pglFramebufferTexture2D(target, attachment, textarget, texture, level);
 		}
 
 		inline void irrGlGenerateMipmap(GLenum target)
 		{
-			glGenerateMipmap(target);
+			pglGenerateMipmap(target);
 		}
 
 		inline void irrGlActiveStencilFace(GLenum face)
@@ -150,12 +152,12 @@ namespace video
 
 		inline void irrGlBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
 		{
-			glBlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
+			pglBlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
 		}
 
 		inline void irrGlBlendEquation(GLenum mode)
 		{
-			glBlendEquation(mode);
+			pglBlendEquation(mode);
 		}
 
 		inline void irrGlEnableIndexed(GLenum target, GLuint index)

@@ -59,8 +59,11 @@ namespace video
 		// Swap buffers.
 		bool swapBuffers();
 		
-		// generic vsync setting method for several extensions
+		// Generic vsync setting method for several extensions
 		void swapInterval(int interval);
+
+        // Context dependent getProcAddress or equivalent function
+        void* loadFunction(const char* function_name) { return 0; };
 
 	private:
 		SIrrlichtCreationParameters Params;

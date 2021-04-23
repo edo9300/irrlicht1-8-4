@@ -9,15 +9,11 @@
 
 #ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
 
-#include <EGL/egl.h>
+#include "EGL/egl.h"
 
 #include "SIrrCreationParameters.h"
 #include "SExposedVideoData.h"
 #include "IContextManager.h"
-
-#ifdef _MSC_VER
-#pragma comment(lib, "libEGL.lib")
-#endif
 
 namespace irr
 {
@@ -70,8 +66,11 @@ namespace video
 		// Swap buffers.
 		virtual bool swapBuffers() _IRR_OVERRIDE_;
 		
-		// generic vsync setting method for several extensions
+		// Generic vsync setting method for several extensions
 		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
+		
+		// Context dependent getProcAddress or equivalent function
+		virtual void* loadFunction(const char* function_name) _IRR_OVERRIDE_;
 
 	protected:
 		enum EConfigStyle

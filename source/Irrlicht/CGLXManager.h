@@ -60,8 +60,11 @@ namespace video
         // Swap buffers.
         virtual bool swapBuffers() _IRR_OVERRIDE_;
 		
-		// generic vsync setting method for several extensions
+		// Generic vsync setting method for several extensions
 		virtual void swapInterval(int interval) _IRR_OVERRIDE_;
+
+        // Context dependent getProcAddress or equivalent function
+        virtual void* loadFunction(const char* function_name) _IRR_OVERRIDE_;
 
         XVisualInfo* getVisual() const {return VisualInfo;} // return XVisualInfo
 
@@ -76,6 +79,14 @@ namespace video
 		void* pGlxSwapIntervalSGI;
 		void* pGlxSwapIntervalEXT;
 		void* pGlxSwapIntervalMESA;
+	#endif
+        void* pglXGetProcAddress;
+	#ifdef _IRR_X11_DYNAMIC_LOAD_
+		void* LibGL;
+		void* LibGLX;
+	#define GLX_FUNC(name) void* p##name;
+		#include "CGLXFunctions.inl"
+	#undef GLX_FUNC
 	#endif
 	};
 }

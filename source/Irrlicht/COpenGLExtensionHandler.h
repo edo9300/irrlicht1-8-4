@@ -11,6 +11,8 @@
 
 #include "EDriverFeatures.h"
 #include "irrTypes.h"
+#include "IContextManager.h"
+#include "COpenGLBaseFunctionsHandler.h"
 #include "os.h"
 
 #include "COpenGLCommon.h"
@@ -506,7 +508,7 @@ static const char* const OpenGLFeatureStrings[] = {
 };
 
 
-class COpenGLExtensionHandler
+class COpenGLExtensionHandler : public COpenGLBaseFunctionsHandler
 {
 	public:
 	enum EOpenGLFeatures {
@@ -994,7 +996,7 @@ class COpenGLExtensionHandler
 
 
 	// constructor
-	COpenGLExtensionHandler();
+	COpenGLExtensionHandler(IContextManager* contextManager);
 
 	// deferred initialization
 	void initExtensions(bool stencilBuffer);
@@ -1217,6 +1219,7 @@ class COpenGLExtensionHandler
 	protected:
 		COpenGLCoreFeature Feature;
 
+		IContextManager* ContextManager;
 	#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
 		PFNGLACTIVETEXTUREPROC pGlActiveTexture;
 		PFNGLACTIVETEXTUREARBPROC pGlActiveTextureARB;
@@ -2388,7 +2391,7 @@ inline void COpenGLExtensionHandler::irrGlActiveStencilFace(GLenum face)
 
 inline void COpenGLExtensionHandler::irrGlDrawBuffer(GLenum mode)
 {
-	glDrawBuffer(mode);
+	pglDrawBuffer(mode);
 }
 
 inline void COpenGLExtensionHandler::irrGlDrawBuffers(GLsizei n, const GLenum *bufs)

@@ -1277,7 +1277,10 @@ void CIrrDeviceWin32::createDriver()
 		switchToFullScreen();
 
 		ContextManager = new video::CWGLManager();
-		ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd));
+		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
+			os::Printer::log("Failed to initialize OpenGL context.", ELL_ERROR);
+			break;
+		}
 
 		VideoDriver = video::createOpenGLDriver(CreationParams, FileSystem, ContextManager);
 
@@ -1291,8 +1294,19 @@ void CIrrDeviceWin32::createDriver()
 #ifdef _IRR_COMPILE_WITH_OGLES1_
 		switchToFullScreen();
 
-		ContextManager = new video::CEGLManager();
-		ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd));
+		ContextManager = new video::CWGLManager();
+		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 1.1 context via nvidia extensions, try egl
+#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+			ContextManager->drop();
+			ContextManager = new video::CEGLManager();
+			if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
+#endif
+				os::Printer::log("Failed to initialize OpenGL-ES1 context.", ELL_ERROR);
+				break;
+#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+			}
+#endif
+		}
 
 		VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
 
@@ -1306,8 +1320,19 @@ void CIrrDeviceWin32::createDriver()
 #ifdef _IRR_COMPILE_WITH_OGLES2_
 		switchToFullScreen();
 
-		ContextManager = new video::CEGLManager();
-		ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd));
+		ContextManager = new video::CWGLManager();
+		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 1.1 context via nvidia extensions, try egl
+#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+			ContextManager->drop();
+			ContextManager = new video::CEGLManager();
+			if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
+#endif
+				os::Printer::log("Failed to initialize OpenGL-ES2 context.", ELL_ERROR);
+				break;
+#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+			}
+#endif
+		}
 
 		VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);
 

@@ -92,19 +92,19 @@ class COpenGLCoreCacheHandler
 
 							if (curTextureType != prevTextureType)
 							{
-								glBindTexture(prevTextureType, 0);
+								CacheHandler.Driver->pglBindTexture(prevTextureType, 0);
 
 #if ( defined(IRR_COMPILE_GL_COMMON) || defined(IRR_COMPILE_GLES_COMMON) )
-								glDisable(prevTextureType);
-								glEnable(curTextureType);
+								CacheHandler.Driver->pglDisable(prevTextureType);
+								CacheHandler.Driver->pglEnable(curTextureType);
 #endif
 							}
 #if ( defined(IRR_COMPILE_GL_COMMON) || defined(IRR_COMPILE_GLES_COMMON) )
 							else if (!prevTexture)
-								glEnable(curTextureType);
+								CacheHandler.Driver->pglEnable(curTextureType);
 #endif
 
-							glBindTexture(curTextureType, static_cast<const TOpenGLTexture*>(texture)->getOpenGLTextureName());
+							CacheHandler.Driver->pglBindTexture(curTextureType, static_cast<const TOpenGLTexture*>(texture)->getOpenGLTextureName());
 						}
 						else
 						{
@@ -120,10 +120,10 @@ class COpenGLCoreCacheHandler
 					{
 						const GLenum prevTextureType = prevTexture->getOpenGLTextureType();
 
-						glBindTexture(prevTextureType, 0);
+						CacheHandler.Driver->pglBindTexture(prevTextureType, 0);
 
 #if ( defined(IRR_COMPILE_GL_COMMON) || defined(IRR_COMPILE_GLES_COMMON) )
-						glDisable(prevTextureType);
+						CacheHandler.Driver->pglDisable(prevTextureType);
 #endif
 					}
 
@@ -227,28 +227,28 @@ public:
 			ColorMask[i] = ECP_ALL;
 		}
 
-		glBlendFunc(GL_ONE, GL_ZERO);
-		glDisable(GL_BLEND);
+		Driver->pglBlendFunc(GL_ONE, GL_ZERO);
+		Driver->pglDisable(GL_BLEND);
 
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		Driver->pglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-		glCullFace(CullFaceMode);
-		glDisable(GL_CULL_FACE);
+		Driver->pglCullFace(CullFaceMode);
+		Driver->pglDisable(GL_CULL_FACE);
 
-		glDepthFunc(DepthFunc);
-		glDepthMask(GL_TRUE);
-		glDisable(GL_DEPTH_TEST);
+		Driver->pglDepthFunc(DepthFunc);
+		Driver->pglDepthMask(GL_TRUE);
+		Driver->pglDisable(GL_DEPTH_TEST);
 
 		Driver->irrGlActiveTexture(ActiveTexture);
 
 #if ( defined(IRR_COMPILE_GL_COMMON) || defined(IRR_COMPILE_GLES_COMMON) )
-		glDisable(GL_TEXTURE_2D);
+		Driver->pglDisable(GL_TEXTURE_2D);
 #endif
 
 		const core::dimension2d<u32> ScreenSize = Driver->getScreenSize();
 		ViewportWidth = ScreenSize.Width;
 		ViewportHeight = ScreenSize.Height;
-		glViewport(ViewportX, ViewportY, ViewportWidth, ViewportHeight);
+		Driver->pglViewport(ViewportX, ViewportY, ViewportWidth, ViewportHeight);
 	}
 
 	virtual ~COpenGLCoreCacheHandler()
@@ -305,7 +305,7 @@ public:
 			BlendSourceAlpha[0] != source || BlendDestinationAlpha[0] != destination ||
 			BlendFuncInvalid)
 		{
-			glBlendFunc(source, destination);
+			Driver->pglBlendFunc(source, destination);
 
 			for (GLuint i = 0; i < FrameBufferCount; ++i)
 			{
@@ -388,9 +388,9 @@ public:
 		if (Blend[0] != enable || BlendInvalid)
 		{
 			if (enable)
-				glEnable(GL_BLEND);
+				Driver->pglEnable(GL_BLEND);
 			else
-				glDisable(GL_BLEND);
+				Driver->pglDisable(GL_BLEND);
 
 			for (GLuint i = 0; i < FrameBufferCount; ++i)
 				Blend[i] = enable;
@@ -424,7 +424,7 @@ public:
 	{
 		if (ColorMask[0] != mask || ColorMaskInvalid)
 		{
-			glColorMask((mask & ECP_RED) ? GL_TRUE : GL_FALSE, (mask & ECP_GREEN) ? GL_TRUE : GL_FALSE, (mask & ECP_BLUE) ? GL_TRUE : GL_FALSE, (mask & ECP_ALPHA) ? GL_TRUE : GL_FALSE);
+			Driver->pglColorMask((mask & ECP_RED) ? GL_TRUE : GL_FALSE, (mask & ECP_GREEN) ? GL_TRUE : GL_FALSE, (mask & ECP_BLUE) ? GL_TRUE : GL_FALSE, (mask & ECP_ALPHA) ? GL_TRUE : GL_FALSE);
 
 			for (GLuint i = 0; i < FrameBufferCount; ++i)
 				ColorMask[i] = mask;
@@ -450,7 +450,7 @@ public:
 	{
 		if (CullFaceMode != mode)
 		{
-			glCullFace(mode);
+			Driver->pglCullFace(mode);
 			CullFaceMode = mode;
 		}
 	}
@@ -460,9 +460,9 @@ public:
 		if (CullFace != enable)
 		{
 			if (enable)
-				glEnable(GL_CULL_FACE);
+				Driver->pglEnable(GL_CULL_FACE);
 			else
-				glDisable(GL_CULL_FACE);
+				Driver->pglDisable(GL_CULL_FACE);
 
 			CullFace = enable;
 		}
@@ -474,7 +474,7 @@ public:
 	{
 		if (DepthFunc != mode)
 		{
-			glDepthFunc(mode);
+			Driver->pglDepthFunc(mode);
 			DepthFunc = mode;
 		}
 	}
@@ -489,9 +489,9 @@ public:
 		if (DepthMask != enable)
 		{
 			if (enable)
-				glDepthMask(GL_TRUE);
+				Driver->pglDepthMask(GL_TRUE);
 			else
-				glDepthMask(GL_FALSE);
+				Driver->pglDepthMask(GL_FALSE);
 
 			DepthMask = enable;
 		}
@@ -507,9 +507,9 @@ public:
 		if (DepthTest != enable)
 		{
 			if (enable)
-				glEnable(GL_DEPTH_TEST);
+				Driver->pglEnable(GL_DEPTH_TEST);
 			else
-				glDisable(GL_DEPTH_TEST);
+				Driver->pglDisable(GL_DEPTH_TEST);
 
 			DepthTest = enable;
 		}
@@ -577,7 +577,7 @@ public:
 	{
 		if (ViewportX != viewportX || ViewportY != viewportY || ViewportWidth != viewportWidth || ViewportHeight != viewportHeight)
 		{
-			glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+			Driver->pglViewport(viewportX, viewportY, viewportWidth, viewportHeight);
 			ViewportX = viewportX;
 			ViewportY = viewportY;
 			ViewportWidth = viewportWidth;

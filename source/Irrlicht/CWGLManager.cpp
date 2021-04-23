@@ -11,17 +11,13 @@
 #include <GL/gl.h>
 #include "wglext.h"
 
-#ifdef _MSC_VER
-	#pragma comment(lib, "OpenGL32.lib")
-#endif
-
 namespace irr
 {
 namespace video
 {
 
 CWGLManager::CWGLManager()
-	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0), pWglSwapIntervalEXT(0), wglCreateContextAttribs_ARB(0)
+	: PrimaryContext(SExposedVideoData(0)), PixelFormat(0), pWglSwapIntervalEXT(0), wglCreateContextAttribs_ARB(0), Opengl32(0)
 {
 	#ifdef _DEBUG
 	setDebugName("CWGLManager");
@@ -30,10 +26,31 @@ CWGLManager::CWGLManager()
 
 CWGLManager::~CWGLManager()
 {
+	if(Opengl32) {
+		FreeLibrary(Opengl32);
+		Opengl32 = 0;
+	}
 }
+#define LOAD_WGL(x) p##x = (decltype(&x))(GetProcAddress(Opengl32, #x)); \
+					if(!p##x) {	\
+						os::Printer::log("Failed to load "#x".", ELL_ERROR); \
+						return false; \
+					}
 
 bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& videodata)
 {
+	Opengl32 = LoadLibrary(__TEXT("opengl32.dll"));
+	if(!Opengl32)
+		return false;
+#ifdef _IRR_DYNAMIC_OPENGL_
+	if((pwglGetProcAddress = (decltype(pwglGetProcAddress))GetProcAddress(Opengl32, "wglGetProcAddress")) == 0)
+		return false;
+
+	LOAD_WGL(wglCreateContext);
+	LOAD_WGL(wglDeleteContext);
+	LOAD_WGL(wglMakeCurrent);
+#endif
+
 	// store params, videoData is set later as it would be overwritten else
 	Params=params;
 
@@ -165,7 +182,8 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 
 	SetPixelFormat(HDc, PixelFormat, &pfd);
 	os::Printer::log("Create temporary GL rendering context", ELL_DEBUG);
-	HGLRC hrc=wglCreateContext(HDc);
+
+	HGLRC hrc= pwglCreateContext(HDc);
 	if (!hrc)
 	{
 		os::Printer::log("Cannot create a temporary GL rendering context.", ELL_ERROR);
@@ -182,7 +200,7 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 	if (!activateContext(CurrentContext, false))
 	{
 		os::Printer::log("Cannot activate a temporary GL rendering context.", ELL_ERROR);
-		wglDeleteContext(hrc);
+		pwglDeleteContext(hrc);
 		ReleaseDC(temporary_wnd, HDc);
 		DestroyWindow(temporary_wnd);
 		UnregisterClass(ClassName, lhInstance);
@@ -191,11 +209,11 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 
 	core::stringc wglExtensions;
 #ifdef WGL_ARB_extensions_string
-	PFNWGLGETEXTENSIONSSTRINGARBPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+	PFNWGLGETEXTENSIONSSTRINGARBPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)loadFunction("wglGetExtensionsStringARB");
 	if (irrGetExtensionsString)
 		wglExtensions = irrGetExtensionsString(HDc);
 #elif defined(WGL_EXT_extensions_string)
-	PFNWGLGETEXTENSIONSSTRINGEXTPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+	PFNWGLGETEXTENSIONSSTRINGEXTPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)loadFunction("wglGetExtensionsStringEXT");
 	if (irrGetExtensionsString)
 		wglExtensions = irrGetExtensionsString(HDc);
 #endif
@@ -207,7 +225,7 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 #endif
 
 #ifdef WGL_ARB_pixel_format
-	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormat_ARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormat_ARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)loadFunction("wglChoosePixelFormatARB");
 	if (pixel_format_supported && wglChoosePixelFormat_ARB)
 	{
 		// This value determines the number of samples used for antialiasing
@@ -287,10 +305,10 @@ bool CWGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 #endif
 		Params.AntiAlias=0;
 #ifdef WGL_ARB_create_context
-	wglCreateContextAttribs_ARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+	wglCreateContextAttribs_ARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)loadFunction("wglCreateContextAttribsARB");
 #endif
 
-	pWglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+	pWglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)loadFunction("wglSwapIntervalEXT");
 
 	// this only terminates the temporary HRc
 	destroyContext();
@@ -407,20 +425,55 @@ bool CWGLManager::generateContext()
 #ifdef WGL_ARB_create_context
 	if (wglCreateContextAttribs_ARB)
 	{
+		const int* iAttribs;
 		// with 3.0 all available profiles should be usable, higher versions impose restrictions
 		// we need at least 1.1
-		const int iAttribs[] =
+		switch(Params.DriverType) {
+		case irr::video::E_DRIVER_TYPE::EDT_OPENGL:
 		{
-			WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
-			WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-//			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,	// enable to get a debug context (depends on driver if that does anything)
-			0
-		};
+			const int openGLAttribs[] =
+			{
+				WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
+				WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+	//			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,	// enable to get a debug context (depends on driver if that does anything)
+				0
+			};
+			iAttribs = openGLAttribs;
+			break;
+		}
+		case irr::video::E_DRIVER_TYPE::EDT_OGLES1:
+		{
+			const int openGLES1Attribs[] =
+			{
+				WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
+				WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
+				0
+			};
+			iAttribs = openGLES1Attribs;
+			break;
+		}
+		case irr::video::E_DRIVER_TYPE::EDT_OGLES2:
+		{
+			const int openGLES2Attribs[] =
+			{
+				WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
+				WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
+				0
+			};
+			iAttribs = openGLES2Attribs;
+			break;
+		}
+		default:
+			os::Printer::log("Invalid driver type.", ELL_ERROR);
+			return false;
+		}
 		hrc=wglCreateContextAttribs_ARB(HDc, 0, iAttribs);
 	}
 	else
 #endif
-	hrc=wglCreateContext(HDc);
+	hrc=pwglCreateContext(HDc);
 	os::Printer::log("Irrlicht context");
 
 	if (!hrc)
@@ -446,7 +499,7 @@ bool CWGLManager::activateContext(const SExposedVideoData& videoData, bool resto
 {
 	if (videoData.OpenGLWin32.HWnd && videoData.OpenGLWin32.HDc && videoData.OpenGLWin32.HRc)
 	{
-		if (!wglMakeCurrent((HDC)videoData.OpenGLWin32.HDc, (HGLRC)videoData.OpenGLWin32.HRc))
+		if (!pwglMakeCurrent((HDC)videoData.OpenGLWin32.HDc, (HGLRC)videoData.OpenGLWin32.HRc))
 		{
 			os::Printer::log("Render Context switch failed.");
 			return false;
@@ -455,7 +508,7 @@ bool CWGLManager::activateContext(const SExposedVideoData& videoData, bool resto
 	}
 	else if (!restorePrimaryOnZero && !videoData.OpenGLWin32.HDc && !videoData.OpenGLWin32.HRc)
 	{
-		if (!wglMakeCurrent((HDC)0, (HGLRC)0))
+		if (!pwglMakeCurrent((HDC)0, (HGLRC)0))
 		{
 			os::Printer::log("Render Context reset failed.");
 			return false;
@@ -465,7 +518,7 @@ bool CWGLManager::activateContext(const SExposedVideoData& videoData, bool resto
 	// set back to main context
 	else if (!videoData.OpenGLWin32.HWnd && CurrentContext.OpenGLWin32.HDc != PrimaryContext.OpenGLWin32.HDc)
 	{
-		if (!wglMakeCurrent((HDC)PrimaryContext.OpenGLWin32.HDc, (HGLRC)PrimaryContext.OpenGLWin32.HRc))
+		if (!pwglMakeCurrent((HDC)PrimaryContext.OpenGLWin32.HDc, (HGLRC)PrimaryContext.OpenGLWin32.HRc))
 		{
 			os::Printer::log("Render Context switch failed.");
 			return false;
@@ -479,10 +532,10 @@ void CWGLManager::destroyContext()
 {
 	if (CurrentContext.OpenGLWin32.HRc)
 	{
-		if (!wglMakeCurrent((HDC)CurrentContext.OpenGLWin32.HDc, 0))
+		if (!pwglMakeCurrent((HDC)CurrentContext.OpenGLWin32.HDc, 0))
 			os::Printer::log("Release of render context failed.", ELL_WARNING);
 
-		if (!wglDeleteContext((HGLRC)CurrentContext.OpenGLWin32.HRc))
+		if (!pwglDeleteContext((HGLRC)CurrentContext.OpenGLWin32.HRc))
 			os::Printer::log("Deletion of render context failed.", ELL_WARNING);
 		if (PrimaryContext.OpenGLWin32.HRc==CurrentContext.OpenGLWin32.HRc)
 			PrimaryContext.OpenGLWin32.HRc=0;
@@ -499,10 +552,18 @@ void CWGLManager::swapInterval(int interval)
 {
 #ifdef WGL_EXT_swap_control
 	if(pWglSwapIntervalEXT) {
-		((PFNWGLSWAPINTERVALEXTPROC)pWglSwapIntervalEXT)(interval);
+		pWglSwapIntervalEXT(interval);
 		return;
 	}
 #endif
+}
+
+void* CWGLManager::loadFunction(const char* function_name)
+{
+	void* ret = (void*)pwglGetProcAddress(function_name);
+	if(ret == nullptr)
+		ret = (void*)GetProcAddress(Opengl32, function_name);
+	return ret;
 }
 
 }

@@ -12,21 +12,23 @@
 
 #include "EDriverFeatures.h"
 #include "irrTypes.h"
+#include "IContextManager.h"
 #include "os.h"
 
 #include "COGLESCommon.h"
 
 #include "COGLESCoreExtensionHandler.h"
+#include "COGLESBaseFunctionsHandler.h"
 
 namespace irr
 {
 namespace video
 {
 
-	class COGLES1ExtensionHandler : public COGLESCoreExtensionHandler
+	class COGLES1ExtensionHandler : public COGLESCoreExtensionHandler, public COGLES1BaseFunctionsHandler
 	{
 	public:
-		COGLES1ExtensionHandler();
+		COGLES1ExtensionHandler(IContextManager* contextManager);
 
 		void initExtensions();
 
@@ -73,19 +75,19 @@ namespace video
 
 		inline void irrGlActiveTexture(GLenum texture)
 		{
-			glActiveTexture(texture);
+			pglActiveTexture(texture);
 		}
 
 		inline void irrGlCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border,
 			GLsizei imageSize, const void* data)
 		{
-			glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+			pglCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
 		}
 
 		inline void irrGlCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height,
 			GLenum format, GLsizei imageSize, const void* data)
 		{
-			glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+			pglCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
 		}
 
 		inline void irrGlUseProgram(GLuint prog)
@@ -220,6 +222,8 @@ namespace video
 
 		u8 MaxUserClipPlanes;
 		u8 MaxLights;
+
+		IContextManager* ContextManager;
 
 #if defined(_IRR_OGLES1_USE_EXTPOINTER_)
 		PFNGLBLENDEQUATIONOESPROC pGlBlendEquationOES;

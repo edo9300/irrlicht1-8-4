@@ -16,6 +16,9 @@
 #include <khronos-api/GLES/gl.h>
 #include <EGL/eglplatform.h>
 typedef char GLchar;
+#elif defined(_IRR_DYNAMIC_OPENGL_ES_1_)
+#include "GLES/gl.h"
+#include "GLES/glext.h"
 #else	// or only when defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_) ?
 #include <GLES/gl.h>
 #include <GLES/glext.h>

@@ -17,12 +17,13 @@ namespace video
 
 bool COpenGLExtensionHandler::needsDSAFramebufferHack = true;
 
-COpenGLExtensionHandler::COpenGLExtensionHandler() :
+COpenGLExtensionHandler::COpenGLExtensionHandler(IContextManager* contextManager) :
+		COpenGLBaseFunctionsHandler(contextManager),
 		StencilBuffer(false), TextureCompressionExtension(false), MaxLights(1),
 		MaxAnisotropy(1), MaxUserClipPlanes(0), MaxAuxBuffers(0), MaxIndices(65535),
 		MaxTextureSize(1), MaxGeometryVerticesOut(0),
 		MaxTextureLODBias(0.f), Version(0), ShaderLanguageVersion(0),
-		OcclusionQuerySupport(false)
+		OcclusionQuerySupport(false), ContextManager(contextManager)
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
 	,pGlActiveTexture(0)
 	,pGlActiveTextureARB(0), pGlClientActiveTextureARB(0),
@@ -118,14 +119,17 @@ void COpenGLExtensionHandler::dump(ELOG_LEVEL logLevel) const
 void COpenGLExtensionHandler::dumpFramebufferFormats() const
 {
 #ifdef _IRR_WINDOWS_API_
-	HDC hdc=wglGetCurrentDC();
+	auto pwglGetCurrentDC = (decltype(&wglGetCurrentDC))ContextManager->loadFunction("wglGetCurrentDC");
+	if(!pwglGetCurrentDC)
+		return;
+	HDC hdc = pwglGetCurrentDC();
 	core::stringc wglExtensions;
 #ifdef WGL_ARB_extensions_string
-	PFNWGLGETEXTENSIONSSTRINGARBPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)wglGetProcAddress("wglGetExtensionsStringARB");
+	PFNWGLGETEXTENSIONSSTRINGARBPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGARBPROC)ContextManager->loadFunction("wglGetExtensionsStringARB");
 	if (irrGetExtensionsString)
 		wglExtensions = irrGetExtensionsString(hdc);
 #elif defined(WGL_EXT_extensions_string)
-	PFNWGLGETEXTENSIONSSTRINGEXTPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
+	PFNWGLGETEXTENSIONSSTRINGEXTPROC irrGetExtensionsString = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)ContextManager->loadFunction("wglGetExtensionsStringEXT");
 	if (irrGetExtensionsString)
 		wglExtensions = irrGetExtensionsString(hdc);
 #endif
@@ -137,7 +141,7 @@ void COpenGLExtensionHandler::dumpFramebufferFormats() const
 #endif
 
 #ifdef WGL_ARB_pixel_format
-	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormat_ARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
+	PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormat_ARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)ContextManager->loadFunction("wglChoosePixelFormatARB");
 	if (pixel_format_supported && wglChoosePixelFormat_ARB)
 	{
 		// This value determines the number of samples used for antialiasing
@@ -145,7 +149,7 @@ void COpenGLExtensionHandler::dumpFramebufferFormats() const
 		// improvement over 4, but 4 shows a big improvement
 		// over 2.
 
-		PFNWGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribiv_ARB = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)wglGetProcAddress("wglGetPixelFormatAttribivARB");
+		PFNWGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribiv_ARB = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)ContextManager->loadFunction("wglGetPixelFormatAttribivARB");
 		if (wglGetPixelFormatAttribiv_ARB)
 		{
 			int vals[128];
@@ -331,7 +335,7 @@ void COpenGLExtensionHandler::dumpFramebufferFormats() const
 
 void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 {
-	const f32 ogl_ver = core::fast_atof(reinterpret_cast<const c8*>(glGetString(GL_VERSION)));
+	const f32 ogl_ver = core::fast_atof(reinterpret_cast<const c8*>(pglGetString(GL_VERSION)));
 	Version = static_cast<u16>(core::floor32(ogl_ver)*100+core::round32(core::fract(ogl_ver)*10.0f));
 	if ( Version >= 102)
 		os::Printer::log("OpenGL driver version is 1.2 or better.", ELL_INFORMATION);
@@ -339,7 +343,7 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 		os::Printer::log("OpenGL driver version is not 1.2 or better.", ELL_WARNING);
 
 	{
-		const char* t = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+		const char* t = reinterpret_cast<const char*>(pglGetString(GL_EXTENSIONS));
 		size_t len = 0;
 		c8 *str = 0;
 		if (t)
@@ -376,224 +380,194 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	StencilBuffer=stencilBuffer;
 
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
-#ifdef _IRR_WINDOWS_API_
-	#define IRR_OGL_LOAD_EXTENSION(x) wglGetProcAddress(reinterpret_cast<const char*>(x))
-#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && !defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	#define IRR_OGL_LOAD_EXTENSION(x) SDL_GL_GetProcAddress(reinterpret_cast<const char*>(x))
-#else
-	// Accessing the correct function is quite complex
-	// All libraries should support the ARB version, however
-	// since GLX 1.4 the non-ARB version is the official one
-	// So we have to check the runtime environment and
-	// choose the proper symbol
-	// In case you still have problems please enable the
-	// next line by uncommenting it
-	// #define _IRR_GETPROCADDRESS_WORKAROUND_
-
-	#ifndef _IRR_GETPROCADDRESS_WORKAROUND_
-	__GLXextFuncPtr (*IRR_OGL_LOAD_EXTENSION_FUNCP)(const GLubyte*)=0;
-	#ifdef GLX_VERSION_1_4
-		int major=0,minor=0;
-		if (glXGetCurrentDisplay())
-			glXQueryVersion(glXGetCurrentDisplay(), &major, &minor);
-		if ((major>1) || (minor>3))
-			IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddress;
-		else
-	#endif
-			IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddressARB;
-		#define IRR_OGL_LOAD_EXTENSION(X) IRR_OGL_LOAD_EXTENSION_FUNCP(reinterpret_cast<const GLubyte*>(X))
-	#else
-		#define IRR_OGL_LOAD_EXTENSION(X) glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(X))
-	#endif // workaround
-#endif // Windows, SDL, or Linux
 
 	// get multitexturing function pointers
-	pGlActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC) IRR_OGL_LOAD_EXTENSION("glActiveTextureARB");
-	pGlClientActiveTextureARB = (PFNGLCLIENTACTIVETEXTUREARBPROC) IRR_OGL_LOAD_EXTENSION("glClientActiveTextureARB");
+	pGlActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC) ContextManager->loadFunction("glActiveTextureARB");
+	pGlClientActiveTextureARB = (PFNGLCLIENTACTIVETEXTUREARBPROC) ContextManager->loadFunction("glClientActiveTextureARB");
 
 	// get fragment and vertex program function pointers
-	pGlGenProgramsARB = (PFNGLGENPROGRAMSARBPROC) IRR_OGL_LOAD_EXTENSION("glGenProgramsARB");
-	pGlGenProgramsNV = (PFNGLGENPROGRAMSNVPROC) IRR_OGL_LOAD_EXTENSION("glGenProgramsNV");
-	pGlBindProgramARB = (PFNGLBINDPROGRAMARBPROC) IRR_OGL_LOAD_EXTENSION("glBindProgramARB");
-	pGlBindProgramNV = (PFNGLBINDPROGRAMNVPROC) IRR_OGL_LOAD_EXTENSION("glBindProgramNV");
-	pGlProgramStringARB = (PFNGLPROGRAMSTRINGARBPROC) IRR_OGL_LOAD_EXTENSION("glProgramStringARB");
-	pGlLoadProgramNV = (PFNGLLOADPROGRAMNVPROC) IRR_OGL_LOAD_EXTENSION("glLoadProgramNV");
-	pGlDeleteProgramsARB = (PFNGLDELETEPROGRAMSARBPROC) IRR_OGL_LOAD_EXTENSION("glDeleteProgramsARB");
-	pGlDeleteProgramsNV = (PFNGLDELETEPROGRAMSNVPROC) IRR_OGL_LOAD_EXTENSION("glDeleteProgramsNV");
-	pGlProgramLocalParameter4fvARB = (PFNGLPROGRAMLOCALPARAMETER4FVARBPROC) IRR_OGL_LOAD_EXTENSION("glProgramLocalParameter4fvARB");
-	pGlCreateShaderObjectARB = (PFNGLCREATESHADEROBJECTARBPROC) IRR_OGL_LOAD_EXTENSION("glCreateShaderObjectARB");
-	pGlCreateShader = (PFNGLCREATESHADERPROC) IRR_OGL_LOAD_EXTENSION("glCreateShader");
-	pGlShaderSourceARB = (PFNGLSHADERSOURCEARBPROC) IRR_OGL_LOAD_EXTENSION("glShaderSourceARB");
-	pGlShaderSource = (PFNGLSHADERSOURCEPROC) IRR_OGL_LOAD_EXTENSION("glShaderSource");
-	pGlCompileShaderARB = (PFNGLCOMPILESHADERARBPROC) IRR_OGL_LOAD_EXTENSION("glCompileShaderARB");
-	pGlCompileShader = (PFNGLCOMPILESHADERPROC) IRR_OGL_LOAD_EXTENSION("glCompileShader");
-	pGlCreateProgramObjectARB = (PFNGLCREATEPROGRAMOBJECTARBPROC) IRR_OGL_LOAD_EXTENSION("glCreateProgramObjectARB");
-	pGlCreateProgram = (PFNGLCREATEPROGRAMPROC) IRR_OGL_LOAD_EXTENSION("glCreateProgram");
-	pGlAttachObjectARB = (PFNGLATTACHOBJECTARBPROC) IRR_OGL_LOAD_EXTENSION("glAttachObjectARB");
-	pGlAttachShader = (PFNGLATTACHSHADERPROC) IRR_OGL_LOAD_EXTENSION("glAttachShader");
-	pGlLinkProgramARB = (PFNGLLINKPROGRAMARBPROC) IRR_OGL_LOAD_EXTENSION("glLinkProgramARB");
-	pGlLinkProgram = (PFNGLLINKPROGRAMPROC) IRR_OGL_LOAD_EXTENSION("glLinkProgram");
-	pGlUseProgramObjectARB = (PFNGLUSEPROGRAMOBJECTARBPROC) IRR_OGL_LOAD_EXTENSION("glUseProgramObjectARB");
-	pGlUseProgram = (PFNGLUSEPROGRAMPROC) IRR_OGL_LOAD_EXTENSION("glUseProgram");
-	pGlDeleteObjectARB = (PFNGLDELETEOBJECTARBPROC) IRR_OGL_LOAD_EXTENSION("glDeleteObjectARB");
-	pGlDeleteProgram = (PFNGLDELETEPROGRAMPROC) IRR_OGL_LOAD_EXTENSION("glDeleteProgram");
-	pGlDeleteShader = (PFNGLDELETESHADERPROC) IRR_OGL_LOAD_EXTENSION("glDeleteShader");
-	pGlGetAttachedShaders = (PFNGLGETATTACHEDSHADERSPROC) IRR_OGL_LOAD_EXTENSION("glGetAttachedShaders");
-	pGlGetAttachedObjectsARB = (PFNGLGETATTACHEDOBJECTSARBPROC) IRR_OGL_LOAD_EXTENSION("glGetAttachedObjectsARB");
-	pGlGetInfoLogARB = (PFNGLGETINFOLOGARBPROC) IRR_OGL_LOAD_EXTENSION("glGetInfoLogARB");
-	pGlGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC) IRR_OGL_LOAD_EXTENSION("glGetShaderInfoLog");
-	pGlGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC) IRR_OGL_LOAD_EXTENSION("glGetProgramInfoLog");
-	pGlGetObjectParameterivARB = (PFNGLGETOBJECTPARAMETERIVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetObjectParameterivARB");
-	pGlGetShaderiv = (PFNGLGETSHADERIVPROC) IRR_OGL_LOAD_EXTENSION("glGetShaderiv");
-	pGlGetProgramiv = (PFNGLGETPROGRAMIVPROC) IRR_OGL_LOAD_EXTENSION("glGetProgramiv");
-	pGlGetUniformLocationARB = (PFNGLGETUNIFORMLOCATIONARBPROC) IRR_OGL_LOAD_EXTENSION("glGetUniformLocationARB");
-	pGlGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC) IRR_OGL_LOAD_EXTENSION("glGetUniformLocation");
-	pGlUniform1fvARB = (PFNGLUNIFORM1FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform1fvARB");
-	pGlUniform2fvARB = (PFNGLUNIFORM2FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform2fvARB");
-	pGlUniform3fvARB = (PFNGLUNIFORM3FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform3fvARB");
-	pGlUniform4fvARB = (PFNGLUNIFORM4FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform4fvARB");
-	pGlUniform1ivARB = (PFNGLUNIFORM1IVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform1ivARB");
-	pGlUniform2ivARB = (PFNGLUNIFORM2IVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform2ivARB");
-	pGlUniform3ivARB = (PFNGLUNIFORM3IVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform3ivARB");
-	pGlUniform4ivARB = (PFNGLUNIFORM4IVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniform4ivARB");
-	pGlUniform1uiv = (PFNGLUNIFORM1UIVPROC) IRR_OGL_LOAD_EXTENSION("glUniform1uiv");
-	pGlUniform2uiv = (PFNGLUNIFORM2UIVPROC) IRR_OGL_LOAD_EXTENSION("glUniform2uiv");
-	pGlUniform3uiv = (PFNGLUNIFORM3UIVPROC) IRR_OGL_LOAD_EXTENSION("glUniform3uiv");
-	pGlUniform4uiv = (PFNGLUNIFORM4UIVPROC) IRR_OGL_LOAD_EXTENSION("glUniform4uiv");
-	pGlUniformMatrix2fvARB = (PFNGLUNIFORMMATRIX2FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniformMatrix2fvARB");
-	pGlUniformMatrix2x3fv = (PFNGLUNIFORMMATRIX2X3FVPROC) IRR_OGL_LOAD_EXTENSION("glUniformMatrix2x3fv");
-	pGlUniformMatrix2x4fv = (PFNGLUNIFORMMATRIX2X4FVPROC)IRR_OGL_LOAD_EXTENSION("glUniformMatrix2x4fv");
-	pGlUniformMatrix3x2fv = (PFNGLUNIFORMMATRIX3X2FVPROC)IRR_OGL_LOAD_EXTENSION("glUniformMatrix3x2fv");
-	pGlUniformMatrix3fvARB = (PFNGLUNIFORMMATRIX3FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniformMatrix3fvARB");
-	pGlUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)IRR_OGL_LOAD_EXTENSION("glUniformMatrix3x4fv");
-	pGlUniformMatrix4x2fv = (PFNGLUNIFORMMATRIX4X2FVPROC)IRR_OGL_LOAD_EXTENSION("glUniformMatrix4x2fv");
-	pGlUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)IRR_OGL_LOAD_EXTENSION("glUniformMatrix4x3fv");
-	pGlUniformMatrix4fvARB = (PFNGLUNIFORMMATRIX4FVARBPROC) IRR_OGL_LOAD_EXTENSION("glUniformMatrix4fvARB");
-	pGlGetActiveUniformARB = (PFNGLGETACTIVEUNIFORMARBPROC) IRR_OGL_LOAD_EXTENSION("glGetActiveUniformARB");
-	pGlGetActiveUniform = (PFNGLGETACTIVEUNIFORMPROC) IRR_OGL_LOAD_EXTENSION("glGetActiveUniform");
+	pGlGenProgramsARB = (PFNGLGENPROGRAMSARBPROC) ContextManager->loadFunction("glGenProgramsARB");
+	pGlGenProgramsNV = (PFNGLGENPROGRAMSNVPROC) ContextManager->loadFunction("glGenProgramsNV");
+	pGlBindProgramARB = (PFNGLBINDPROGRAMARBPROC) ContextManager->loadFunction("glBindProgramARB");
+	pGlBindProgramNV = (PFNGLBINDPROGRAMNVPROC) ContextManager->loadFunction("glBindProgramNV");
+	pGlProgramStringARB = (PFNGLPROGRAMSTRINGARBPROC) ContextManager->loadFunction("glProgramStringARB");
+	pGlLoadProgramNV = (PFNGLLOADPROGRAMNVPROC) ContextManager->loadFunction("glLoadProgramNV");
+	pGlDeleteProgramsARB = (PFNGLDELETEPROGRAMSARBPROC) ContextManager->loadFunction("glDeleteProgramsARB");
+	pGlDeleteProgramsNV = (PFNGLDELETEPROGRAMSNVPROC) ContextManager->loadFunction("glDeleteProgramsNV");
+	pGlProgramLocalParameter4fvARB = (PFNGLPROGRAMLOCALPARAMETER4FVARBPROC) ContextManager->loadFunction("glProgramLocalParameter4fvARB");
+	pGlCreateShaderObjectARB = (PFNGLCREATESHADEROBJECTARBPROC) ContextManager->loadFunction("glCreateShaderObjectARB");
+	pGlCreateShader = (PFNGLCREATESHADERPROC) ContextManager->loadFunction("glCreateShader");
+	pGlShaderSourceARB = (PFNGLSHADERSOURCEARBPROC) ContextManager->loadFunction("glShaderSourceARB");
+	pGlShaderSource = (PFNGLSHADERSOURCEPROC) ContextManager->loadFunction("glShaderSource");
+	pGlCompileShaderARB = (PFNGLCOMPILESHADERARBPROC) ContextManager->loadFunction("glCompileShaderARB");
+	pGlCompileShader = (PFNGLCOMPILESHADERPROC) ContextManager->loadFunction("glCompileShader");
+	pGlCreateProgramObjectARB = (PFNGLCREATEPROGRAMOBJECTARBPROC) ContextManager->loadFunction("glCreateProgramObjectARB");
+	pGlCreateProgram = (PFNGLCREATEPROGRAMPROC) ContextManager->loadFunction("glCreateProgram");
+	pGlAttachObjectARB = (PFNGLATTACHOBJECTARBPROC) ContextManager->loadFunction("glAttachObjectARB");
+	pGlAttachShader = (PFNGLATTACHSHADERPROC) ContextManager->loadFunction("glAttachShader");
+	pGlLinkProgramARB = (PFNGLLINKPROGRAMARBPROC) ContextManager->loadFunction("glLinkProgramARB");
+	pGlLinkProgram = (PFNGLLINKPROGRAMPROC) ContextManager->loadFunction("glLinkProgram");
+	pGlUseProgramObjectARB = (PFNGLUSEPROGRAMOBJECTARBPROC) ContextManager->loadFunction("glUseProgramObjectARB");
+	pGlUseProgram = (PFNGLUSEPROGRAMPROC) ContextManager->loadFunction("glUseProgram");
+	pGlDeleteObjectARB = (PFNGLDELETEOBJECTARBPROC) ContextManager->loadFunction("glDeleteObjectARB");
+	pGlDeleteProgram = (PFNGLDELETEPROGRAMPROC) ContextManager->loadFunction("glDeleteProgram");
+	pGlDeleteShader = (PFNGLDELETESHADERPROC) ContextManager->loadFunction("glDeleteShader");
+	pGlGetAttachedShaders = (PFNGLGETATTACHEDSHADERSPROC) ContextManager->loadFunction("glGetAttachedShaders");
+	pGlGetAttachedObjectsARB = (PFNGLGETATTACHEDOBJECTSARBPROC) ContextManager->loadFunction("glGetAttachedObjectsARB");
+	pGlGetInfoLogARB = (PFNGLGETINFOLOGARBPROC) ContextManager->loadFunction("glGetInfoLogARB");
+	pGlGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC) ContextManager->loadFunction("glGetShaderInfoLog");
+	pGlGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC) ContextManager->loadFunction("glGetProgramInfoLog");
+	pGlGetObjectParameterivARB = (PFNGLGETOBJECTPARAMETERIVARBPROC) ContextManager->loadFunction("glGetObjectParameterivARB");
+	pGlGetShaderiv = (PFNGLGETSHADERIVPROC) ContextManager->loadFunction("glGetShaderiv");
+	pGlGetProgramiv = (PFNGLGETPROGRAMIVPROC) ContextManager->loadFunction("glGetProgramiv");
+	pGlGetUniformLocationARB = (PFNGLGETUNIFORMLOCATIONARBPROC) ContextManager->loadFunction("glGetUniformLocationARB");
+	pGlGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC) ContextManager->loadFunction("glGetUniformLocation");
+	pGlUniform1fvARB = (PFNGLUNIFORM1FVARBPROC) ContextManager->loadFunction("glUniform1fvARB");
+	pGlUniform2fvARB = (PFNGLUNIFORM2FVARBPROC) ContextManager->loadFunction("glUniform2fvARB");
+	pGlUniform3fvARB = (PFNGLUNIFORM3FVARBPROC) ContextManager->loadFunction("glUniform3fvARB");
+	pGlUniform4fvARB = (PFNGLUNIFORM4FVARBPROC) ContextManager->loadFunction("glUniform4fvARB");
+	pGlUniform1ivARB = (PFNGLUNIFORM1IVARBPROC) ContextManager->loadFunction("glUniform1ivARB");
+	pGlUniform2ivARB = (PFNGLUNIFORM2IVARBPROC) ContextManager->loadFunction("glUniform2ivARB");
+	pGlUniform3ivARB = (PFNGLUNIFORM3IVARBPROC) ContextManager->loadFunction("glUniform3ivARB");
+	pGlUniform4ivARB = (PFNGLUNIFORM4IVARBPROC) ContextManager->loadFunction("glUniform4ivARB");
+	pGlUniform1uiv = (PFNGLUNIFORM1UIVPROC) ContextManager->loadFunction("glUniform1uiv");
+	pGlUniform2uiv = (PFNGLUNIFORM2UIVPROC) ContextManager->loadFunction("glUniform2uiv");
+	pGlUniform3uiv = (PFNGLUNIFORM3UIVPROC) ContextManager->loadFunction("glUniform3uiv");
+	pGlUniform4uiv = (PFNGLUNIFORM4UIVPROC) ContextManager->loadFunction("glUniform4uiv");
+	pGlUniformMatrix2fvARB = (PFNGLUNIFORMMATRIX2FVARBPROC) ContextManager->loadFunction("glUniformMatrix2fvARB");
+	pGlUniformMatrix2x3fv = (PFNGLUNIFORMMATRIX2X3FVPROC) ContextManager->loadFunction("glUniformMatrix2x3fv");
+	pGlUniformMatrix2x4fv = (PFNGLUNIFORMMATRIX2X4FVPROC)ContextManager->loadFunction("glUniformMatrix2x4fv");
+	pGlUniformMatrix3x2fv = (PFNGLUNIFORMMATRIX3X2FVPROC)ContextManager->loadFunction("glUniformMatrix3x2fv");
+	pGlUniformMatrix3fvARB = (PFNGLUNIFORMMATRIX3FVARBPROC) ContextManager->loadFunction("glUniformMatrix3fvARB");
+	pGlUniformMatrix3x4fv = (PFNGLUNIFORMMATRIX3X4FVPROC)ContextManager->loadFunction("glUniformMatrix3x4fv");
+	pGlUniformMatrix4x2fv = (PFNGLUNIFORMMATRIX4X2FVPROC)ContextManager->loadFunction("glUniformMatrix4x2fv");
+	pGlUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)ContextManager->loadFunction("glUniformMatrix4x3fv");
+	pGlUniformMatrix4fvARB = (PFNGLUNIFORMMATRIX4FVARBPROC) ContextManager->loadFunction("glUniformMatrix4fvARB");
+	pGlGetActiveUniformARB = (PFNGLGETACTIVEUNIFORMARBPROC) ContextManager->loadFunction("glGetActiveUniformARB");
+	pGlGetActiveUniform = (PFNGLGETACTIVEUNIFORMPROC) ContextManager->loadFunction("glGetActiveUniform");
 
 	// get point parameter extension
-	pGlPointParameterfARB = (PFNGLPOINTPARAMETERFARBPROC) IRR_OGL_LOAD_EXTENSION("glPointParameterfARB");
-	pGlPointParameterfvARB = (PFNGLPOINTPARAMETERFVARBPROC) IRR_OGL_LOAD_EXTENSION("glPointParameterfvARB");
+	pGlPointParameterfARB = (PFNGLPOINTPARAMETERFARBPROC) ContextManager->loadFunction("glPointParameterfARB");
+	pGlPointParameterfvARB = (PFNGLPOINTPARAMETERFVARBPROC) ContextManager->loadFunction("glPointParameterfvARB");
 
 	// get stencil extension
-	pGlStencilFuncSeparate = (PFNGLSTENCILFUNCSEPARATEPROC) IRR_OGL_LOAD_EXTENSION("glStencilFuncSeparate");
-	pGlStencilOpSeparate = (PFNGLSTENCILOPSEPARATEPROC) IRR_OGL_LOAD_EXTENSION("glStencilOpSeparate");
-	pGlStencilFuncSeparateATI = (PFNGLSTENCILFUNCSEPARATEATIPROC) IRR_OGL_LOAD_EXTENSION("glStencilFuncSeparateATI");
-	pGlStencilOpSeparateATI = (PFNGLSTENCILOPSEPARATEATIPROC) IRR_OGL_LOAD_EXTENSION("glStencilOpSeparateATI");
+	pGlStencilFuncSeparate = (PFNGLSTENCILFUNCSEPARATEPROC) ContextManager->loadFunction("glStencilFuncSeparate");
+	pGlStencilOpSeparate = (PFNGLSTENCILOPSEPARATEPROC) ContextManager->loadFunction("glStencilOpSeparate");
+	pGlStencilFuncSeparateATI = (PFNGLSTENCILFUNCSEPARATEATIPROC) ContextManager->loadFunction("glStencilFuncSeparateATI");
+	pGlStencilOpSeparateATI = (PFNGLSTENCILOPSEPARATEATIPROC) ContextManager->loadFunction("glStencilOpSeparateATI");
 
 	// compressed textures
-	pGlCompressedTexImage2D = (PFNGLCOMPRESSEDTEXIMAGE2DPROC) IRR_OGL_LOAD_EXTENSION("glCompressedTexImage2D");
-	pGlCompressedTexSubImage2D = (PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC) IRR_OGL_LOAD_EXTENSION("glCompressedTexSubImage2D");
+	pGlCompressedTexImage2D = (PFNGLCOMPRESSEDTEXIMAGE2DPROC) ContextManager->loadFunction("glCompressedTexImage2D");
+	pGlCompressedTexSubImage2D = (PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC) ContextManager->loadFunction("glCompressedTexSubImage2D");
 
 	// ARB FrameBufferObjects
-	pGlBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC) IRR_OGL_LOAD_EXTENSION("glBindFramebuffer");
-	pGlDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC) IRR_OGL_LOAD_EXTENSION("glDeleteFramebuffers");
-	pGlGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC) IRR_OGL_LOAD_EXTENSION("glGenFramebuffers");
-	pGlCheckFramebufferStatus = (PFNGLCHECKFRAMEBUFFERSTATUSPROC) IRR_OGL_LOAD_EXTENSION("glCheckFramebufferStatus");
-	pGlFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC) IRR_OGL_LOAD_EXTENSION("glFramebufferTexture2D");
-	pGlBindRenderbuffer = (PFNGLBINDRENDERBUFFERPROC) IRR_OGL_LOAD_EXTENSION("glBindRenderbuffer");
-	pGlDeleteRenderbuffers = (PFNGLDELETERENDERBUFFERSPROC) IRR_OGL_LOAD_EXTENSION("glDeleteRenderbuffers");
-	pGlGenRenderbuffers = (PFNGLGENRENDERBUFFERSPROC) IRR_OGL_LOAD_EXTENSION("glGenRenderbuffers");
-	pGlRenderbufferStorage = (PFNGLRENDERBUFFERSTORAGEPROC) IRR_OGL_LOAD_EXTENSION("glRenderbufferStorage");
-	pGlFramebufferRenderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFERPROC) IRR_OGL_LOAD_EXTENSION("glFramebufferRenderbuffer");
-	pGlGenerateMipmap = (PFNGLGENERATEMIPMAPPROC) IRR_OGL_LOAD_EXTENSION("glGenerateMipmap");
+	pGlBindFramebuffer = (PFNGLBINDFRAMEBUFFERPROC) ContextManager->loadFunction("glBindFramebuffer");
+	pGlDeleteFramebuffers = (PFNGLDELETEFRAMEBUFFERSPROC) ContextManager->loadFunction("glDeleteFramebuffers");
+	pGlGenFramebuffers = (PFNGLGENFRAMEBUFFERSPROC) ContextManager->loadFunction("glGenFramebuffers");
+	pGlCheckFramebufferStatus = (PFNGLCHECKFRAMEBUFFERSTATUSPROC) ContextManager->loadFunction("glCheckFramebufferStatus");
+	pGlFramebufferTexture2D = (PFNGLFRAMEBUFFERTEXTURE2DPROC) ContextManager->loadFunction("glFramebufferTexture2D");
+	pGlBindRenderbuffer = (PFNGLBINDRENDERBUFFERPROC) ContextManager->loadFunction("glBindRenderbuffer");
+	pGlDeleteRenderbuffers = (PFNGLDELETERENDERBUFFERSPROC) ContextManager->loadFunction("glDeleteRenderbuffers");
+	pGlGenRenderbuffers = (PFNGLGENRENDERBUFFERSPROC) ContextManager->loadFunction("glGenRenderbuffers");
+	pGlRenderbufferStorage = (PFNGLRENDERBUFFERSTORAGEPROC) ContextManager->loadFunction("glRenderbufferStorage");
+	pGlFramebufferRenderbuffer = (PFNGLFRAMEBUFFERRENDERBUFFERPROC) ContextManager->loadFunction("glFramebufferRenderbuffer");
+	pGlGenerateMipmap = (PFNGLGENERATEMIPMAPPROC) ContextManager->loadFunction("glGenerateMipmap");
 
 	// EXT FrameBufferObjects
-	pGlBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC) IRR_OGL_LOAD_EXTENSION("glBindFramebufferEXT");
-	pGlDeleteFramebuffersEXT = (PFNGLDELETEFRAMEBUFFERSEXTPROC) IRR_OGL_LOAD_EXTENSION("glDeleteFramebuffersEXT");
-	pGlGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC) IRR_OGL_LOAD_EXTENSION("glGenFramebuffersEXT");
-	pGlCheckFramebufferStatusEXT = (PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC) IRR_OGL_LOAD_EXTENSION("glCheckFramebufferStatusEXT");
-	pGlFramebufferTexture2DEXT = (PFNGLFRAMEBUFFERTEXTURE2DEXTPROC) IRR_OGL_LOAD_EXTENSION("glFramebufferTexture2DEXT");
-	pGlBindRenderbufferEXT = (PFNGLBINDRENDERBUFFEREXTPROC) IRR_OGL_LOAD_EXTENSION("glBindRenderbufferEXT");
-	pGlDeleteRenderbuffersEXT = (PFNGLDELETERENDERBUFFERSEXTPROC) IRR_OGL_LOAD_EXTENSION("glDeleteRenderbuffersEXT");
-	pGlGenRenderbuffersEXT = (PFNGLGENRENDERBUFFERSEXTPROC) IRR_OGL_LOAD_EXTENSION("glGenRenderbuffersEXT");
-	pGlRenderbufferStorageEXT = (PFNGLRENDERBUFFERSTORAGEEXTPROC) IRR_OGL_LOAD_EXTENSION("glRenderbufferStorageEXT");
-	pGlFramebufferRenderbufferEXT = (PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC) IRR_OGL_LOAD_EXTENSION("glFramebufferRenderbufferEXT");
-	pGlGenerateMipmapEXT = (PFNGLGENERATEMIPMAPEXTPROC) IRR_OGL_LOAD_EXTENSION("glGenerateMipmapEXT");
-	pGlDrawBuffersARB = (PFNGLDRAWBUFFERSARBPROC) IRR_OGL_LOAD_EXTENSION("glDrawBuffersARB");
-	pGlDrawBuffersATI = (PFNGLDRAWBUFFERSATIPROC) IRR_OGL_LOAD_EXTENSION("glDrawBuffersATI");
+	pGlBindFramebufferEXT = (PFNGLBINDFRAMEBUFFEREXTPROC) ContextManager->loadFunction("glBindFramebufferEXT");
+	pGlDeleteFramebuffersEXT = (PFNGLDELETEFRAMEBUFFERSEXTPROC) ContextManager->loadFunction("glDeleteFramebuffersEXT");
+	pGlGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC) ContextManager->loadFunction("glGenFramebuffersEXT");
+	pGlCheckFramebufferStatusEXT = (PFNGLCHECKFRAMEBUFFERSTATUSEXTPROC) ContextManager->loadFunction("glCheckFramebufferStatusEXT");
+	pGlFramebufferTexture2DEXT = (PFNGLFRAMEBUFFERTEXTURE2DEXTPROC) ContextManager->loadFunction("glFramebufferTexture2DEXT");
+	pGlBindRenderbufferEXT = (PFNGLBINDRENDERBUFFEREXTPROC) ContextManager->loadFunction("glBindRenderbufferEXT");
+	pGlDeleteRenderbuffersEXT = (PFNGLDELETERENDERBUFFERSEXTPROC) ContextManager->loadFunction("glDeleteRenderbuffersEXT");
+	pGlGenRenderbuffersEXT = (PFNGLGENRENDERBUFFERSEXTPROC) ContextManager->loadFunction("glGenRenderbuffersEXT");
+	pGlRenderbufferStorageEXT = (PFNGLRENDERBUFFERSTORAGEEXTPROC) ContextManager->loadFunction("glRenderbufferStorageEXT");
+	pGlFramebufferRenderbufferEXT = (PFNGLFRAMEBUFFERRENDERBUFFEREXTPROC) ContextManager->loadFunction("glFramebufferRenderbufferEXT");
+	pGlGenerateMipmapEXT = (PFNGLGENERATEMIPMAPEXTPROC) ContextManager->loadFunction("glGenerateMipmapEXT");
+	pGlDrawBuffersARB = (PFNGLDRAWBUFFERSARBPROC) ContextManager->loadFunction("glDrawBuffersARB");
+	pGlDrawBuffersATI = (PFNGLDRAWBUFFERSATIPROC) ContextManager->loadFunction("glDrawBuffersATI");
 
 	// get vertex buffer extension
-	pGlGenBuffersARB = (PFNGLGENBUFFERSARBPROC) IRR_OGL_LOAD_EXTENSION("glGenBuffersARB");
-	pGlBindBufferARB = (PFNGLBINDBUFFERARBPROC) IRR_OGL_LOAD_EXTENSION("glBindBufferARB");
-	pGlBufferDataARB = (PFNGLBUFFERDATAARBPROC) IRR_OGL_LOAD_EXTENSION("glBufferDataARB");
-	pGlDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC) IRR_OGL_LOAD_EXTENSION("glDeleteBuffersARB");
-	pGlBufferSubDataARB= (PFNGLBUFFERSUBDATAARBPROC) IRR_OGL_LOAD_EXTENSION("glBufferSubDataARB");
-	pGlGetBufferSubDataARB= (PFNGLGETBUFFERSUBDATAARBPROC)IRR_OGL_LOAD_EXTENSION("glGetBufferSubDataARB");
-	pGlMapBufferARB= (PFNGLMAPBUFFERARBPROC) IRR_OGL_LOAD_EXTENSION("glMapBufferARB");
-	pGlUnmapBufferARB= (PFNGLUNMAPBUFFERARBPROC) IRR_OGL_LOAD_EXTENSION("glUnmapBufferARB");
-	pGlIsBufferARB= (PFNGLISBUFFERARBPROC) IRR_OGL_LOAD_EXTENSION("glIsBufferARB");
-	pGlGetBufferParameterivARB= (PFNGLGETBUFFERPARAMETERIVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetBufferParameterivARB");
-	pGlGetBufferPointervARB= (PFNGLGETBUFFERPOINTERVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetBufferPointervARB");
-	pGlProvokingVertexARB= (PFNGLPROVOKINGVERTEXPROC) IRR_OGL_LOAD_EXTENSION("glProvokingVertex");
-	pGlProvokingVertexEXT= (PFNGLPROVOKINGVERTEXEXTPROC) IRR_OGL_LOAD_EXTENSION("glProvokingVertexEXT");
-	pGlProgramParameteriARB= (PFNGLPROGRAMPARAMETERIARBPROC) IRR_OGL_LOAD_EXTENSION("glProgramParameteriARB");
-	pGlProgramParameteriEXT= (PFNGLPROGRAMPARAMETERIEXTPROC) IRR_OGL_LOAD_EXTENSION("glProgramParameteriEXT");
+	pGlGenBuffersARB = (PFNGLGENBUFFERSARBPROC) ContextManager->loadFunction("glGenBuffersARB");
+	pGlBindBufferARB = (PFNGLBINDBUFFERARBPROC) ContextManager->loadFunction("glBindBufferARB");
+	pGlBufferDataARB = (PFNGLBUFFERDATAARBPROC) ContextManager->loadFunction("glBufferDataARB");
+	pGlDeleteBuffersARB = (PFNGLDELETEBUFFERSARBPROC) ContextManager->loadFunction("glDeleteBuffersARB");
+	pGlBufferSubDataARB= (PFNGLBUFFERSUBDATAARBPROC) ContextManager->loadFunction("glBufferSubDataARB");
+	pGlGetBufferSubDataARB= (PFNGLGETBUFFERSUBDATAARBPROC)ContextManager->loadFunction("glGetBufferSubDataARB");
+	pGlMapBufferARB= (PFNGLMAPBUFFERARBPROC) ContextManager->loadFunction("glMapBufferARB");
+	pGlUnmapBufferARB= (PFNGLUNMAPBUFFERARBPROC) ContextManager->loadFunction("glUnmapBufferARB");
+	pGlIsBufferARB= (PFNGLISBUFFERARBPROC) ContextManager->loadFunction("glIsBufferARB");
+	pGlGetBufferParameterivARB= (PFNGLGETBUFFERPARAMETERIVARBPROC) ContextManager->loadFunction("glGetBufferParameterivARB");
+	pGlGetBufferPointervARB= (PFNGLGETBUFFERPOINTERVARBPROC) ContextManager->loadFunction("glGetBufferPointervARB");
+	pGlProvokingVertexARB= (PFNGLPROVOKINGVERTEXPROC) ContextManager->loadFunction("glProvokingVertex");
+	pGlProvokingVertexEXT= (PFNGLPROVOKINGVERTEXEXTPROC) ContextManager->loadFunction("glProvokingVertexEXT");
+	pGlProgramParameteriARB= (PFNGLPROGRAMPARAMETERIARBPROC) ContextManager->loadFunction("glProgramParameteriARB");
+	pGlProgramParameteriEXT= (PFNGLPROGRAMPARAMETERIEXTPROC) ContextManager->loadFunction("glProgramParameteriEXT");
 
 	// occlusion query
-	pGlGenQueriesARB = (PFNGLGENQUERIESARBPROC) IRR_OGL_LOAD_EXTENSION("glGenQueriesARB");
-	pGlDeleteQueriesARB = (PFNGLDELETEQUERIESARBPROC) IRR_OGL_LOAD_EXTENSION("glDeleteQueriesARB");
-	pGlIsQueryARB = (PFNGLISQUERYARBPROC) IRR_OGL_LOAD_EXTENSION("glIsQueryARB");
-	pGlBeginQueryARB = (PFNGLBEGINQUERYARBPROC) IRR_OGL_LOAD_EXTENSION("glBeginQueryARB");
-	pGlEndQueryARB = (PFNGLENDQUERYARBPROC) IRR_OGL_LOAD_EXTENSION("glEndQueryARB");
-	pGlGetQueryivARB = (PFNGLGETQUERYIVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetQueryivARB");
-	pGlGetQueryObjectivARB = (PFNGLGETQUERYOBJECTIVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetQueryObjectivARB");
-	pGlGetQueryObjectuivARB = (PFNGLGETQUERYOBJECTUIVARBPROC) IRR_OGL_LOAD_EXTENSION("glGetQueryObjectuivARB");
-	pGlGenOcclusionQueriesNV = (PFNGLGENOCCLUSIONQUERIESNVPROC) IRR_OGL_LOAD_EXTENSION("glGenOcclusionQueriesNV");
-	pGlDeleteOcclusionQueriesNV = (PFNGLDELETEOCCLUSIONQUERIESNVPROC) IRR_OGL_LOAD_EXTENSION("glDeleteOcclusionQueriesNV");
-	pGlIsOcclusionQueryNV = (PFNGLISOCCLUSIONQUERYNVPROC) IRR_OGL_LOAD_EXTENSION("glIsOcclusionQueryNV");
-	pGlBeginOcclusionQueryNV = (PFNGLBEGINOCCLUSIONQUERYNVPROC) IRR_OGL_LOAD_EXTENSION("glBeginOcclusionQueryNV");
-	pGlEndOcclusionQueryNV = (PFNGLENDOCCLUSIONQUERYNVPROC) IRR_OGL_LOAD_EXTENSION("glEndOcclusionQueryNV");
-	pGlGetOcclusionQueryivNV = (PFNGLGETOCCLUSIONQUERYIVNVPROC) IRR_OGL_LOAD_EXTENSION("glGetOcclusionQueryivNV");
-	pGlGetOcclusionQueryuivNV = (PFNGLGETOCCLUSIONQUERYUIVNVPROC) IRR_OGL_LOAD_EXTENSION("glGetOcclusionQueryuivNV");
+	pGlGenQueriesARB = (PFNGLGENQUERIESARBPROC) ContextManager->loadFunction("glGenQueriesARB");
+	pGlDeleteQueriesARB = (PFNGLDELETEQUERIESARBPROC) ContextManager->loadFunction("glDeleteQueriesARB");
+	pGlIsQueryARB = (PFNGLISQUERYARBPROC) ContextManager->loadFunction("glIsQueryARB");
+	pGlBeginQueryARB = (PFNGLBEGINQUERYARBPROC) ContextManager->loadFunction("glBeginQueryARB");
+	pGlEndQueryARB = (PFNGLENDQUERYARBPROC) ContextManager->loadFunction("glEndQueryARB");
+	pGlGetQueryivARB = (PFNGLGETQUERYIVARBPROC) ContextManager->loadFunction("glGetQueryivARB");
+	pGlGetQueryObjectivARB = (PFNGLGETQUERYOBJECTIVARBPROC) ContextManager->loadFunction("glGetQueryObjectivARB");
+	pGlGetQueryObjectuivARB = (PFNGLGETQUERYOBJECTUIVARBPROC) ContextManager->loadFunction("glGetQueryObjectuivARB");
+	pGlGenOcclusionQueriesNV = (PFNGLGENOCCLUSIONQUERIESNVPROC) ContextManager->loadFunction("glGenOcclusionQueriesNV");
+	pGlDeleteOcclusionQueriesNV = (PFNGLDELETEOCCLUSIONQUERIESNVPROC) ContextManager->loadFunction("glDeleteOcclusionQueriesNV");
+	pGlIsOcclusionQueryNV = (PFNGLISOCCLUSIONQUERYNVPROC) ContextManager->loadFunction("glIsOcclusionQueryNV");
+	pGlBeginOcclusionQueryNV = (PFNGLBEGINOCCLUSIONQUERYNVPROC) ContextManager->loadFunction("glBeginOcclusionQueryNV");
+	pGlEndOcclusionQueryNV = (PFNGLENDOCCLUSIONQUERYNVPROC) ContextManager->loadFunction("glEndOcclusionQueryNV");
+	pGlGetOcclusionQueryivNV = (PFNGLGETOCCLUSIONQUERYIVNVPROC) ContextManager->loadFunction("glGetOcclusionQueryivNV");
+	pGlGetOcclusionQueryuivNV = (PFNGLGETOCCLUSIONQUERYUIVNVPROC) ContextManager->loadFunction("glGetOcclusionQueryuivNV");
 
 	// blend
-	pGlBlendFuncSeparateEXT = (PFNGLBLENDFUNCSEPARATEEXTPROC) IRR_OGL_LOAD_EXTENSION("glBlendFuncSeparateEXT");
-	pGlBlendFuncSeparate = (PFNGLBLENDFUNCSEPARATEPROC) IRR_OGL_LOAD_EXTENSION("glBlendFuncSeparate");
-	pGlBlendEquationEXT = (PFNGLBLENDEQUATIONEXTPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationEXT");
-	pGlBlendEquation = (PFNGLBLENDEQUATIONPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquation");
-	pGlBlendEquationSeparateEXT = (PFNGLBLENDEQUATIONSEPARATEEXTPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationSeparateEXT");
-	pGlBlendEquationSeparate = (PFNGLBLENDEQUATIONSEPARATEPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationSeparate");
+	pGlBlendFuncSeparateEXT = (PFNGLBLENDFUNCSEPARATEEXTPROC) ContextManager->loadFunction("glBlendFuncSeparateEXT");
+	pGlBlendFuncSeparate = (PFNGLBLENDFUNCSEPARATEPROC) ContextManager->loadFunction("glBlendFuncSeparate");
+	pGlBlendEquationEXT = (PFNGLBLENDEQUATIONEXTPROC) ContextManager->loadFunction("glBlendEquationEXT");
+	pGlBlendEquation = (PFNGLBLENDEQUATIONPROC) ContextManager->loadFunction("glBlendEquation");
+	pGlBlendEquationSeparateEXT = (PFNGLBLENDEQUATIONSEPARATEEXTPROC) ContextManager->loadFunction("glBlendEquationSeparateEXT");
+	pGlBlendEquationSeparate = (PFNGLBLENDEQUATIONSEPARATEPROC) ContextManager->loadFunction("glBlendEquationSeparate");
 
 	// indexed
-	pGlEnableIndexedEXT = (PFNGLENABLEINDEXEDEXTPROC) IRR_OGL_LOAD_EXTENSION("glEnableIndexedEXT");
-	pGlDisableIndexedEXT = (PFNGLDISABLEINDEXEDEXTPROC) IRR_OGL_LOAD_EXTENSION("glDisableIndexedEXT");
-	pGlColorMaskIndexedEXT = (PFNGLCOLORMASKINDEXEDEXTPROC) IRR_OGL_LOAD_EXTENSION("glColorMaskIndexedEXT");
-	pGlBlendFuncIndexedAMD = (PFNGLBLENDFUNCINDEXEDAMDPROC) IRR_OGL_LOAD_EXTENSION("glBlendFuncIndexedAMD");
-	pGlBlendFunciARB = (PFNGLBLENDFUNCIPROC) IRR_OGL_LOAD_EXTENSION("glBlendFunciARB");
-	pGlBlendFuncSeparateIndexedAMD = (PFNGLBLENDFUNCSEPARATEINDEXEDAMDPROC) IRR_OGL_LOAD_EXTENSION("glBlendFuncSeparateIndexedAMD");
-	pGlBlendFuncSeparateiARB = (PFNGLBLENDFUNCSEPARATEIPROC) IRR_OGL_LOAD_EXTENSION("glBlendFuncSeparateiARB");
-	pGlBlendEquationIndexedAMD = (PFNGLBLENDEQUATIONINDEXEDAMDPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationIndexedAMD");
-	pGlBlendEquationiARB = (PFNGLBLENDEQUATIONIPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationiARB");
-	pGlBlendEquationSeparateIndexedAMD = (PFNGLBLENDEQUATIONSEPARATEINDEXEDAMDPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationSeparateIndexedAMD");
-	pGlBlendEquationSeparateiARB = (PFNGLBLENDEQUATIONSEPARATEIPROC) IRR_OGL_LOAD_EXTENSION("glBlendEquationSeparateiARB");
+	pGlEnableIndexedEXT = (PFNGLENABLEINDEXEDEXTPROC) ContextManager->loadFunction("glEnableIndexedEXT");
+	pGlDisableIndexedEXT = (PFNGLDISABLEINDEXEDEXTPROC) ContextManager->loadFunction("glDisableIndexedEXT");
+	pGlColorMaskIndexedEXT = (PFNGLCOLORMASKINDEXEDEXTPROC) ContextManager->loadFunction("glColorMaskIndexedEXT");
+	pGlBlendFuncIndexedAMD = (PFNGLBLENDFUNCINDEXEDAMDPROC) ContextManager->loadFunction("glBlendFuncIndexedAMD");
+	pGlBlendFunciARB = (PFNGLBLENDFUNCIPROC) ContextManager->loadFunction("glBlendFunciARB");
+	pGlBlendFuncSeparateIndexedAMD = (PFNGLBLENDFUNCSEPARATEINDEXEDAMDPROC) ContextManager->loadFunction("glBlendFuncSeparateIndexedAMD");
+	pGlBlendFuncSeparateiARB = (PFNGLBLENDFUNCSEPARATEIPROC) ContextManager->loadFunction("glBlendFuncSeparateiARB");
+	pGlBlendEquationIndexedAMD = (PFNGLBLENDEQUATIONINDEXEDAMDPROC) ContextManager->loadFunction("glBlendEquationIndexedAMD");
+	pGlBlendEquationiARB = (PFNGLBLENDEQUATIONIPROC) ContextManager->loadFunction("glBlendEquationiARB");
+	pGlBlendEquationSeparateIndexedAMD = (PFNGLBLENDEQUATIONSEPARATEINDEXEDAMDPROC) ContextManager->loadFunction("glBlendEquationSeparateIndexedAMD");
+	pGlBlendEquationSeparateiARB = (PFNGLBLENDEQUATIONSEPARATEIPROC) ContextManager->loadFunction("glBlendEquationSeparateiARB");
 
-    pGlTextureStorage2D = (PFNGLTEXTURESTORAGE2DPROC) IRR_OGL_LOAD_EXTENSION("glTextureStorage2D");
-    pGlTextureStorage3D = (PFNGLTEXTURESTORAGE3DPROC) IRR_OGL_LOAD_EXTENSION("glTextureStorage3D");
-	pGlTextureSubImage2D = (PFNGLTEXTURESUBIMAGE2DPROC)IRR_OGL_LOAD_EXTENSION("glTextureSubImage2D");
-	pGlGetTextureImage = (PFNGLGETTEXTUREIMAGEPROC)IRR_OGL_LOAD_EXTENSION("glGetTextureImage");
-    pGlNamedFramebufferTexture = (PFNGLNAMEDFRAMEBUFFERTEXTUREPROC) IRR_OGL_LOAD_EXTENSION("glNamedFramebufferTexture");
-    pGlTextureParameteri = (PFNGLTEXTUREPARAMETERIPROC) IRR_OGL_LOAD_EXTENSION("glTextureParameteri");
-	pGlTextureParameterf = (PFNGLTEXTUREPARAMETERFPROC)IRR_OGL_LOAD_EXTENSION("glTextureParameterf");
-	pGlTextureParameteriv = (PFNGLTEXTUREPARAMETERIVPROC)IRR_OGL_LOAD_EXTENSION("glTextureParameteriv");
-	pGlTextureParameterfv = (PFNGLTEXTUREPARAMETERFVPROC)IRR_OGL_LOAD_EXTENSION("glTextureParameterfv");
+    pGlTextureStorage2D = (PFNGLTEXTURESTORAGE2DPROC) ContextManager->loadFunction("glTextureStorage2D");
+    pGlTextureStorage3D = (PFNGLTEXTURESTORAGE3DPROC) ContextManager->loadFunction("glTextureStorage3D");
+	pGlTextureSubImage2D = (PFNGLTEXTURESUBIMAGE2DPROC)ContextManager->loadFunction("glTextureSubImage2D");
+	pGlGetTextureImage = (PFNGLGETTEXTUREIMAGEPROC)ContextManager->loadFunction("glGetTextureImage");
+    pGlNamedFramebufferTexture = (PFNGLNAMEDFRAMEBUFFERTEXTUREPROC) ContextManager->loadFunction("glNamedFramebufferTexture");
+    pGlTextureParameteri = (PFNGLTEXTUREPARAMETERIPROC) ContextManager->loadFunction("glTextureParameteri");
+	pGlTextureParameterf = (PFNGLTEXTUREPARAMETERFPROC)ContextManager->loadFunction("glTextureParameterf");
+	pGlTextureParameteriv = (PFNGLTEXTUREPARAMETERIVPROC)ContextManager->loadFunction("glTextureParameteriv");
+	pGlTextureParameterfv = (PFNGLTEXTUREPARAMETERFVPROC)ContextManager->loadFunction("glTextureParameterfv");
 
-    pGlCreateTextures = (PFNGLCREATETEXTURESPROC) IRR_OGL_LOAD_EXTENSION("glCreateTextures");
-    pGlCreateFramebuffers = (PFNGLCREATEFRAMEBUFFERSPROC) IRR_OGL_LOAD_EXTENSION("glCreateFramebuffers");
-    pGlBindTextures = (PFNGLBINDTEXTURESPROC) IRR_OGL_LOAD_EXTENSION("glBindTextures");
-    pGlGenerateTextureMipmap = (PFNGLGENERATETEXTUREMIPMAPPROC) IRR_OGL_LOAD_EXTENSION("glGenerateTextureMipmap");
+    pGlCreateTextures = (PFNGLCREATETEXTURESPROC) ContextManager->loadFunction("glCreateTextures");
+    pGlCreateFramebuffers = (PFNGLCREATEFRAMEBUFFERSPROC) ContextManager->loadFunction("glCreateFramebuffers");
+    pGlBindTextures = (PFNGLBINDTEXTURESPROC) ContextManager->loadFunction("glBindTextures");
+    pGlGenerateTextureMipmap = (PFNGLGENERATETEXTUREMIPMAPPROC) ContextManager->loadFunction("glGenerateTextureMipmap");
     //==============================
-    pGlTextureStorage2DEXT = (PFNGLTEXTURESTORAGE2DEXTPROC)IRR_OGL_LOAD_EXTENSION("glTextureStorage2DEXT");
-    pGlTexStorage2D = (PFNGLTEXSTORAGE2DPROC)IRR_OGL_LOAD_EXTENSION("glTexStorage2D");
-    pGlTextureStorage3DEXT = (PFNGLTEXTURESTORAGE3DEXTPROC)IRR_OGL_LOAD_EXTENSION("glTextureStorage3DEXT");
-    pGlTexStorage3D = (PFNGLTEXSTORAGE3DPROC)IRR_OGL_LOAD_EXTENSION("glTexStorage3D");
-	pGlTextureSubImage2DEXT = (PFNGLTEXTURESUBIMAGE2DEXTPROC)IRR_OGL_LOAD_EXTENSION("glTextureSubImage2DEXT");
-	pGlGetTextureImageEXT = (PFNGLGETTEXTUREIMAGEEXTPROC)IRR_OGL_LOAD_EXTENSION("glGetTextureImageEXT");
-    pGlNamedFramebufferTextureEXT = (PFNGLNAMEDFRAMEBUFFERTEXTUREEXTPROC)IRR_OGL_LOAD_EXTENSION("glNamedFramebufferTextureEXT");
-    pGlFramebufferTexture = (PFNGLFRAMEBUFFERTEXTUREPROC)IRR_OGL_LOAD_EXTENSION("glFramebufferTexture");
-    pGlActiveTexture = (PFNGLACTIVETEXTUREPROC)IRR_OGL_LOAD_EXTENSION("glActiveTexture");
-    pGlGenerateTextureMipmapEXT = (PFNGLGENERATETEXTUREMIPMAPEXTPROC) IRR_OGL_LOAD_EXTENSION("glGenerateTextureMipmapEXT");
+    pGlTextureStorage2DEXT = (PFNGLTEXTURESTORAGE2DEXTPROC)ContextManager->loadFunction("glTextureStorage2DEXT");
+    pGlTexStorage2D = (PFNGLTEXSTORAGE2DPROC)ContextManager->loadFunction("glTexStorage2D");
+    pGlTextureStorage3DEXT = (PFNGLTEXTURESTORAGE3DEXTPROC)ContextManager->loadFunction("glTextureStorage3DEXT");
+    pGlTexStorage3D = (PFNGLTEXSTORAGE3DPROC)ContextManager->loadFunction("glTexStorage3D");
+	pGlTextureSubImage2DEXT = (PFNGLTEXTURESUBIMAGE2DEXTPROC)ContextManager->loadFunction("glTextureSubImage2DEXT");
+	pGlGetTextureImageEXT = (PFNGLGETTEXTUREIMAGEEXTPROC)ContextManager->loadFunction("glGetTextureImageEXT");
+    pGlNamedFramebufferTextureEXT = (PFNGLNAMEDFRAMEBUFFERTEXTUREEXTPROC)ContextManager->loadFunction("glNamedFramebufferTextureEXT");
+    pGlFramebufferTexture = (PFNGLFRAMEBUFFERTEXTUREPROC)ContextManager->loadFunction("glFramebufferTexture");
+    pGlActiveTexture = (PFNGLACTIVETEXTUREPROC)ContextManager->loadFunction("glActiveTexture");
+    pGlGenerateTextureMipmapEXT = (PFNGLGENERATETEXTUREMIPMAPEXTPROC) ContextManager->loadFunction("glGenerateTextureMipmapEXT");
 #endif // use extension pointer
 
 	GLint num=0;
@@ -602,9 +576,9 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	if (Version>102 || FeatureAvailable[IRR_ARB_multitexture])
 	{
 #if defined(GL_MAX_TEXTURE_UNITS)
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &num);
+		pglGetIntegerv(GL_MAX_TEXTURE_UNITS, &num);
 #elif defined(GL_MAX_TEXTURE_UNITS_ARB)
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &num);
+		pglGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &num);
 #endif
 		Feature.MaxTextureUnits=static_cast<u8>(num);	// MULTITEXTURING (fixed function pipeline texture units)
 	}
@@ -614,35 +588,35 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	{
 		num=0;
 #if defined(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS)
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &num);
+		pglGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &num);
 #elif defined(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB)
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, &num);
+		pglGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS_ARB, &num);
 #endif
 		Feature.MaxTextureUnits =core::max_(Feature.MaxTextureUnits,static_cast<u8>(num));
 	}
 #endif
-	glGetIntegerv(GL_MAX_LIGHTS, &num);
+	pglGetIntegerv(GL_MAX_LIGHTS, &num);
 	MaxLights=static_cast<u8>(num);
 #ifdef GL_EXT_texture_filter_anisotropic
 	if (FeatureAvailable[IRR_EXT_texture_filter_anisotropic])
 	{
-		glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &num);
+		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &num);
 		MaxAnisotropy=static_cast<u8>(num);
 	}
 #endif
 #ifdef GL_VERSION_1_2
 	if (Version>101)
 	{
-		glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &num);
+		pglGetIntegerv(GL_MAX_ELEMENTS_INDICES, &num);
 		MaxIndices=num;
 	}
 #endif
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &num);
+	pglGetIntegerv(GL_MAX_TEXTURE_SIZE, &num);
 	MaxTextureSize=static_cast<u32>(num);
 	if (queryFeature(EVDF_GEOMETRY_SHADER))
 	{
 #if defined(GL_ARB_geometry_shader4) || defined(GL_EXT_geometry_shader4) || defined(GL_NV_geometry_shader4)
-		glGetIntegerv(GL_MAX_GEOMETRY_OUTPUT_VERTICES_EXT, &num);
+		pglGetIntegerv(GL_MAX_GEOMETRY_OUTPUT_VERTICES_EXT, &num);
 		MaxGeometryVerticesOut=static_cast<u32>(num);
 #elif defined(GL_NV_geometry_program4)
 		extGlGetProgramiv(GEOMETRY_PROGRAM_NV, GL_MAX_PROGRAM_OUTPUT_VERTICES_NV, &num);
@@ -651,16 +625,16 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	}
 #ifdef GL_EXT_texture_lod_bias
 	if (FeatureAvailable[IRR_EXT_texture_lod_bias])
-		glGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
+		pglGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
 #endif
-	glGetIntegerv(GL_MAX_CLIP_PLANES, &num);
+	pglGetIntegerv(GL_MAX_CLIP_PLANES, &num);
 	MaxUserClipPlanes=static_cast<u8>(num);
-	glGetIntegerv(GL_AUX_BUFFERS, &num);
+	pglGetIntegerv(GL_AUX_BUFFERS, &num);
 	MaxAuxBuffers=static_cast<u8>(num);
 #ifdef GL_ARB_draw_buffers
 	if (FeatureAvailable[IRR_ARB_draw_buffers])
 	{
-		glGetIntegerv(GL_MAX_DRAW_BUFFERS_ARB, &num);
+		pglGetIntegerv(GL_MAX_DRAW_BUFFERS_ARB, &num);
 		Feature.MultipleRenderTarget = static_cast<u8>(num);
 	}
 #endif
@@ -670,14 +644,14 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 #endif
 	if (FeatureAvailable[IRR_ATI_draw_buffers])
 	{
-		glGetIntegerv(GL_MAX_DRAW_BUFFERS_ATI, &num);
+		pglGetIntegerv(GL_MAX_DRAW_BUFFERS_ATI, &num);
 		Feature.MultipleRenderTarget = static_cast<u8>(num);
 	}
 #endif
 #ifdef GL_ARB_framebuffer_object
 	if (FeatureAvailable[IRR_ARB_framebuffer_object])
 	{
-		glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &num);
+		pglGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &num);
 		Feature.ColorAttachment = static_cast<u8>(num);
 	}
 #endif
@@ -687,25 +661,25 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 #endif
 		if (FeatureAvailable[IRR_EXT_framebuffer_object])
 		{
-			glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS_EXT, &num);
+			pglGetIntegerv(GL_MAX_COLOR_ATTACHMENTS_EXT, &num);
 			Feature.ColorAttachment = static_cast<u8>(num);
 		}
 #endif
 
-	glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
-	glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
-	glGetFloatv(GL_SMOOTH_LINE_WIDTH_RANGE, DimSmoothedLine);
-	glGetFloatv(GL_SMOOTH_POINT_SIZE_RANGE, DimSmoothedPoint);
+	pglGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
+	pglGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
+	pglGetFloatv(GL_SMOOTH_LINE_WIDTH_RANGE, DimSmoothedLine);
+	pglGetFloatv(GL_SMOOTH_POINT_SIZE_RANGE, DimSmoothedPoint);
 #if defined(GL_ARB_shading_language_100) || defined (GL_VERSION_2_0)
 	if (FeatureAvailable[IRR_ARB_shading_language_100] || Version>=200)
 	{
-		glGetError(); // clean error buffer
+		pglGetError(); // clean error buffer
 #ifdef GL_SHADING_LANGUAGE_VERSION
-		const GLubyte* shaderVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
+		const GLubyte* shaderVersion = pglGetString(GL_SHADING_LANGUAGE_VERSION);
 #else
-		const GLubyte* shaderVersion = glGetString(GL_SHADING_LANGUAGE_VERSION_ARB);
+		const GLubyte* shaderVersion = pglGetString(GL_SHADING_LANGUAGE_VERSION_ARB);
 #endif
-		if (glGetError() == GL_INVALID_ENUM)
+		if (pglGetError() == GL_INVALID_ENUM)
 			ShaderLanguageVersion = 100;
 		else
 		{
@@ -738,7 +712,7 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 #ifdef GL_NV_occlusion_query
 	if (FeatureAvailable[IRR_NV_occlusion_query])
 	{
-		glGetIntegerv(GL_PIXEL_COUNTER_BITS_NV, &num);
+		pglGetIntegerv(GL_PIXEL_COUNTER_BITS_NV, &num);
 		OcclusionQuerySupport=(num>0);
 	}
 	else
@@ -755,28 +729,28 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	{
 		// undocumented flags, so use the RAW values
 		GLint val;
-		glGetIntegerv(0x9047, &val);
+		pglGetIntegerv(0x9047, &val);
 		os::Printer::log("Dedicated video memory (kB)", core::stringc(val));
-		glGetIntegerv(0x9048, &val);
+		pglGetIntegerv(0x9048, &val);
 		os::Printer::log("Total video memory (kB)", core::stringc(val));
-		glGetIntegerv(0x9049, &val);
+		pglGetIntegerv(0x9049, &val);
 		os::Printer::log("Available video memory (kB)", core::stringc(val));
 	}
 #ifdef GL_ATI_meminfo
 	if (FeatureAvailable[IRR_ATI_meminfo])
 	{
 		GLint val[4];
-		glGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, val);
+		pglGetIntegerv(GL_TEXTURE_FREE_MEMORY_ATI, val);
 		os::Printer::log("Free texture memory (kB)", core::stringc(val[0]));
-		glGetIntegerv(GL_VBO_FREE_MEMORY_ATI, val);
+		pglGetIntegerv(GL_VBO_FREE_MEMORY_ATI, val);
 		os::Printer::log("Free VBO memory (kB)", core::stringc(val[0]));
-		glGetIntegerv(GL_RENDERBUFFER_FREE_MEMORY_ATI, val);
+		pglGetIntegerv(GL_RENDERBUFFER_FREE_MEMORY_ATI, val);
 		os::Printer::log("Free render buffer memory (kB)", core::stringc(val[0]));
 	}
 #endif
 
 	if (queryFeature(EVDF_TEXTURE_CUBEMAP_SEAMLESS))
-		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+		pglEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 #endif
 }

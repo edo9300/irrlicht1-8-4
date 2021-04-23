@@ -24,6 +24,12 @@
 #endif
 
 #include "LibX11Loader.h"
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+#include <dlfcn.h>
+#define CALL_GLX_FUNC(name,...) ((decltype(&name))(p##name))(__VA_ARGS__)
+#else
+#define CALL_GLX_FUNC(name,...) name(__VA_ARGS__)
+#endif
 
 namespace irr
 {
@@ -37,24 +43,43 @@ CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExpos
 	,pGlxSwapIntervalEXT(0)
 	,pGlxSwapIntervalMESA(0)
 #endif // _IRR_OPENGL_USE_EXTPOINTER_
+	,pglXGetProcAddress(0)
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	,LibGLX(0)
+	,LibGL(0)
+#endif
 {
 	#ifdef _DEBUG
 	setDebugName("CGLXManager");
 	#endif
+	
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	LibGL = dlopen("libGL.so", RTLD_LAZY);
+	if(!LibGL)
+		LibGL = dlopen("libGL.so.1", RTLD_LAZY);
+	LibGLX = dlopen("libGLX.so", RTLD_LAZY);
+	if(!LibGLX)
+		LibGLX = dlopen("libGLX.so.1", RTLD_LAZY);
+	if(!LibGLX)
+		return;
+	#define GLX_FUNC(name) p##name = (void*)dlsym(LibGLX, #name); if(!p##name) { dlclose(LibGLX); LibGLX=0; return; }
+		#include "CGLXFunctions.inl"
+	#undef GLX_FUNC
+#endif
 
 	CurrentContext.OpenGLLinux.X11Display=PrimaryContext.OpenGLLinux.X11Display;
 
 	int major, minor;
 	Display* display = (Display*)PrimaryContext.OpenGLLinux.X11Display;
-	const bool isAvailableGLX=glXQueryExtension(display,&major,&minor);
+	const bool isAvailableGLX=CALL_GLX_FUNC(glXQueryExtension,display,&major,&minor);
 
-	if (isAvailableGLX && glXQueryVersion(display, &major, &minor))
+	if (isAvailableGLX && CALL_GLX_FUNC(glXQueryVersion,display, &major, &minor))
 	{
 #if defined(GLX_VERSION_1_3)
 		typedef GLXFBConfig * ( * PFNGLXCHOOSEFBCONFIGPROC) (Display *dpy, int screen, const int *attrib_list, int *nelements);
 
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
-		PFNGLXCHOOSEFBCONFIGPROC glxChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)glXGetProcAddress(reinterpret_cast<const GLubyte*>("glXChooseFBConfig"));
+		PFNGLXCHOOSEFBCONFIGPROC glxChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)loadFunction("glXChooseFBConfig");
 #else
 		PFNGLXCHOOSEFBCONFIGPROC glxChooseFBConfig=glXChooseFBConfig;
 #endif
@@ -206,7 +231,7 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 				X11Loader::XFree(configList);
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
 				typedef XVisualInfo * ( * PFNGLXGETVISUALFROMFBCONFIGPROC) (Display *dpy, GLXFBConfig config);
-				PFNGLXGETVISUALFROMFBCONFIGPROC glxGetVisualFromFBConfig= (PFNGLXGETVISUALFROMFBCONFIGPROC)glXGetProcAddress(reinterpret_cast<const GLubyte*>("glXGetVisualFromFBConfig"));
+				PFNGLXGETVISUALFROMFBCONFIGPROC glxGetVisualFromFBConfig= (PFNGLXGETVISUALFROMFBCONFIGPROC)loadFunction("glXGetVisualFromFBConfig");
 				if (glxGetVisualFromFBConfig)
 					VisualInfo = glxGetVisualFromFBConfig(display,(GLXFBConfig)glxFBConfig);
 #else
@@ -240,7 +265,7 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 				None
 			};
 
-			VisualInfo=glXChooseVisual(display, screennr, visualAttrBuffer);
+			VisualInfo=CALL_GLX_FUNC(glXChooseVisual,display, screennr, visualAttrBuffer);
 			if (!VisualInfo)
 			{
 				if (Params.Stencilbuffer)
@@ -248,13 +273,13 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 				Params.Stencilbuffer = !Params.Stencilbuffer;
 				visualAttrBuffer[13]=Params.Stencilbuffer?1:0;
 
-				VisualInfo=glXChooseVisual(display, screennr, visualAttrBuffer);
+				VisualInfo=CALL_GLX_FUNC(glXChooseVisual,display, screennr, visualAttrBuffer);
 				if (!VisualInfo && Params.Doublebuffer)
 				{
 					os::Printer::log("No doublebuffering available.", ELL_WARNING);
 					Params.Doublebuffer=false;
 					visualAttrBuffer[14] = GLX_USE_GL;
-					VisualInfo=glXChooseVisual(display, screennr, visualAttrBuffer);
+					VisualInfo=CALL_GLX_FUNC(glXChooseVisual,display, screennr, visualAttrBuffer);
 				}
 			}
 		}
@@ -266,28 +291,27 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 		// In case you still have problems please enable the
 		// next line by uncommenting it
 		// #define _IRR_GETPROCADDRESS_WORKAROUND_
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+#define LOAD(name) dlsym(LibGLX, #name)
+#else
+#define LOAD(name) name
+#endif
+#if !defined(_IRR_GETPROCADDRESS_WORKAROUND_) && defined(GLX_VERSION_1_4)
+		if((major > 1) || (minor > 3))
+			pglXGetProcAddress = (void*)LOAD(glXGetProcAddress);
+		else
+#endif // workaround
+			pglXGetProcAddress = (void*)LOAD(glXGetProcAddressARB);
 
 #ifdef _IRR_OPENGL_USE_EXTPOINTER_
-		#ifndef _IRR_GETPROCADDRESS_WORKAROUND_
-		__GLXextFuncPtr (*IRR_OGL_LOAD_EXTENSION_FUNCP)(const GLubyte*)=0;
-		#ifdef GLX_VERSION_1_4
-			if ((major>1) || (minor>3))
-				IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddress;
-			else
-		#endif
-				IRR_OGL_LOAD_EXTENSION_FUNCP=glXGetProcAddressARB;
-			#define IRR_OGL_LOAD_EXTENSION(X) (void*)IRR_OGL_LOAD_EXTENSION_FUNCP(reinterpret_cast<const GLubyte*>(X))
-		#else
-			#define IRR_OGL_LOAD_EXTENSION(X) (void*)glXGetProcAddressARB(reinterpret_cast<const GLubyte*>(X))
-		#endif // workaround
 		#if defined(GLX_SGI_swap_control)
-			pGlxSwapIntervalSGI = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalSGI");
+			pGlxSwapIntervalSGI = loadFunction("glXSwapIntervalSGI");
 		#endif
 		#if defined(GLX_EXT_swap_control)
-			pGlxSwapIntervalEXT = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalEXT");
+			pGlxSwapIntervalEXT = loadFunction("glXSwapIntervalEXT");
 		#endif
 		#if defined(GLX_MESA_swap_control)
-			pGlxSwapIntervalMESA = IRR_OGL_LOAD_EXTENSION("glXSwapIntervalMESA");
+			pGlxSwapIntervalMESA = loadFunction("glXSwapIntervalMESA");
 		#endif
 		#undef IRR_OGL_LOAD_EXTENSION
 #endif
@@ -298,10 +322,18 @@ os::Printer::log("GLX >= 1.3", ELL_DEBUG);
 
 CGLXManager::~CGLXManager()
 {
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	if(LibGLX)
+		dlclose(LibGLX);
+#endif
 }
 
 bool CGLXManager::initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& videodata)
 {
+#ifdef _IRR_X11_DYNAMIC_LOAD_
+	if(LibGLX == 0)
+		return false;
+#endif
 	// store params
 	Params=params;
 
@@ -327,7 +359,7 @@ bool CGLXManager::generateSurface()
 {
 	if (glxFBConfig)
 	{
-		GlxWin=glXCreateWindow((Display*)CurrentContext.OpenGLLinux.X11Display,(GLXFBConfig)glxFBConfig,CurrentContext.OpenGLLinux.X11Window,NULL);
+		GlxWin=CALL_GLX_FUNC(glXCreateWindow,(Display*)CurrentContext.OpenGLLinux.X11Display,(GLXFBConfig)glxFBConfig,CurrentContext.OpenGLLinux.X11Window,NULL);
 		if (!GlxWin)
 		{
 			os::Printer::log("Could not create GLX window.", ELL_WARNING);
@@ -342,7 +374,7 @@ bool CGLXManager::generateSurface()
 void CGLXManager::destroySurface()
 {
 	if (GlxWin)
-		glXDestroyWindow((Display*)CurrentContext.OpenGLLinux.X11Display, GlxWin);
+		CALL_GLX_FUNC(glXDestroyWindow,(Display*)CurrentContext.OpenGLLinux.X11Display, GlxWin);
 }
 
 bool CGLXManager::generateContext()
@@ -354,7 +386,7 @@ bool CGLXManager::generateContext()
 		if (GlxWin)
 		{
 			// create glx context
-			context = glXCreateNewContext((Display*)CurrentContext.OpenGLLinux.X11Display, (GLXFBConfig)glxFBConfig, GLX_RGBA_TYPE, NULL, True);
+			context = CALL_GLX_FUNC(glXCreateNewContext,(Display*)CurrentContext.OpenGLLinux.X11Display, (GLXFBConfig)glxFBConfig, GLX_RGBA_TYPE, NULL, True);
 			if (!context)
 			{
 				os::Printer::log("Could not create GLX rendering context.", ELL_WARNING);
@@ -369,7 +401,7 @@ bool CGLXManager::generateContext()
 	}
 	else
 	{
-		context = glXCreateContext((Display*)CurrentContext.OpenGLLinux.X11Display, VisualInfo, NULL, True);
+		context = CALL_GLX_FUNC(glXCreateContext,(Display*)CurrentContext.OpenGLLinux.X11Display, VisualInfo, NULL, True);
 		if (!context)
 		{
 			os::Printer::log("Could not create GLX rendering context.", ELL_WARNING);
@@ -393,7 +425,7 @@ bool CGLXManager::activateContext(const SExposedVideoData& videoData, bool resto
 	{
 		if (videoData.OpenGLLinux.X11Display && videoData.OpenGLLinux.X11Context)
 		{
-			if (!glXMakeCurrent((Display*)videoData.OpenGLLinux.X11Display, videoData.OpenGLLinux.X11Window, (GLXContext)videoData.OpenGLLinux.X11Context))
+			if (!CALL_GLX_FUNC(glXMakeCurrent,(Display*)videoData.OpenGLLinux.X11Display, videoData.OpenGLLinux.X11Window, (GLXContext)videoData.OpenGLLinux.X11Context))
 			{
 				os::Printer::log("Context activation failed.");
 				return false;
@@ -407,7 +439,7 @@ bool CGLXManager::activateContext(const SExposedVideoData& videoData, bool resto
 		else
 		{
 			// in case we only got a window ID, try with the existing values for display and context
-			if (!glXMakeCurrent((Display*)PrimaryContext.OpenGLLinux.X11Display, videoData.OpenGLLinux.X11Window, (GLXContext)PrimaryContext.OpenGLLinux.X11Context))
+			if (!CALL_GLX_FUNC(glXMakeCurrent,(Display*)PrimaryContext.OpenGLLinux.X11Display, videoData.OpenGLLinux.X11Window, (GLXContext)PrimaryContext.OpenGLLinux.X11Context))
 			{
 				os::Printer::log("Context activation failed.");
 				return false;
@@ -421,7 +453,7 @@ bool CGLXManager::activateContext(const SExposedVideoData& videoData, bool resto
 	}
 	else if (!restorePrimaryOnZero && !videoData.OpenGLLinux.X11Window && !videoData.OpenGLLinux.X11Display)
 	{
-		if (!glXMakeCurrent((Display*)PrimaryContext.OpenGLLinux.X11Display, None, NULL))
+		if (!CALL_GLX_FUNC(glXMakeCurrent,(Display*)PrimaryContext.OpenGLLinux.X11Display, None, NULL))
 		{
 			os::Printer::log("Render Context reset failed.");
 			return false;
@@ -432,7 +464,7 @@ bool CGLXManager::activateContext(const SExposedVideoData& videoData, bool resto
 	// set back to main context
 	else if (CurrentContext.OpenGLLinux.X11Display != PrimaryContext.OpenGLLinux.X11Display)
 	{
-		if (!glXMakeCurrent((Display*)PrimaryContext.OpenGLLinux.X11Display, PrimaryContext.OpenGLLinux.X11Window, (GLXContext)PrimaryContext.OpenGLLinux.X11Context))
+		if (!CALL_GLX_FUNC(glXMakeCurrent,(Display*)PrimaryContext.OpenGLLinux.X11Display, PrimaryContext.OpenGLLinux.X11Window, (GLXContext)PrimaryContext.OpenGLLinux.X11Context))
 		{
 			os::Printer::log("Context activation failed.");
 			return false;
@@ -451,21 +483,21 @@ void CGLXManager::destroyContext()
 	{
 		if (GlxWin)
 		{
-			if (!glXMakeContextCurrent((Display*)CurrentContext.OpenGLLinux.X11Display, None, None, NULL))
+			if (!CALL_GLX_FUNC(glXMakeContextCurrent,(Display*)CurrentContext.OpenGLLinux.X11Display, None, None, NULL))
 				os::Printer::log("Could not release glx context.", ELL_WARNING);
 		}
 		else
 		{
-			if (!glXMakeCurrent((Display*)CurrentContext.OpenGLLinux.X11Display, None, NULL))
+			if (!CALL_GLX_FUNC(glXMakeCurrent,(Display*)CurrentContext.OpenGLLinux.X11Display, None, NULL))
 				os::Printer::log("Could not release glx context.", ELL_WARNING);
 		}
-		glXDestroyContext((Display*)CurrentContext.OpenGLLinux.X11Display, (GLXContext)CurrentContext.OpenGLLinux.X11Context);
+		CALL_GLX_FUNC(glXDestroyContext,(Display*)CurrentContext.OpenGLLinux.X11Display, (GLXContext)CurrentContext.OpenGLLinux.X11Context);
 	}
 }
 
 bool CGLXManager::swapBuffers()
 {
-	glXSwapBuffers((Display*)CurrentContext.OpenGLLinux.X11Display, CurrentContext.OpenGLLinux.X11Window);
+	CALL_GLX_FUNC(glXSwapBuffers,(Display*)CurrentContext.OpenGLLinux.X11Display, CurrentContext.OpenGLLinux.X11Window);
 	return true;
 }
 
@@ -496,6 +528,18 @@ void CGLXManager::swapInterval(int interval)
 	pGlXSwapIntervalMESA(interval);
 #endif
 #endif
+}
+
+void* CGLXManager::loadFunction(const char* function_name)
+{
+	void* ret = nullptr;
+	if(pglXGetProcAddress)
+		ret = (void*)(reinterpret_cast<__GLXextFuncPtr(*)(const GLubyte*)>(pglXGetProcAddress))((const GLubyte*)function_name);
+	if(!ret && LibGLX)
+		ret = dlsym(LibGLX, function_name);
+	if(!ret && LibGL)
+		ret = dlsym(LibGL, function_name);
+	return ret;
 }
 
 }

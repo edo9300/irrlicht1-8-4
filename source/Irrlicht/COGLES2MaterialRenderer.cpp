@@ -102,12 +102,12 @@ COGLES2MaterialRenderer::~COGLES2MaterialRenderer()
 	{
 		GLuint shaders[8];
 		GLint count;
-		glGetAttachedShaders(Program, 8, &count, shaders);
+		Driver->pglGetAttachedShaders(Program, 8, &count, shaders);
 
 		count=core::min_(count,8);
 		for (GLint i=0; i<count; ++i)
-			glDeleteShader(shaders[i]);
-		glDeleteProgram(Program);
+			Driver->pglDeleteShader(shaders[i]);
+		Driver->pglDeleteProgram(Program);
 		Program = 0;
 	}
 
@@ -126,7 +126,7 @@ void COGLES2MaterialRenderer::init(s32& outMaterialTypeNr,
 {
 	outMaterialTypeNr = -1;
 
-	Program = glCreateProgram();
+	Program = Driver->pglCreateProgram();
 
 	if (!Program)
 		return;
@@ -140,7 +140,7 @@ void COGLES2MaterialRenderer::init(s32& outMaterialTypeNr,
 			return;
 
 	for ( size_t i = 0; i < EVA_COUNT; ++i )
-			glBindAttribLocation( Program, i, sBuiltInVertexAttributeNames[i]);
+			Driver->pglBindAttribLocation( Program, i, sBuiltInVertexAttributeNames[i]);
 
 	if (!linkProgram())
 		return;
@@ -219,13 +219,13 @@ bool COGLES2MaterialRenderer::createShader(GLenum shaderType, const char* shader
 {
 	if (Program)
 	{
-		GLuint shaderHandle = glCreateShader(shaderType);
-		glShaderSource(shaderHandle, 1, &shader, NULL);
-		glCompileShader(shaderHandle);
+		GLuint shaderHandle = Driver->pglCreateShader(shaderType);
+		Driver->pglShaderSource(shaderHandle, 1, &shader, NULL);
+		Driver->pglCompileShader(shaderHandle);
 
 		GLint status = 0;
 
-		glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &status);
+		Driver->pglGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &status);
 
 		if (status != GL_TRUE)
 		{
@@ -234,13 +234,13 @@ bool COGLES2MaterialRenderer::createShader(GLenum shaderType, const char* shader
 			GLint maxLength=0;
 			GLint length;
 
-			glGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH,
+			Driver->pglGetShaderiv(shaderHandle, GL_INFO_LOG_LENGTH,
 					&maxLength);
 
 			if (maxLength)
 			{
 				GLchar *infoLog = new GLchar[maxLength];
-				glGetShaderInfoLog(shaderHandle, maxLength, &length, infoLog);
+				Driver->pglGetShaderInfoLog(shaderHandle, maxLength, &length, infoLog);
 				os::Printer::log(reinterpret_cast<const c8*>(infoLog), ELL_ERROR);
 				delete [] infoLog;
 			}
@@ -248,7 +248,7 @@ bool COGLES2MaterialRenderer::createShader(GLenum shaderType, const char* shader
 			return false;
 		}
 
-		glAttachShader(Program, shaderHandle);
+		Driver->pglAttachShader(Program, shaderHandle);
 	}
 
 	return true;
@@ -259,11 +259,11 @@ bool COGLES2MaterialRenderer::linkProgram()
 {
 	if (Program)
 	{
-		glLinkProgram(Program);
+		Driver->pglLinkProgram(Program);
 
 		GLint status = 0;
 
-		glGetProgramiv(Program, GL_LINK_STATUS, &status);
+		Driver->pglGetProgramiv(Program, GL_LINK_STATUS, &status);
 
 		if (!status)
 		{
@@ -272,12 +272,12 @@ bool COGLES2MaterialRenderer::linkProgram()
 			GLint maxLength=0;
 			GLsizei length;
 
-			glGetProgramiv(Program, GL_INFO_LOG_LENGTH, &maxLength);
+			Driver->pglGetProgramiv(Program, GL_INFO_LOG_LENGTH, &maxLength);
 
 			if (maxLength)
 			{
 				GLchar *infoLog = new GLchar[maxLength];
-				glGetProgramInfoLog(Program, maxLength, &length, infoLog);
+				Driver->pglGetProgramInfoLog(Program, maxLength, &length, infoLog);
 				os::Printer::log(reinterpret_cast<const c8*>(infoLog), ELL_ERROR);
 				delete [] infoLog;
 			}
@@ -287,14 +287,14 @@ bool COGLES2MaterialRenderer::linkProgram()
 
 		GLint num = 0;
 
-		glGetProgramiv(Program, GL_ACTIVE_UNIFORMS, &num);
+		Driver->pglGetProgramiv(Program, GL_ACTIVE_UNIFORMS, &num);
 
 		if (num == 0)
 			return true;
 
 		GLint maxlen = 0;
 
-		glGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxlen);
+		Driver->pglGetProgramiv(Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxlen);
 
 		if (maxlen == 0)
 		{
@@ -315,7 +315,7 @@ bool COGLES2MaterialRenderer::linkProgram()
 			memset(buf, 0, maxlen);
 
 			GLint size;
-			glGetActiveUniform(Program, i, maxlen, 0, &size, &ui.type, reinterpret_cast<GLchar*>(buf));
+			Driver->pglGetActiveUniform(Program, i, maxlen, 0, &size, &ui.type, reinterpret_cast<GLchar*>(buf));
 
             core::stringc name = "";
 
@@ -329,7 +329,7 @@ bool COGLES2MaterialRenderer::linkProgram()
 			}
 
 			ui.name = name;
-			ui.location = glGetUniformLocation(Program, buf);
+			ui.location = Driver->pglGetUniformLocation(Program, buf);
 
 			UniformInfo.push_back(ui);
 		}
@@ -399,25 +399,25 @@ bool COGLES2MaterialRenderer::setPixelShaderConstant(s32 index, const f32* float
 	switch (UniformInfo[index].type)
 	{
 		case GL_FLOAT:
-			glUniform1fv(UniformInfo[index].location, count, floats);
+			Driver->pglUniform1fv(UniformInfo[index].location, count, floats);
 			break;
 		case GL_FLOAT_VEC2:
-			glUniform2fv(UniformInfo[index].location, count/2, floats);
+			Driver->pglUniform2fv(UniformInfo[index].location, count/2, floats);
 			break;
 		case GL_FLOAT_VEC3:
-			glUniform3fv(UniformInfo[index].location, count/3, floats);
+			Driver->pglUniform3fv(UniformInfo[index].location, count/3, floats);
 			break;
 		case GL_FLOAT_VEC4:
-			glUniform4fv(UniformInfo[index].location, count/4, floats);
+			Driver->pglUniform4fv(UniformInfo[index].location, count/4, floats);
 			break;
 		case GL_FLOAT_MAT2:
-			glUniformMatrix2fv(UniformInfo[index].location, count/4, false, floats);
+			Driver->pglUniformMatrix2fv(UniformInfo[index].location, count/4, false, floats);
 			break;
 		case GL_FLOAT_MAT3:
-			glUniformMatrix3fv(UniformInfo[index].location, count/9, false, floats);
+			Driver->pglUniformMatrix3fv(UniformInfo[index].location, count/9, false, floats);
 			break;
 		case GL_FLOAT_MAT4:
-			glUniformMatrix4fv(UniformInfo[index].location, count/16, false, floats);
+			Driver->pglUniformMatrix4fv(UniformInfo[index].location, count/16, false, floats);
 			break;
 		case GL_SAMPLER_2D:
 		case GL_SAMPLER_CUBE:
@@ -425,7 +425,7 @@ bool COGLES2MaterialRenderer::setPixelShaderConstant(s32 index, const f32* float
 				if(floats)
 				{
 					const GLint id = (GLint)(*floats);
-					glUniform1iv(UniformInfo[index].location, 1, &id);
+					Driver->pglUniform1iv(UniformInfo[index].location, 1, &id);
 				}
 				else
 					status = false;
@@ -450,23 +450,23 @@ bool COGLES2MaterialRenderer::setPixelShaderConstant(s32 index, const s32* ints,
 	{
 		case GL_INT:
 		case GL_BOOL:
-			glUniform1iv(UniformInfo[index].location, count, ints);
+			Driver->pglUniform1iv(UniformInfo[index].location, count, ints);
 			break;
 		case GL_INT_VEC2:
 		case GL_BOOL_VEC2:
-			glUniform2iv(UniformInfo[index].location, count/2, ints);
+			Driver->pglUniform2iv(UniformInfo[index].location, count/2, ints);
 			break;
 		case GL_INT_VEC3:
 		case GL_BOOL_VEC3:
-			glUniform3iv(UniformInfo[index].location, count/3, ints);
+			Driver->pglUniform3iv(UniformInfo[index].location, count/3, ints);
 			break;
 		case GL_INT_VEC4:
 		case GL_BOOL_VEC4:
-			glUniform4iv(UniformInfo[index].location, count/4, ints);
+			Driver->pglUniform4iv(UniformInfo[index].location, count/4, ints);
 			break;
 		case GL_SAMPLER_2D:
 		case GL_SAMPLER_CUBE:
-			glUniform1iv(UniformInfo[index].location, 1, ints);
+			Driver->pglUniform1iv(UniformInfo[index].location, 1, ints);
 			break;
 		default:
 			status = false;

@@ -12,21 +12,13 @@
 #include "SMaterial.h"
 #include "fast_atof.h"
 
-#if defined(_IRR_OGLES1_USE_EXTPOINTER_)
-#if defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_) || defined(_IRR_COMPILE_WITH_FB_DEVICE_) || defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
-#include <EGL/egl.h>
-#else
-#include <GLES/egl.h>
-#endif
-#endif
-
 namespace irr
 {
 namespace video
 {
 
-	COGLES1ExtensionHandler::COGLES1ExtensionHandler() : COGLESCoreExtensionHandler(),
-		MaxUserClipPlanes(0), MaxLights(0)
+	COGLES1ExtensionHandler::COGLES1ExtensionHandler(IContextManager* contextManager) : COGLESCoreExtensionHandler(),
+		COGLES1BaseFunctionsHandler(contextManager), ContextManager(contextManager), MaxUserClipPlanes(0), MaxLights(0)
 #if defined(_IRR_OGLES1_USE_EXTPOINTER_)
 		, pGlBlendEquationOES(0), pGlBlendFuncSeparateOES(0),
 		pGlBindFramebufferOES(0), pGlDeleteFramebuffersOES(0),
@@ -86,14 +78,14 @@ namespace video
 		Feature.ColorAttachment = 1;
 
 #if defined(_IRR_OGLES1_USE_EXTPOINTER_)
-		pGlBlendEquationOES = (PFNGLBLENDEQUATIONOESPROC)eglGetProcAddress("glBlendEquationOES");
-		pGlBlendFuncSeparateOES = (PFNGLBLENDFUNCSEPARATEOESPROC)eglGetProcAddress("glBlendFuncSeparateOES");
-		pGlBindFramebufferOES = (PFNGLBINDFRAMEBUFFEROESPROC)eglGetProcAddress("glBindFramebufferOES");
-		pGlDeleteFramebuffersOES = (PFNGLDELETEFRAMEBUFFERSOESPROC)eglGetProcAddress("glDeleteFramebuffersOES");
-		pGlGenFramebuffersOES = (PFNGLGENFRAMEBUFFERSOESPROC)eglGetProcAddress("glGenFramebuffersOES");
-		pGlCheckFramebufferStatusOES = (PFNGLCHECKFRAMEBUFFERSTATUSOESPROC)eglGetProcAddress("glCheckFramebufferStatusOES");
-		pGlFramebufferTexture2DOES = (PFNGLFRAMEBUFFERTEXTURE2DOESPROC)eglGetProcAddress("glFramebufferTexture2DOES");
-		pGlGenerateMipmapOES = (PFNGLGENERATEMIPMAPOESPROC)eglGetProcAddress("glGenerateMipmapOES");
+		pGlBlendEquationOES = (PFNGLBLENDEQUATIONOESPROC)ContextManager->loadFunction("glBlendEquationOES");
+		pGlBlendFuncSeparateOES = (PFNGLBLENDFUNCSEPARATEOESPROC)ContextManager->loadFunction("glBlendFuncSeparateOES");
+		pGlBindFramebufferOES = (PFNGLBINDFRAMEBUFFEROESPROC)ContextManager->loadFunction("glBindFramebufferOES");
+		pGlDeleteFramebuffersOES = (PFNGLDELETEFRAMEBUFFERSOESPROC)ContextManager->loadFunction("glDeleteFramebuffersOES");
+		pGlGenFramebuffersOES = (PFNGLGENFRAMEBUFFERSOESPROC)ContextManager->loadFunction("glGenFramebuffersOES");
+		pGlCheckFramebufferStatusOES = (PFNGLCHECKFRAMEBUFFERSTATUSOESPROC)ContextManager->loadFunction("glCheckFramebufferStatusOES");
+		pGlFramebufferTexture2DOES = (PFNGLFRAMEBUFFERTEXTURE2DOESPROC)ContextManager->loadFunction("glFramebufferTexture2DOES");
+		pGlGenerateMipmapOES = (PFNGLGENERATEMIPMAPOESPROC)ContextManager->loadFunction("glGenerateMipmapOES");
 #endif
 	}
 
