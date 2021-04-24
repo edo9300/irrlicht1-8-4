@@ -520,7 +520,7 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 			pFn = (decltype(pFn))GetProcAddress(d3dx9, "D3DXCreateLine");
 
 		if(!pFn) {
-			os::Printer::log("Could not load function D3DXCreateLine from dll, line stripple disabled",
+			os::Printer::log("Could not load function D3DXCreateLine from dll, line stipple disabled",
 							 d3dxversion, ELL_ERROR);
 		} else {
 			if(SUCCEEDED(pFn(pID3DDevice, &line))) {
