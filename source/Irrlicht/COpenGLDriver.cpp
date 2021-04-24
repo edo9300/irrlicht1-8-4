@@ -20,10 +20,6 @@
 #include "COpenGLCoreTexture.h"
 #include "COpenGLCoreRenderTarget.h"
 
-#ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
-#include <SDL/SDL.h>
-#endif
-
 namespace irr
 {
 namespace video
@@ -50,22 +46,6 @@ COpenGLDriver::COpenGLDriver(const SIrrlichtCreationParameters& params, io::IFil
 	setDebugName("COpenGLDriver");
 #endif
 }
-#endif
-
-#ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
-COpenGLDriver::COpenGLDriver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, CIrrDeviceSDL* device)
-	: CNullDriver(io, params.WindowSize), COpenGLExtensionHandler(), CacheHandler(0),
-	CurrentRenderMode(ERM_NONE), ResetRenderStates(true), Transformation3DChanged(true),
-	AntiAlias(params.AntiAlias), ColorFormat(ECF_R8G8B8), FixedPipelineState(EOFPS_ENABLE),
-	Params(params), SDLDevice(device), ContextManager(0), DeviceType(EIDT_SDL)
-{
-#ifdef _DEBUG
-	setDebugName("COpenGLDriver");
-#endif
-
-	genericDriverInit();
-}
-
 #endif
 
 bool COpenGLDriver::initDriver()
@@ -296,11 +276,6 @@ bool COpenGLDriver::beginScene(u16 clearFlag, SColor clearColor, f32 clearDepth,
 	if (ContextManager)
 		ContextManager->activateContext(videoData, true);
 
-#if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
-	if ( DeviceType == EIDT_SDL )
-		pglFrontFace(GL_CW);
-#endif
-
 	clearBuffers(clearFlag, clearColor, clearDepth, clearStencil);
 
 	return true;
@@ -316,14 +291,6 @@ bool COpenGLDriver::endScene()
 
 	if (ContextManager)
 		status = ContextManager->swapBuffers();
-
-#ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
-	if ( DeviceType == EIDT_SDL )
-	{
-		SDL_GL_SwapBuffers();
-		status = true;
-	}
-#endif
 
 	// todo: console device present
 
@@ -4597,21 +4564,6 @@ namespace video
 #endif
 	}
 #endif
-
-// -----------------------------------
-// SDL VERSION
-// -----------------------------------
-#ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
-IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
-		io::IFileSystem* io, CIrrDeviceSDL* device)
-{
-#ifdef _IRR_COMPILE_WITH_OPENGL_
-	return new COpenGLDriver(params, io, device);
-#else
-	return 0;
-#endif //  _IRR_COMPILE_WITH_OPENGL_
-}
-#endif // _IRR_COMPILE_WITH_SDL_DEVICE_
 
 } // end namespace
 } // end namespace

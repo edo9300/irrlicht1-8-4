@@ -19,6 +19,7 @@
 #include "SIrrCreationParameters.h"
 #include <SDL/SDL_syswm.h>
 #include <SDL/SDL_video.h>
+#include "CSDLContextManager.h"
 
 #ifdef _IRR_EMSCRIPTEN_PLATFORM_
 #ifdef _IRR_COMPILE_WITH_OGLES2_
@@ -44,7 +45,7 @@ namespace irr
 
 		#ifdef _IRR_COMPILE_WITH_OPENGL_
 		IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
-				io::IFileSystem* io, CIrrDeviceSDL* device);
+				io::IFileSystem* io, IContextManager* contextManager);
 		#endif
 
 		#if defined(_IRR_COMPILE_WITH_OGLES2_) && defined(_IRR_EMSCRIPTEN_PLATFORM_)
@@ -474,7 +475,14 @@ void CIrrDeviceSDL::createDriver()
 
 	case video::EDT_OPENGL:
 		#ifdef _IRR_COMPILE_WITH_OPENGL_
-		VideoDriver = video::createOpenGLDriver(CreationParams, FileSystem, this);
+		{
+			video::SExposedVideoData data;
+
+			ContextManager = new video::CSDLContextManager();
+			ContextManager->initialize(CreationParams, data);
+
+			VideoDriver = video::createOpenGLDriver(CreationParams, FileSystem, (video::IContextManager*)ContextManager);
+		}
 		#else
 		os::Printer::log("No OpenGL support compiled in.", ELL_ERROR);
 		#endif
