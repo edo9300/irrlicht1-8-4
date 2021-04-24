@@ -49,7 +49,7 @@ public:
 		{
 			// thanks to Murphy, the following line removed some
 			// bugs with several OGLES1 implementations.
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
 	}
 };
@@ -89,35 +89,35 @@ public:
                 Driver->getCacheHandler()->setBlendFunc(Driver->getGLBlend(srcRGBFact), Driver->getGLBlend(dstRGBFact));
             }
 
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
 
-			glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, (f32) modulate );
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, (f32) modulate );
 
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, 0.f);
+			Driver->pglEnable(GL_ALPHA_TEST);
+			Driver->pglAlphaFunc(GL_GREATER, 0.f);
 
 			if (textureBlendFunc_hasAlpha(srcRGBFact) || textureBlendFunc_hasAlpha(dstRGBFact) ||
                 textureBlendFunc_hasAlpha(srcAlphaFact) || textureBlendFunc_hasAlpha(dstAlphaFact))
 			{
-				glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
 
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
 			}
 		}
 	}
 
 	virtual void OnUnsetMaterial()
 	{
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.f );
-		glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
+		Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.f );
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
 
 		Driver->getCacheHandler()->setBlend(false);
-		glDisable(GL_ALPHA_TEST);
+		Driver->pglDisable(GL_ALPHA_TEST);
 	}
 
 	//! Returns if the material is transparent.
@@ -169,14 +169,14 @@ public:
 			if (Driver->queryFeature(EVDF_MULTITEXTURE))
 			{
 				Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR);
-				glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
-				glTexEnvf(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_PRIMARY_COLOR);
-				glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_ALPHA);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_PRIMARY_COLOR);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_ALPHA);
 			}
 		}
 	}
@@ -186,8 +186,8 @@ public:
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE0);
 		}
 	}
@@ -211,7 +211,7 @@ public:
 		Driver->getCacheHandler()->setBlend(true);
 
 		if ((material.MaterialType != lastMaterial.MaterialType) || resetAllRenderstates)
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 
 	virtual void OnUnsetMaterial()
@@ -245,27 +245,27 @@ public:
 
 		if (material.MaterialType != lastMaterial.MaterialType || resetAllRenderstates)
 		{
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 
-			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR );
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR );
 
-			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR );
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR );
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
 		}
 	}
 
 	virtual void OnUnsetMaterial()
 	{
 		// default values
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE );
-		glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE );
-		glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PREVIOUS );
-		glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-		glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE );
-		glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
+		Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE );
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE );
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PREVIOUS );
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE );
+		Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
 
 		Driver->getCacheHandler()->setBlend(false);
 	}
@@ -297,23 +297,23 @@ public:
 		if (material.MaterialType != lastMaterial.MaterialType || resetAllRenderstates
 			|| material.MaterialTypeParam != lastMaterial.MaterialTypeParam )
 		{
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PREVIOUS);
 
-			glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
 
-			glEnable(GL_ALPHA_TEST);
+			Driver->pglEnable(GL_ALPHA_TEST);
 
-			glAlphaFunc(GL_GREATER, material.MaterialTypeParam);
+			Driver->pglAlphaFunc(GL_GREATER, material.MaterialTypeParam);
 		}
 	}
 
 	virtual void OnUnsetMaterial()
 	{
-		glDisable(GL_ALPHA_TEST);
+		Driver->pglDisable(GL_ALPHA_TEST);
 		Driver->getCacheHandler()->setBlend(false);
 	}
 
@@ -341,15 +341,15 @@ public:
 
 		if (material.MaterialType != lastMaterial.MaterialType || resetAllRenderstates)
 		{
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, 0.5f);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglEnable(GL_ALPHA_TEST);
+			Driver->pglAlphaFunc(GL_GREATER, 0.5f);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
 	}
 
 	virtual void OnUnsetMaterial()
 	{
-		glDisable(GL_ALPHA_TEST);
+		Driver->pglDisable(GL_ALPHA_TEST);
 	}
 
 	//! Returns if the material is transparent.
@@ -382,14 +382,14 @@ public:
 				case EMT_LIGHTMAP_LIGHTING:
 				case EMT_LIGHTMAP_LIGHTING_M2:
 				case EMT_LIGHTMAP_LIGHTING_M4:
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+					Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 					break;
 				case EMT_LIGHTMAP_ADD:
 				case EMT_LIGHTMAP:
 				case EMT_LIGHTMAP_M2:
 				case EMT_LIGHTMAP_M4:
 				default:
-					glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+					Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 					break;
 			}
 
@@ -398,32 +398,32 @@ public:
 				// lightmap
 
 				Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 
 				if (material.MaterialType == EMT_LIGHTMAP_ADD)
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
+					Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
 				else
-					glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+					Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
 
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
 
-				glTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PREVIOUS);
+				Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PREVIOUS);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PREVIOUS);
 
 				switch (material.MaterialType)
 				{
 					case EMT_LIGHTMAP_M4:
 					case EMT_LIGHTMAP_LIGHTING_M4:
-						glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 4.0f);
+						Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 4.0f);
 						break;
 					case EMT_LIGHTMAP_M2:
 					case EMT_LIGHTMAP_LIGHTING_M2:
-						glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 2.0f);
+						Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 2.0f);
 						break;
 					default:
-						glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.0f);
+						Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.0f);
 				}
 			}
 		}
@@ -434,10 +434,10 @@ public:
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-			glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.f );
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE, 1.f );
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE0);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
 	}
 };
@@ -457,17 +457,17 @@ public:
 		if (material.MaterialType != lastMaterial.MaterialType || resetAllRenderstates)
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD_SIGNED);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD_SIGNED);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
 		}
 	}
 
 	virtual void OnUnsetMaterial() _IRR_OVERRIDE_
 	{
 		Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE0);
 	}
 };
@@ -491,15 +491,15 @@ public:
 //			glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 //			glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 
-//			glEnable(GL_TEXTURE_GEN_S);
-//			glEnable(GL_TEXTURE_GEN_T);
+//			Driver->pglEnable(GL_TEXTURE_GEN_S);
+//			Driver->pglEnable(GL_TEXTURE_GEN_T);
 		}
 	}
 
 	virtual void OnUnsetMaterial()
 	{
-//		glDisable(GL_TEXTURE_GEN_S);
-//		glDisable(GL_TEXTURE_GEN_T);
+//		Driver->pglDisable(GL_TEXTURE_GEN_S);
+//		Driver->pglDisable(GL_TEXTURE_GEN_T);
 	}
 };
 
@@ -522,16 +522,16 @@ public:
 			if (Driver->queryFeature(EVDF_MULTITEXTURE))
 			{
 				Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
 
 			}
 //			glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 //			glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-//			glEnable(GL_TEXTURE_GEN_S);
-//			glEnable(GL_TEXTURE_GEN_T);
+//			Driver->pglEnable(GL_TEXTURE_GEN_S);
+//			Driver->pglEnable(GL_TEXTURE_GEN_T);
 		}
 	}
 
@@ -540,10 +540,10 @@ public:
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
-//		glDisable(GL_TEXTURE_GEN_S);
-//		glDisable(GL_TEXTURE_GEN_T);
+//		Driver->pglDisable(GL_TEXTURE_GEN_S);
+//		Driver->pglDisable(GL_TEXTURE_GEN_T);
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE0);
@@ -573,15 +573,15 @@ public:
 			if (Driver->queryFeature(EVDF_MULTITEXTURE))
 			{
 				Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_TEXTURE);
 			}
 //			glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
 //			glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_SPHERE_MAP);
-//			glEnable(GL_TEXTURE_GEN_S);
-//			glEnable(GL_TEXTURE_GEN_T);
+//			Driver->pglEnable(GL_TEXTURE_GEN_S);
+//			Driver->pglEnable(GL_TEXTURE_GEN_T);
 		}
 	}
 
@@ -590,10 +590,10 @@ public:
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE1);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			Driver->pglTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
-//		glDisable(GL_TEXTURE_GEN_S);
-//		glDisable(GL_TEXTURE_GEN_T);
+//		Driver->pglDisable(GL_TEXTURE_GEN_S);
+//		Driver->pglDisable(GL_TEXTURE_GEN_T);
 		if (Driver->queryFeature(EVDF_MULTITEXTURE))
 		{
 			Driver->getCacheHandler()->setActiveTexture(GL_TEXTURE0);

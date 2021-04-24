@@ -25,10 +25,10 @@ namespace irr
 namespace video
 {
 
-	class COGLES2ExtensionHandler : public COGLESCoreExtensionHandler, public COGLES2BaseFunctionsHandler
+	class COGLES2ExtensionHandler : public COGLESCoreExtensionHandler<COGLES2BaseFunctionsHandler>, public COGLES2BaseFunctionsHandler
 	{
 	public:
-		COGLES2ExtensionHandler(IContextManager* contextManager) : COGLESCoreExtensionHandler(), COGLES2BaseFunctionsHandler(contextManager){}
+		COGLES2ExtensionHandler(IContextManager* contextManager) : COGLESCoreExtensionHandler(this), COGLES2BaseFunctionsHandler(contextManager){}
 
 		void initExtensions();
 

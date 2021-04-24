@@ -23,28 +23,28 @@ namespace video
 		getGLExtensions();
 
 		GLint val=0;
-		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &val);
+		pglGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &val);
 		Feature.MaxTextureUnits = static_cast<u8>(val);
 
 	#ifdef GL_EXT_texture_filter_anisotropic
 		if (FeatureAvailable[IRR_GL_EXT_texture_filter_anisotropic])
 		{
-			glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &val);
+			pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &val);
 			MaxAnisotropy = static_cast<u8>(val);
 		}
 	#endif
 	#ifdef GL_MAX_ELEMENTS_INDICES
-		glGetIntegerv(GL_MAX_ELEMENTS_INDICES, &val);
+		pglGetIntegerv(GL_MAX_ELEMENTS_INDICES, &val);
 		MaxIndices=val;
 	#endif
-		glGetIntegerv(GL_MAX_TEXTURE_SIZE, &val);
+		pglGetIntegerv(GL_MAX_TEXTURE_SIZE, &val);
 		MaxTextureSize=static_cast<u32>(val);
 	#ifdef GL_EXT_texture_lod_bias
 		if (FeatureAvailable[IRR_GL_EXT_texture_lod_bias])
-			glGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
+			pglGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
 	#endif
-		glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
-		glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
+		pglGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
+		pglGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
 
 		Feature.MaxTextureUnits = core::min_(Feature.MaxTextureUnits, static_cast<u8>(MATERIAL_MAX_TEXTURES));
 		Feature.MaxTextureUnits = core::min_(Feature.MaxTextureUnits, static_cast<u8>(MATERIAL_MAX_TEXTURES_USED));

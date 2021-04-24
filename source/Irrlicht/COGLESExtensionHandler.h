@@ -25,7 +25,7 @@ namespace irr
 namespace video
 {
 
-	class COGLES1ExtensionHandler : public COGLESCoreExtensionHandler, public COGLES1BaseFunctionsHandler
+	class COGLES1ExtensionHandler : public COGLESCoreExtensionHandler<COGLES1BaseFunctionsHandler>, public COGLES1BaseFunctionsHandler
 	{
 	public:
 		COGLES1ExtensionHandler(IContextManager* contextManager);

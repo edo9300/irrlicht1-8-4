@@ -17,7 +17,7 @@ namespace irr
 {
 namespace video
 {
-
+ template<typename GLESBaseFunctionsHandler>
 	class COGLESCoreExtensionHandler
 	{
 	public:
@@ -341,9 +341,10 @@ namespace video
 			IRR_OGLES_Feature_Count
 		};
 
-		COGLESCoreExtensionHandler()
+		COGLESCoreExtensionHandler(GLESBaseFunctionsHandler* handler)
 		:	Version(0), MaxAnisotropy(1), MaxIndices(0xffff),
-			MaxTextureSize(1), MaxTextureLODBias(0.f), StencilBuffer(false)
+			MaxTextureSize(1), MaxTextureLODBias(0.f), StencilBuffer(false),
+			BaseFunctionsHandler(handler)
 		{
 			for (u32 i = 0; i < IRR_OGLES_Feature_Count; ++i)
 				FeatureAvailable[i] = false;
@@ -700,7 +701,7 @@ namespace video
 			Version = 0;
 			s32 multiplier = 100;
 
-			core::stringc version(glGetString(GL_VERSION));
+			core::stringc version(BaseFunctionsHandler->pglGetString(GL_VERSION));
 
 			for (u32 i = 0; i < version.size(); ++i)
 			{
@@ -721,7 +722,7 @@ namespace video
 
 		void getGLExtensions()
 		{
-			core::stringc extensions = glGetString(GL_EXTENSIONS);
+			core::stringc extensions = BaseFunctionsHandler->pglGetString(GL_EXTENSIONS);
 			os::Printer::log(extensions.c_str());
 
 			// typo in the simulator (note the postfixed s)
@@ -770,6 +771,7 @@ namespace video
 		float DimAliasedPoint[2];
 		bool StencilBuffer;
 		bool FeatureAvailable[IRR_OGLES_Feature_Count];
+		GLESBaseFunctionsHandler* BaseFunctionsHandler;
 	};
 }
 }
