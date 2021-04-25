@@ -1321,7 +1321,7 @@ void CIrrDeviceWin32::createDriver()
 		switchToFullScreen();
 
 		ContextManager = new video::CWGLManager();
-		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 1.1 context via nvidia extensions, try egl
+		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 2.0+ context via nvidia extensions, try egl
 #ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
 			ContextManager->drop();
 			ContextManager = new video::CEGLManager();
