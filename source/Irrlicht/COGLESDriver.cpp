@@ -62,14 +62,16 @@ COGLES1Driver::~COGLES1Driver()
 
 	deleteMaterialRenders();
 
-	CacheHandler->getTextureCache().clear();
+	if(CacheHandler) {
+		CacheHandler->getTextureCache().clear();
 
-	removeAllRenderTargets();
-	deleteAllTextures();
-	removeAllOcclusionQueries();
-	removeAllHardwareBuffers();
+		removeAllRenderTargets();
+		deleteAllTextures();
+		removeAllOcclusionQueries();
+		removeAllHardwareBuffers();
 
-	delete CacheHandler;
+		delete CacheHandler;
+	}
 
 	if (ContextManager)
 	{
@@ -3383,7 +3385,11 @@ class IContextManager;
 IVideoDriver* createOGLES1Driver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager)
 {
 #ifdef _IRR_COMPILE_WITH_OGLES1_
-	return new COGLES1Driver(params, io, contextManager);
+	COGLES1Driver* obj = new COGLES1Driver(params, io, contextManager);
+	if(obj->driverInitialized())
+		return obj;
+	delete obj;
+	return 0;
 #else
 	return 0;
 #endif //  _IRR_COMPILE_WITH_OGLES1_

@@ -316,13 +316,13 @@ namespace video
 		//! Toggles vsync
 		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
 
+		bool driverInitialized() { return initialized; };
+
 	private:
 		void uploadClipPlane(u32 index);
 
 		//! inits the opengl-es driver
 		bool genericDriverInit(const core::dimension2d<u32>& screenSize, bool stencilBuffer);
-
-		bool driverInitialized() { return initialized; };
 
 		virtual ITexture* createDeviceDependentTexture(const io::path& name, IImage* image) _IRR_OVERRIDE_;
 

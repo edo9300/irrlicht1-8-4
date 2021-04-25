@@ -86,16 +86,18 @@ COGLES2Driver::~COGLES2Driver()
 
 	deleteMaterialRenders();
 
-	CacheHandler->getTextureCache().clear();
+	if(CacheHandler) {
+		CacheHandler->getTextureCache().clear();
 
-	removeAllRenderTargets();
-	deleteAllTextures();
-	removeAllOcclusionQueries();
-	removeAllHardwareBuffers();
+		removeAllRenderTargets();
+		deleteAllTextures();
+		removeAllOcclusionQueries();
+		removeAllHardwareBuffers();
 
-	delete MaterialRenderer2DTexture;
-	delete MaterialRenderer2DNoTexture;
-	delete CacheHandler;
+		delete MaterialRenderer2DTexture;
+		delete MaterialRenderer2DNoTexture;
+		delete CacheHandler;
+	}
 
 	if (ContextManager)
 	{
