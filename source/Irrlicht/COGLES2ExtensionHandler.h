@@ -125,7 +125,7 @@ namespace video
 
 		inline GLenum irrGlCheckFramebufferStatus(GLenum target)
 		{
-			return glCheckFramebufferStatus(target);
+			return pglCheckFramebufferStatus(target);
 		}
 
 		inline void irrGlFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)

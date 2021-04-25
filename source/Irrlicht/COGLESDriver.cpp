@@ -1488,7 +1488,7 @@ void COGLES1Driver::setMaterial(const SMaterial& material)
 bool COGLES1Driver::testGLError(int code)
 {
 #ifdef _DEBUG
-	GLenum g = glGetError();
+	GLenum g = pglGetError();
 	switch(g)
 	{
 	case GL_NO_ERROR:

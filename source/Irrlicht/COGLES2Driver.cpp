@@ -1671,7 +1671,7 @@ COGLES2Driver::~COGLES2Driver()
 	bool COGLES2Driver::testGLError(int code)
 	{
 #ifdef _DEBUG
-		GLenum g = glGetError();
+		GLenum g = pglGetError();
 		switch (g)
 		{
 			case GL_NO_ERROR:
