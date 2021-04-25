@@ -120,6 +120,7 @@
 #define _IRR_LINUX_PLATFORM_	// emscripten basically working like a unix
 #define NO_IRR_COMPILE_WITH_SOFTWARE_
 #define NO_IRR_COMPILE_WITH_BURNINGSVIDEO_
+#define NO_IRR_DYNAMIC_OPENGL_ES_2_
 #endif // __EMSCRIPTEN__
 
 #if defined(__ANDROID__)
