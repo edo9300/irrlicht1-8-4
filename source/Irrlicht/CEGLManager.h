@@ -102,6 +102,8 @@ namespace video
 	private:
 		bool testEGLError();
 
+		bool LoadEGL();
+
 		NativeWindowType EglWindow;
 		EGLDisplay EglDisplay;
 		EGLSurface EglSurface;
@@ -114,6 +116,15 @@ namespace video
 
 		EGLint MajorVersion;
 		EGLint MinorVersion;
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+		void* LibEGL;
+		void* LibGLES;
+#define EGL_FUNC(name, ret_type, ...) ret_type(EGLAPIENTRY * p##name)(__VA_ARGS__);
+#else
+#define EGL_FUNC(name, ret_type, ...) ret_type(EGLAPIENTRY * p##name)(__VA_ARGS__) = &name;
+#endif
+#include "CEGLFunctions.inl"
+#undef EGL_FUNC
 	};
 }
 }

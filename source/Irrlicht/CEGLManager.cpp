@@ -10,6 +10,15 @@
 #include "irrArray.h"
 #include "os.h"
 
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#else
+#include <dlfcn.h>
+#endif
+#endif
+
 #if defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
 #include <android/native_activity.h>
 #endif
@@ -21,6 +30,13 @@ namespace video
 
 CEGLManager::CEGLManager() : IContextManager(), EglWindow(0), EglDisplay(EGL_NO_DISPLAY),
     EglSurface(EGL_NO_SURFACE), EglContext(EGL_NO_CONTEXT), EglConfig(0), MajorVersion(0), MinorVersion(0)
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+	, LibEGL(0)
+	, LibGLES(0)
+#define EGL_FUNC(name, ...) ,p##name(0)
+#include "CEGLFunctions.inl"
+#undef EGL_FUNC
+#endif
 {
 	#ifdef _DEBUG
 	setDebugName("CEGLManager");
@@ -32,6 +48,19 @@ CEGLManager::~CEGLManager()
     destroyContext();
     destroySurface();
     terminate();
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+#ifdef _WIN32
+	if(LibEGL)
+		FreeLibrary((HMODULE)LibEGL);
+	if(LibGLES)
+		FreeLibrary((HMODULE)LibGLES);
+#else
+	if(LibEGL)
+		dlclose(LibEGL);
+	if(LibGLES)
+		dlclose(LibGLES);
+#endif
+#endif
 }
 
 bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data)
@@ -42,24 +71,26 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 
 	if (EglWindow != 0 && EglDisplay != EGL_NO_DISPLAY)
         return true;
+	if(!LoadEGL())
+		return false;
 
 	// Window is depend on platform.
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 	EglWindow = (NativeWindowType)Data.OpenGLWin32.HWnd;
 	Data.OpenGLWin32.HDc = GetDC((HWND)EglWindow);
-	EglDisplay = eglGetDisplay((NativeDisplayType)Data.OpenGLWin32.HDc);
+	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLWin32.HDc);
 #elif defined(_IRR_EMSCRIPTEN_PLATFORM_)
 	EglWindow = 0;
-	EglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 	EglWindow = (NativeWindowType)Data.OpenGLLinux.X11Window;
-	EglDisplay = eglGetDisplay((NativeDisplayType)Data.OpenGLLinux.X11Display);
+	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLLinux.X11Display);
 #elif defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
 	EglWindow =	(ANativeWindow*)Data.OGLESAndroid.Window;
-	EglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
 #elif defined(_IRR_COMPILE_WITH_FB_DEVICE_)
 	EglWindow = (NativeWindowType)Data.OpenGLFB.Window;
-	EglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
 #endif
 
 	// We must check if EGL display is valid.
@@ -71,7 +102,7 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
     }
 
 	// Initialize EGL here.
-	if (!eglInitialize(EglDisplay, &MajorVersion, &MinorVersion))
+	if (!peglInitialize(EglDisplay, &MajorVersion, &MinorVersion))
     {
 		os::Printer::log("Could not initialize EGL display.");
 
@@ -81,6 +112,12 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
     }
 	else
 		os::Printer::log("EGL version", core::stringc(MajorVersion+(MinorVersion*0.1f)).c_str());
+
+	if(Params.DriverType == EDT_OPENGL && MinorVersion < 4) {
+		os::Printer::log("Current EGL version doesn't support OpenGL Context creation.");
+		terminate();
+		return false;
+	}
 
     return true;
 }
@@ -93,9 +130,9 @@ void CEGLManager::terminate()
 	if (EglDisplay != EGL_NO_DISPLAY)
 	{
 		// We should unbind current EGL context before terminate EGL.
-		eglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+		peglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-		eglTerminate(EglDisplay);
+		peglTerminate(EglDisplay);
 		EglDisplay = EGL_NO_DISPLAY;
 	}
 
@@ -128,7 +165,7 @@ bool CEGLManager::generateSurface()
 #endif
 
 #if defined(_IRR_EMSCRIPTEN_PLATFORM_)
-	// eglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
+	// peglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
 	// But the other solution would also be fine as it also only generates a single context so there is not much to choose from.
 	EglConfig = chooseConfig(ECS_IRR_CHOOSE);
 #else
@@ -144,23 +181,23 @@ bool CEGLManager::generateSurface()
 
 #if defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
     EGLint Format = 0;
-    eglGetConfigAttrib(EglDisplay, EglConfig, EGL_NATIVE_VISUAL_ID, &Format);
+    peglGetConfigAttrib(EglDisplay, EglConfig, EGL_NATIVE_VISUAL_ID, &Format);
 
     ANativeWindow_setBuffersGeometry(EglWindow, 0, 0, Format);
 #endif
 
 	// Now we are able to create EGL surface.
-	EglSurface = eglCreateWindowSurface(EglDisplay, EglConfig, EglWindow, 0);
+	EglSurface = peglCreateWindowSurface(EglDisplay, EglConfig, EglWindow, 0);
 
 	if (EGL_NO_SURFACE == EglSurface)
-		EglSurface = eglCreateWindowSurface(EglDisplay, EglConfig, 0, 0);
+		EglSurface = peglCreateWindowSurface(EglDisplay, EglConfig, 0, 0);
 
 	if (EGL_NO_SURFACE == EglSurface)
 		os::Printer::log("Could not create EGL surface.");
 
 #ifdef EGL_VERSION_1_2
 	if (MinorVersion > 1)
-		eglBindAPI(EGL_OPENGL_ES_API);
+		peglBindAPI(Params.DriverType == EDT_OPENGL ? EGL_OPENGL_API : EGL_OPENGL_ES_API);
 #endif
 
     return true;
@@ -180,6 +217,9 @@ EGLConfig CEGLManager::chooseConfig(EConfigStyle confStyle)
 	case EDT_OGLES2:
 	case EDT_WEBGL1:
 		eglOpenGLBIT = EGL_OPENGL_ES2_BIT;
+		break;
+	case EDT_OPENGL:
+		eglOpenGLBIT = EGL_OPENGL_BIT;
 		break;
 	default:
 		break;
@@ -217,7 +257,7 @@ EGLConfig CEGLManager::chooseConfig(EConfigStyle confStyle)
 			//       So this returns the config which can do most, not the
 			//       config which is closest to the requested parameters.
 		//
-		while (!eglChooseConfig(EglDisplay, Attribs, &configResult, 1, &numConfigs) || !numConfigs)
+		while (!peglChooseConfig(EglDisplay, Attribs, &configResult, 1, &numConfigs) || !numConfigs)
 		{
 			switch (steps)
 			{
@@ -301,7 +341,7 @@ EGLConfig CEGLManager::chooseConfig(EConfigStyle confStyle)
 	{
 		// find number of available configs
 		EGLint numConfigs;
-		if ( eglGetConfigs( EglDisplay, NULL, 0, &numConfigs) == EGL_FALSE )
+		if ( peglGetConfigs( EglDisplay, NULL, 0, &numConfigs) == EGL_FALSE )
 		{
 			testEGLError();
 			return 0;
@@ -312,7 +352,7 @@ EGLConfig CEGLManager::chooseConfig(EConfigStyle confStyle)
 
 		// Get all available configs.
 		EGLConfig * configs = new EGLConfig[numConfigs];
-		if ( eglGetConfigs( EglDisplay, configs, numConfigs, &numConfigs) == EGL_FALSE )
+		if ( peglGetConfigs( EglDisplay, configs, numConfigs, &numConfigs) == EGL_FALSE )
 		{
 			testEGLError();
 			return 0;
@@ -353,7 +393,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	// some values must be there or we ignore the config
 #ifdef EGL_VERSION_1_3
 	EGLint attribRenderableType = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_RENDERABLE_TYPE, &attribRenderableType);
+	peglGetConfigAttrib( EglDisplay, config, EGL_RENDERABLE_TYPE, &attribRenderableType);
 	if  ( attribRenderableType != eglOpenGLBIT )
 	{
 		if ( log )
@@ -362,7 +402,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	}
 #endif
 	EGLint attribSurfaceType = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_SURFACE_TYPE, &attribSurfaceType);
+	peglGetConfigAttrib( EglDisplay, config, EGL_SURFACE_TYPE, &attribSurfaceType);
 	if ( attribSurfaceType != EGL_WINDOW_BIT )
 	{
 		if ( log )
@@ -377,7 +417,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	int rating = 0;
 
 	EGLint attribBufferSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_BUFFER_SIZE, &attribBufferSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_BUFFER_SIZE, &attribBufferSize);
 	if ( attribBufferSize < Params.Bits )
 	{
 		if ( log )
@@ -392,7 +432,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	}
 
 	EGLint attribRedSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_RED_SIZE, &attribRedSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_RED_SIZE, &attribRedSize);
 	if ( attribRedSize < 5 && Params.Bits >= 4 )
 		rating += 100;
 	else if ( attribRedSize < 8 && Params.Bits >= 24)
@@ -400,7 +440,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	else if ( attribRedSize >= 8 && Params.Bits < 24 )
 		rating ++;
 	EGLint attribGreenSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_GREEN_SIZE, &attribGreenSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_GREEN_SIZE, &attribGreenSize);
 	if ( attribGreenSize < 5 && Params.Bits >= 4 )
 		rating += 100;
 	else if ( attribGreenSize < 8 && Params.Bits >= 24)
@@ -408,7 +448,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	else if ( attribGreenSize >= 8 && Params.Bits < 24 )
 		rating ++;
 	EGLint attribBlueSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_BLUE_SIZE, &attribBlueSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_BLUE_SIZE, &attribBlueSize);
 	if ( attribBlueSize < 5 && Params.Bits >= 4 )
 		rating += 100;
 	else if ( attribBlueSize < 8 && Params.Bits >= 24)
@@ -417,7 +457,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 		rating ++;
 
 	EGLint attribAlphaSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_ALPHA_SIZE, &attribAlphaSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_ALPHA_SIZE, &attribAlphaSize);
 	if ( Params.WithAlphaChannel && attribAlphaSize == 0 )
 	{
 		if ( log )
@@ -432,7 +472,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	}
 
 	EGLint attribStencilSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_STENCIL_SIZE, &attribStencilSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_STENCIL_SIZE, &attribStencilSize);
 	if ( Params.Stencilbuffer && attribStencilSize == 0 )
 	{
 		if ( log )
@@ -447,7 +487,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	}
 
 	EGLint attribDepthSize = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_DEPTH_SIZE, &attribDepthSize);
+	peglGetConfigAttrib( EglDisplay, config, EGL_DEPTH_SIZE, &attribDepthSize);
 	if ( attribDepthSize < Params.ZBufferBits )
 	{
 		if ( log )
@@ -472,8 +512,8 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	}
 
 	EGLint attribSampleBuffers=0, attribSamples = 0;
-	eglGetConfigAttrib( EglDisplay, config, EGL_SAMPLE_BUFFERS, &attribSampleBuffers);
-	eglGetConfigAttrib( EglDisplay, config, EGL_SAMPLES, &attribSamples);
+	peglGetConfigAttrib( EglDisplay, config, EGL_SAMPLE_BUFFERS, &attribSampleBuffers);
+	peglGetConfigAttrib( EglDisplay, config, EGL_SAMPLES, &attribSamples);
 	if ( Params.AntiAlias && attribSampleBuffers == 0 )
 	{
 		if ( log )
@@ -508,9 +548,9 @@ void CEGLManager::destroySurface()
 		return;
 
 	// We should unbind current EGL context before destroy EGL surface.
-	eglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	peglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-    eglDestroySurface(EglDisplay, EglSurface);
+    peglDestroySurface(EglDisplay, EglSurface);
     EglSurface = EGL_NO_SURFACE;
 }
 
@@ -526,6 +566,7 @@ bool CEGLManager::generateContext()
 
 	switch (Params.DriverType)
 	{
+	case EDT_OPENGL:
 	case EDT_OGLES1:
 		OpenGLESVersion = 1;
 		break;
@@ -545,7 +586,7 @@ bool CEGLManager::generateContext()
 		EGL_NONE, 0
 	};
 
-	EglContext = eglCreateContext(EglDisplay, EglConfig, EGL_NO_CONTEXT, ContextAttrib);
+	EglContext = peglCreateContext(EglDisplay, EglConfig, EGL_NO_CONTEXT, ContextAttrib);
 
 	if (testEGLError())
 	{
@@ -564,15 +605,15 @@ void CEGLManager::destroyContext()
 		return;
 
 	// We must unbind current EGL context before destroy it.
-	eglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-	eglDestroyContext(EglDisplay, EglContext);
+	peglMakeCurrent(EglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	peglDestroyContext(EglDisplay, EglContext);
 
     EglContext = EGL_NO_CONTEXT;
 }
 
 bool CEGLManager::activateContext(const SExposedVideoData& videoData, bool restorePrimaryOnZero)
 {
-	eglMakeCurrent(EglDisplay, EglSurface, EglSurface, EglContext);
+	peglMakeCurrent(EglDisplay, EglSurface, EglSurface, EglContext);
 
 	if (testEGLError())
 	{
@@ -589,23 +630,32 @@ const SExposedVideoData& CEGLManager::getContext() const
 
 bool CEGLManager::swapBuffers()
 {
-    return (eglSwapBuffers(EglDisplay, EglSurface)==EGL_TRUE);
+    return (peglSwapBuffers(EglDisplay, EglSurface)==EGL_TRUE);
 }
 
 void CEGLManager::swapInterval(int interval)
 {
-	eglSwapInterval(EglDisplay, interval);
+	peglSwapInterval(EglDisplay, interval);
 }
 
 void* CEGLManager::loadFunction(const char* function_name)
 {
-	return (void*)eglGetProcAddress(function_name);
+	void* ret = (void*)peglGetProcAddress(function_name);
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+	if(!ret && LibGLES)
+#ifdef _WIN32
+		ret = (void*)GetProcAddress((HMODULE)LibGLES, function_name);
+#else
+		ret = (void*)dlsym(LibGLES, function_name);
+#endif
+#endif
+	return ret;
 }
 
 bool CEGLManager::testEGLError()
 {
 #if defined(EGL_VERSION_1_0) && defined(_DEBUG)
-	EGLint status = eglGetError();
+	EGLint status = peglGetError();
 
 	switch (status)
 	{
@@ -660,6 +710,93 @@ bool CEGLManager::testEGLError()
 	return true;
 #else
 	return false;
+#endif
+}
+
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+static const fschar_t* GetGLLibName(E_DRIVER_TYPE driverType) {
+	switch(driverType) {
+	case EDT_OPENGL:
+#ifdef _WIN32
+		return _IRR_TEXT("Opengl32.dll");
+#else
+		return _IRR_TEXT("libGL.so.1");
+#endif
+	case EDT_OGLES1:
+#ifdef _WIN32
+		return _IRR_TEXT("libGLESv1_CM.dll");
+#else
+		return _IRR_TEXT("libGLESv1_CM.so.1");
+#endif
+	case EDT_OGLES2:
+#ifdef _WIN32
+		return _IRR_TEXT("libGLESv2.dll");
+#else
+		return _IRR_TEXT("libGLESv2.so.2");
+#endif
+	default:
+		return nullptr;
+	}
+}
+#endif
+
+bool CEGLManager::LoadEGL() {
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+#ifdef _WIN32
+#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
+	HMODULE EGLLib = LoadLibrary(TEXT("atioglxx.dll"));
+	if(EGLLib != nullptr) {
+		do {
+#include "CEGLFunctions.inl"
+			LibEGL = EGLLib;
+			return true;
+		} while(0);
+		FreeLibrary(EGLLib);
+	}
+	EGLLib = LoadLibrary(TEXT("libEGL.dll"));
+	if(!EGLLib)
+		return false;
+	const fschar_t* name = GetGLLibName(Params.DriverType);
+	HMODULE GLESLib = LoadLibrary(name);
+	if(!GLESLib) {
+		os::Printer::log("Failed to load", name, ELL_ERROR);
+		FreeLibrary(EGLLib);
+		return false;
+	}
+	do {
+#include "CEGLFunctions.inl"
+		LibEGL = EGLLib;
+		LibGLES = GLESLib;
+		return true;
+	} while(0);
+	FreeLibrary(EGLLib);
+	FreeLibrary(GLESLib);
+#undef EGL_FUNC
+#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	void* EGLLib = dlopen("libEGL.so.1");
+	if(!EGLLib)
+		return false;
+	const char* name = GetGLLibName(Params.DriverType);
+	void* GLESLib = dlopen(name);
+	if(!GLESLib) {
+		os::Printer::log("Failed to load", name, ELL_ERROR);
+		dlclose(EGLLib);
+		return false;
+	}
+	do {
+#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))dlsym(EGLLib, #name); if(!p##name) break;
+#include "CEGLFunctions.inl"
+#undef EGL_FUNC
+		LibEGL = EGLLib;
+		LibGLES = GLESLib;
+	} while(0);
+	dlclose(EGLLib);
+	dlclose(GLESLib);
+#endif
+	os::Printer::log("Failed to load all egl required functions", ELL_ERROR);
+	return false;
+#else
+	return true;
 #endif
 }
 
