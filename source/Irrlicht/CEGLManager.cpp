@@ -773,11 +773,11 @@ bool CEGLManager::LoadEGL() {
 	FreeLibrary(GLESLib);
 #undef EGL_FUNC
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	void* EGLLib = dlopen("libEGL.so.1");
+	void* EGLLib = dlopen("libEGL.so.1", RTLD_LAZY);
 	if(!EGLLib)
 		return false;
 	const char* name = GetGLLibName(Params.DriverType);
-	void* GLESLib = dlopen(name);
+	void* GLESLib = dlopen(name, RTLD_LAZY);
 	if(!GLESLib) {
 		os::Printer::log("Failed to load", name, ELL_ERROR);
 		dlclose(EGLLib);
@@ -789,6 +789,7 @@ bool CEGLManager::LoadEGL() {
 #undef EGL_FUNC
 		LibEGL = EGLLib;
 		LibGLES = GLESLib;
+		return true;
 	} while(0);
 	dlclose(EGLLib);
 	dlclose(GLESLib);
