@@ -32,6 +32,7 @@
 //! _IRR_COMPILE_WITH_WINDOWS_DEVICE_ for Windows API based device
 //! _IRR_COMPILE_WITH_OSX_DEVICE_ for Cocoa native windowing on OSX
 //! _IRR_COMPILE_WITH_X11_DEVICE_ for Linux X11 based device
+//! _IRR_COMPILE_WITH_WAYLAND_DEVICE_ for Linux Wayland based device
 //! _IRR_COMPILE_WITH_SDL_DEVICE_ for platform independent SDL framework
 //! _IRR_COMPILE_WITH_CONSOLE_DEVICE_ for no windowing system, used as a fallback
 //! _IRR_COMPILE_WITH_FB_DEVICE_ for framebuffer systems
@@ -117,10 +118,13 @@
 #define _IRR_COMPILE_WITH_EGL_MANAGER_
 #define _IRR_COMPILE_WITH_SDL_DEVICE_
 #define NO_IRR_COMPILE_WITH_X11_DEVICE_
+#define NO_IRR_COMPILE_WITH_WAYLAND_DEVICE_
 #define _IRR_LINUX_PLATFORM_	// emscripten basically working like a unix
 #define NO_IRR_COMPILE_WITH_SOFTWARE_
 #define NO_IRR_COMPILE_WITH_BURNINGSVIDEO_
 #define NO_IRR_DYNAMIC_OPENGL_ES_2_
+#else
+#define NO_IRR_COMPILE_WITH_WEBGL1_
 #endif // __EMSCRIPTEN__
 
 #if defined(__ANDROID__)
@@ -145,8 +149,11 @@
 #endif
 #define _IRR_POSIX_API_
 #define _IRR_COMPILE_WITH_X11_DEVICE_
+#define _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 #define _IRR_X11_DYNAMIC_LOAD_
 #define _IRR_DYNAMIC_OPENGL_
+#define _IRR_DYNAMIC_OPENGL_ES_1_
+#define _IRR_DYNAMIC_OPENGL_ES_2_
 #endif
 
 
@@ -226,9 +233,13 @@ define out. */
 	#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 		#define _IRR_OPENGL_USE_EXTPOINTER_
 		#define _IRR_COMPILE_WITH_WGL_MANAGER_
-	#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
 		#define _IRR_OPENGL_USE_EXTPOINTER_
-		#define _IRR_COMPILE_WITH_GLX_MANAGER_
+		#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+			#define _IRR_COMPILE_WITH_GLX_MANAGER_
+		#else
+			#define _IRR_COMPILE_WITH_EGL_MANAGER_
+		#endif
 	#elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 		#define _IRR_COMPILE_WITH_NSOGL_MANAGER_
 	#elif defined(_IRR_SOLARIS_PLATFORM_)
@@ -257,7 +268,7 @@ Depending on platform you may have to enable _IRR_OGLES1_USE_KHRONOS_API_HEADERS
 
 //! Define required options for OpenGL ES 1.1 drivers.
 #if defined(_IRR_COMPILE_WITH_OGLES1_)
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
 #define _IRR_OGLES1_USE_EXTPOINTER_
 #ifndef _IRR_COMPILE_WITH_EGL_MANAGER_
 #define _IRR_COMPILE_WITH_EGL_MANAGER_
@@ -292,7 +303,7 @@ define out. */
 
 //! Define required options for OpenGL ES 2.0 drivers.
 #if defined(_IRR_COMPILE_WITH_OGLES2_)
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_) || defined(__EMSCRIPTEN__)
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_) || defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_) || defined(__EMSCRIPTEN__)
 #define _IRR_OGLES2_USE_EXTPOINTER_
 #ifndef _IRR_COMPILE_WITH_EGL_MANAGER_
 #define _IRR_COMPILE_WITH_EGL_MANAGER_

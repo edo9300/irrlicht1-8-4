@@ -1082,7 +1082,7 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 	// get windows version and create OS operator
 	core::stringc winversion;
 	getWindowsVersion(winversion);
-	Operator = new COSOperator(winversion);
+	Operator = new COSOperator(winversion, EIDT_WIN32);
 	os::Printer::log(winversion.c_str(), ELL_INFORMATION);
 
 	// get handle to exe file
