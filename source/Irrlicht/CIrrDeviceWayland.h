@@ -151,6 +151,8 @@ namespace irr
         mutable core::stringc m_clipboard;
         wl_data_offer* m_data_offer;
         mutable bool m_clipboard_changed;
+        bool m_has_plain_text_mime;
+        bool m_has_plain_text_utf8_mime;
 
     private:
 

@@ -753,7 +753,12 @@ public:
     static void data_offer_handle_offer(void* data, struct wl_data_offer* wl_data_offer,
                                 const char* mime_type)
     {
-        printf("mime_type: %s\n", mime_type);
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        if(!device->m_has_plain_text_mime && strcmp(mime_type, "text/plain") == 0)
+            device->m_has_plain_text_mime = true;
+        else if(!device->m_has_plain_text_utf8_mime &&
+                strcmp(mime_type, "text/plain;charset=UTF-8") == 0)
+            device->m_has_plain_text_utf8_mime = true;
     }
 
     static void data_offer_handle_source_actions(void* data, struct wl_data_offer* wl_data_offer,
@@ -769,7 +774,6 @@ public:
     static void data_device_handle_data_offer(void* data, struct wl_data_device* wl_data_device,
                                       struct wl_data_offer* id)
     {
-        printf("data_device_handle_data_offer\n");
         wl_data_offer_add_listener(id, &data_offer_listener, data);
     }
 
@@ -782,6 +786,8 @@ public:
                 wl_data_offer_destroy(device->m_data_offer);
             device->m_data_offer = id;
             device->m_clipboard_changed = true;
+            device->m_has_plain_text_mime = false;
+            device->m_has_plain_text_utf8_mime = false;
         }
     }
     static void data_device_handle_enter(void* data, struct wl_data_device* wl_data_device,
@@ -813,7 +819,9 @@ public:
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
         // An application wants to paste the clipboard contents
-        if(strcmp(mime_type, "text/plain") == 0) {
+        if(strcmp(mime_type, "text/plain") == 0 ||
+           strcmp(mime_type, "text/plain;charset=utf-8") == 0 ||
+           strcmp(mime_type, "text/plain;charset=UTF-8") == 0) {
             write(fd, device->m_clipboard.c_str(), device->m_clipboard.size());
         }
         close(fd);
@@ -1607,11 +1615,14 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
     if(!m_data_offer)
         return m_readclipboard.c_str();
 
+    if(!m_has_plain_text_mime && !m_has_plain_text_utf8_mime)
+        return m_readclipboard.c_str();
+
     int pipefd[2];
     if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) == -1)
         return m_readclipboard.c_str();
 
-    wl_data_offer_receive(m_data_offer, "text/plain", pipefd[1]);
+    wl_data_offer_receive(m_data_offer, m_has_plain_text_utf8_mime ? "text/plain;charset=UTF-8" : "text/plain", pipefd[1]);
 
     close(pipefd[1]);
 
@@ -1623,10 +1634,8 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
         if(n <= 0) {
             break;
         }
-        printf("%s", buf);
         m_readclipboard.append(buf, n);
     }
-    puts("");
     close(pipefd[0]);
     m_clipboard_changed = false;
     return m_readclipboard.c_str();
@@ -1644,6 +1653,8 @@ void CIrrDeviceWayland::copyToClipboard(const c8* text)
         wl_data_source_set_user_data(m_data_source, const_cast<CIrrDeviceWayland*>(this));
         wl_data_source_add_listener(m_data_source, &WaylandCallbacks::data_source_listener, const_cast<CIrrDeviceWayland*>(this));
         wl_data_source_offer(m_data_source, "text/plain");
+        wl_data_source_offer(m_data_source, "text/plain;charset=UTF-8");
+        wl_data_source_offer(m_data_source, "text/plain;charset=utf-8");
         if(m_selection_serial) {
             wl_data_device_set_selection(m_data_device, m_data_source, m_selection_serial);
         }
