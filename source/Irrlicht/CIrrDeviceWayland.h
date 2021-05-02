@@ -44,6 +44,7 @@ namespace irr
     {
     public:
         friend class WaylandCallbacks;
+        friend class CCursorControl;
 
         //! constructor
         CIrrDeviceWayland(const SIrrlichtCreationParameters& param);
@@ -153,6 +154,141 @@ namespace irr
         mutable bool m_clipboard_changed;
         bool m_has_plain_text_mime;
         bool m_has_plain_text_utf8_mime;
+        
+
+        //! Implementation of the linux cursor control
+        class CCursorControl : public gui::ICursorControl
+        {
+        public:
+            CCursorControl(CIrrDeviceWayland* device) : m_device(device),
+                m_is_visible(true), m_use_reference_rect(false)
+            {
+                m_active_icon = irr::gui::ECI_NORMAL;
+                initCursors();
+            };
+
+            ~CCursorControl() {};
+
+            //! Changes the visible state of the mouse cursor.
+            virtual void setVisible(bool visible)
+            {
+                if (visible == m_is_visible)
+                    return;
+
+                m_is_visible = visible;
+                m_device->updateCursor();
+            }
+
+            //! Returns if the cursor is currently visible.
+            virtual bool isVisible() const
+            {
+                return m_is_visible;
+            }
+
+            //! Sets the new position of the cursor.
+            virtual void setPosition(const core::position2d<f32> &pos)
+            {
+                setPosition(pos.X, pos.Y);
+            }
+
+            //! Sets the new position of the cursor.
+            virtual void setPosition(f32 x, f32 y)
+            {
+                setPosition((s32)(x * m_device->getWidth()),
+                            (s32)(y * m_device->getHeight()));
+            }
+
+            //! Sets the new position of the cursor.
+            virtual void setPosition(const core::position2d<s32> &pos)
+            {
+                setPosition(pos.X, pos.Y);
+            }
+
+            //! Sets the new position of the cursor.
+            virtual void setPosition(s32 x, s32 y)
+            {
+                m_cursor_pos.X = x;
+                m_cursor_pos.Y = y;
+            }
+
+            //! Returns the current position of the mouse cursor.
+            virtual const core::position2d<s32>& getPosition(bool updateCursor)
+            {
+                return m_cursor_pos;
+            }
+
+            virtual core::position2d<f32> getRelativePosition(bool updateCursor)
+            {
+                if (!m_use_reference_rect)
+                {
+                    return core::position2d<f32>(
+                                    m_cursor_pos.X / (f32)m_device->getWidth(),
+                                    m_cursor_pos.Y / (f32)m_device->getHeight());
+                }
+
+                return core::position2d<f32>(
+                                m_cursor_pos.X / (f32)m_reference_rect.getWidth(),
+                                m_cursor_pos.Y / (f32)m_reference_rect.getHeight());
+            }
+
+            virtual void setReferenceRect(core::rect<s32>* rect=0)
+            {
+                m_use_reference_rect = false;
+
+                if (rect)
+                {
+                    m_reference_rect = *rect;
+                    m_use_reference_rect = true;
+
+                    // prevent division through zero and uneven sizes
+                    if (m_reference_rect.getHeight() == 0 ||
+                        m_reference_rect.getHeight() % 2)
+                        m_reference_rect.LowerRightCorner.Y += 1;
+
+                    if (m_reference_rect.getWidth() == 0 ||
+                        m_reference_rect.getWidth() % 2)
+                        m_reference_rect.LowerRightCorner.X += 1;
+                }
+            }
+
+            //! Sets the active cursor icon
+            virtual void setActiveIcon(gui::ECURSOR_ICON iconId);
+
+            //! Gets the currently active icon
+            virtual gui::ECURSOR_ICON getActiveIcon() const
+            {
+                return m_active_icon;
+            }
+
+            //! Add a custom sprite as cursor icon.
+            virtual gui::ECURSOR_ICON addIcon(const gui::SCursorSprite& icon)
+            {
+                return irr::gui::ECI_NORMAL;
+            }
+
+            //! replace the given cursor icon.
+            virtual void changeIcon(gui::ECURSOR_ICON iconId,
+                                    const gui::SCursorSprite& icon) {}
+
+            /** Return a system-specific size which is supported for cursors.
+                Larger icons will fail, smaller icons might work. */
+            virtual core::dimension2di getSupportedIconSize() const
+            {
+                return core::dimension2di(0, 0);
+            }
+
+        private:
+
+            CIrrDeviceWayland* m_device;
+            core::position2d<s32> m_cursor_pos;
+            core::rect<s32> m_reference_rect;
+            bool m_is_visible;
+            bool m_use_reference_rect;
+            gui::ECURSOR_ICON m_active_icon;
+
+            core::array<wl_cursor*> Cursors;
+            void initCursors();
+        };
 
     private:
 
@@ -171,7 +307,6 @@ namespace irr
         #endif
 
         wl_compositor* m_compositor;
-        wl_cursor* m_cursor;
         wl_cursor_theme* m_cursor_theme;
         wl_display* m_display;
         wl_egl_window* m_egl_window;
@@ -244,132 +379,6 @@ namespace irr
         void pollJoysticks();
         void closeJoysticks();
         void setSelectionSerial(uint32_t serial);
-    };
-
-    //! Implementation of the linux cursor control
-    class CCursorControl : public gui::ICursorControl
-    {
-    public:
-        CCursorControl(CIrrDeviceWayland* device) : m_device(device),
-            m_is_visible(true), m_use_reference_rect(false) {};
-
-        ~CCursorControl() {};
-
-        //! Changes the visible state of the mouse cursor.
-        virtual void setVisible(bool visible)
-        {
-            if (visible == m_is_visible)
-                return;
-
-            m_is_visible = visible;
-            m_device->updateCursor();
-        }
-
-        //! Returns if the cursor is currently visible.
-        virtual bool isVisible() const
-        {
-            return m_is_visible;
-        }
-
-        //! Sets the new position of the cursor.
-        virtual void setPosition(const core::position2d<f32> &pos)
-        {
-            setPosition(pos.X, pos.Y);
-        }
-
-        //! Sets the new position of the cursor.
-        virtual void setPosition(f32 x, f32 y)
-        {
-            setPosition((s32)(x * m_device->getWidth()),
-                        (s32)(y * m_device->getHeight()));
-        }
-
-        //! Sets the new position of the cursor.
-        virtual void setPosition(const core::position2d<s32> &pos)
-        {
-            setPosition(pos.X, pos.Y);
-        }
-
-        //! Sets the new position of the cursor.
-        virtual void setPosition(s32 x, s32 y)
-        {
-            m_cursor_pos.X = x;
-            m_cursor_pos.Y = y;
-        }
-
-        //! Returns the current position of the mouse cursor.
-        virtual const core::position2d<s32>& getPosition(bool updateCursor)
-        {
-            return m_cursor_pos;
-        }
-
-        virtual core::position2d<f32> getRelativePosition(bool updateCursor)
-        {
-            if (!m_use_reference_rect)
-            {
-                return core::position2d<f32>(
-                                m_cursor_pos.X / (f32)m_device->getWidth(),
-                                m_cursor_pos.Y / (f32)m_device->getHeight());
-            }
-
-            return core::position2d<f32>(
-                            m_cursor_pos.X / (f32)m_reference_rect.getWidth(),
-                            m_cursor_pos.Y / (f32)m_reference_rect.getHeight());
-        }
-
-        virtual void setReferenceRect(core::rect<s32>* rect=0)
-        {
-            m_use_reference_rect = false;
-
-            if (rect)
-            {
-                m_reference_rect = *rect;
-                m_use_reference_rect = true;
-
-                // prevent division through zero and uneven sizes
-                if (m_reference_rect.getHeight() == 0 ||
-                    m_reference_rect.getHeight() % 2)
-                    m_reference_rect.LowerRightCorner.Y += 1;
-
-                if (m_reference_rect.getWidth() == 0 ||
-                    m_reference_rect.getWidth() % 2)
-                    m_reference_rect.LowerRightCorner.X += 1;
-            }
-        }
-
-        //! Sets the active cursor icon
-        virtual void setActiveIcon(gui::ECURSOR_ICON iconId) {};
-
-        //! Gets the currently active icon
-        virtual gui::ECURSOR_ICON getActiveIcon() const
-        {
-            return gui::ECI_NORMAL;
-        }
-
-        //! Add a custom sprite as cursor icon.
-        virtual gui::ECURSOR_ICON addIcon(const gui::SCursorSprite& icon)
-        {
-            return gui::ECI_NORMAL;
-        }
-
-        //! replace the given cursor icon.
-        virtual void changeIcon(gui::ECURSOR_ICON iconId,
-                                const gui::SCursorSprite& icon) {}
-
-        /** Return a system-specific size which is supported for cursors.
-            Larger icons will fail, smaller icons might work. */
-        virtual core::dimension2di getSupportedIconSize() const
-        {
-            return core::dimension2di(0, 0);
-        }
-
-    private:
-
-        CIrrDeviceWayland* m_device;
-        core::position2d<s32> m_cursor_pos;
-        core::rect<s32> m_reference_rect;
-        bool m_is_visible;
-        bool m_use_reference_rect;
     };
 
 } // end namespace irr

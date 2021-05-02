@@ -967,7 +967,6 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     : CIrrDeviceStub(params)
 {
     m_compositor = NULL;
-    m_cursor = NULL;
     m_cursor_theme = NULL;
     m_display = NULL;
     m_egl_window = NULL;
@@ -1049,8 +1048,6 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     Operator = new COSOperator(linuxversion, this);
     os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
 
-    CursorControl = new CCursorControl(this);
-
     createKeyMap();
     
     bool success = initWayland();
@@ -1061,6 +1058,8 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     setResizable(params.WindowResizable);
 
     createDriver();
+
+    CursorControl = new CCursorControl(this);
 
     if (VideoDriver)
     {
@@ -1306,15 +1305,6 @@ bool CIrrDeviceWayland::createWindow()
     {
         os::Printer::log("Couldn't load cursor theme.", ELL_ERROR);
     }
-    else
-    {
-        m_cursor = wl_cursor_theme_get_cursor(m_cursor_theme, "left_ptr");
-
-        if (!m_cursor)
-        {
-            os::Printer::log("Couldn't load left pointer cursor.", ELL_ERROR);
-        }
-    }
 
     return true;
 }
@@ -1371,23 +1361,13 @@ void CIrrDeviceWayland::updateCursor()
     if (!m_pointer)
         return;
 
-    if (!getCursorControl()->isVisible() && CreationParams.Fullscreen)
+    if (!getCursorControl()->isVisible())
     {
         wl_pointer_set_cursor(m_pointer, m_enter_serial, NULL, 0, 0);
     }
-    else if (m_cursor)
+    else
     {
-        wl_cursor_image* image = m_cursor->images[0];
-        wl_buffer* buffer = wl_cursor_image_get_buffer(image);
-
-        if (!buffer)
-            return;
-
-        wl_pointer_set_cursor(m_pointer, m_enter_serial, m_cursor_surface,
-                              image->hotspot_x, image->hotspot_y);
-        wl_surface_attach(m_cursor_surface, buffer, 0, 0);
-        wl_surface_damage(m_cursor_surface, 0, 0, image->width, image->height);
-        wl_surface_commit(m_cursor_surface);
+        getCursorControl()->setActiveIcon(getCursorControl()->getActiveIcon());
     }
 }
 
@@ -1961,6 +1941,104 @@ void CIrrDeviceWayland::setSelectionSerial(uint32_t serial) {
     if(m_selection_serial == 0 && m_data_source != nullptr) {
         wl_data_device_set_selection(m_data_device, m_data_source, serial);
     }
+}
+
+static wl_cursor* LoadWaylandCursor(wl_cursor_theme* theme, const char* const cursors[]) {
+    if(!theme)
+        return nullptr;
+    const char* first = *cursors;
+    while(*cursors) {
+        if(wl_cursor* ret = wl_cursor_theme_get_cursor(theme, *cursors))
+            return ret;
+        cursors++;
+    }
+    os::Printer::log(core::stringc("Couldn't load ").append(first).append(" cursor.").c_str(), ELL_ERROR);
+    return nullptr;
+}
+
+void CIrrDeviceWayland::CCursorControl::initCursors() {
+    wl_cursor_theme* theme = m_device->m_cursor_theme;
+    {
+        constexpr const char* const ArrowCursor[] = { "left_ptr", "default", "top_left_arrow", "left_arrow", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, ArrowCursor));
+    }
+    {
+        constexpr const char* const CrossCursor[] = { "cross", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, CrossCursor));
+    }
+    {
+        constexpr const char* const PointingHandCursor[] = { "pointing_hand", "pointer", "hand1", "e29285e634086352946a0e7090d73106", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, PointingHandCursor));
+    }
+    {
+        constexpr const char* const WhatsThisCursor[] = { "whats_this", "help", "question_arrow", "5c6cd98b3f3ebcb1f9c7f1c204630408", "d9ce0ab605698f320427677b458ad60b", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, WhatsThisCursor));
+    }
+    {
+        constexpr const char* const IBeamCursor[] = { "ibeam", "text", "xterm", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, IBeamCursor));
+    }
+    {
+        constexpr const char* const ForbiddenCursor[] = { "forbidden", "not-allowed", "crossed_circle", "circle", "03b6e0fcb3499374a867c041f52298f0", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, ForbiddenCursor));
+    }
+    {
+        constexpr const char* const WaitCursor[] = { "wait", "watch", "0426c94ea35c87780ff01dc239897213", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, WaitCursor));
+    }
+    {
+        constexpr const char* const SizeAllCursor[] = { "size_all", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, SizeAllCursor));
+    }
+    {
+        constexpr const char* const SizeBDiagCursor[] = { "size_bdiag", "nesw-resize", "50585d75b494802d0151028115016902", "fcf1c3c7cd4491d801f1e1c78f100000", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, SizeBDiagCursor));
+    }
+    {
+        constexpr const char* const SizeFDiagCursor[] = { "size_fdiag", "not-nwse-resize", "38c5dff7c7b8962045400281044508d2", "c7088f0f3e6c8088236ef8e1e3e70000", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, SizeFDiagCursor));
+    }
+    {
+        constexpr const char* const SizeVerCursor[] = { "size_ver", "ns-resize", "v_double_arrow", "00008160000006810000408080010102", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, SizeVerCursor));
+    }
+    {
+        constexpr const char* const SizeHorCursor[] = { "size_hor", "ew-resize", "h_double_arrow", "028006030e0e7ebffc7f7070c0600140", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, SizeHorCursor));
+    }
+    {
+        constexpr const char* const UpArrowCursor[] = { "up_arrow", nullptr };
+        Cursors.push_back(LoadWaylandCursor(theme, UpArrowCursor));
+    }
+}
+
+//! Sets the active cursor icon
+void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
+{
+	if ( iconId >= (s32)Cursors.size() )
+		return;
+
+    m_active_icon = iconId;
+
+    wl_cursor* cursor = Cursors[iconId];
+    if(!cursor) {
+        if(iconId != irr::gui::ECI_NORMAL)
+            cursor = Cursors[irr::gui::ECI_NORMAL];
+        if(!cursor)
+            return;
+    }
+
+    wl_cursor_image* image = cursor->images[0];
+    wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+
+    if(!buffer)
+        return;
+
+    wl_pointer_set_cursor(m_device->m_pointer, m_device->m_enter_serial, m_device->m_cursor_surface,
+                          image->hotspot_x, image->hotspot_y);
+    wl_surface_attach(m_device->m_cursor_surface, buffer, 0, 0);
+    wl_surface_damage(m_device->m_cursor_surface, 0, 0, image->width, image->height);
+    wl_surface_commit(m_device->m_cursor_surface);
 }
 
 } // end namespace
