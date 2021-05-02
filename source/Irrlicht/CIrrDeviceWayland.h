@@ -159,11 +159,12 @@ namespace irr
         //! Implementation of the linux cursor control
         class CCursorControl : public gui::ICursorControl
         {
+            friend class WaylandCallbacks;
         public:
             CCursorControl(CIrrDeviceWayland* device) : m_device(device),
-                m_is_visible(true), m_use_reference_rect(false)
+                m_is_visible(true), m_use_reference_rect(false), m_active_icon(irr::gui::ECI_NORMAL),
+                m_last_time(0), m_last_frame(0), m_is_animated(false)
             {
-                m_active_icon = irr::gui::ECI_NORMAL;
                 initCursors();
             };
 
@@ -286,8 +287,13 @@ namespace irr
             bool m_use_reference_rect;
             gui::ECURSOR_ICON m_active_icon;
 
+            uint32_t m_last_time;
+            uint32_t m_last_frame;
+            bool m_is_animated;
+
             core::array<wl_cursor*> Cursors;
             void initCursors();
+            wl_cursor_image* getNextFrame(uint32_t time);
         };
 
     private:

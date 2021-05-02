@@ -90,6 +90,7 @@ public:
     static const wl_data_device_listener data_device_listener;
     static const wl_data_offer_listener data_offer_listener;
     static const wl_data_source_listener data_source_listener;
+    static const wl_callback_listener surface_frame_listener;
 
     static void pointer_enter(void* data, wl_pointer* pointer, uint32_t serial,
                               wl_surface* surface, wl_fixed_t sx, wl_fixed_t sy)
@@ -750,7 +751,7 @@ public:
     }
 
 
-    static void data_offer_handle_offer(void* data, struct wl_data_offer* wl_data_offer,
+    static void data_offer_handle_offer(void* data, wl_data_offer* wl_data_offer,
                                 const char* mime_type)
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
@@ -761,23 +762,23 @@ public:
             device->m_has_plain_text_utf8_mime = true;
     }
 
-    static void data_offer_handle_source_actions(void* data, struct wl_data_offer* wl_data_offer,
+    static void data_offer_handle_source_actions(void* data, wl_data_offer* wl_data_offer,
                                          uint32_t source_actions)
     {
     }
 
-    static void data_offer_handle_actions(void* data, struct wl_data_offer* wl_data_offer,
+    static void data_offer_handle_actions(void* data, wl_data_offer* wl_data_offer,
                                   uint32_t dnd_action)
     {
     }
 
-    static void data_device_handle_data_offer(void* data, struct wl_data_device* wl_data_device,
+    static void data_device_handle_data_offer(void* data, wl_data_device* wl_data_device,
                                       struct wl_data_offer* id)
     {
         wl_data_offer_add_listener(id, &data_offer_listener, data);
     }
 
-    static void data_device_handle_selection(void* data, struct wl_data_device* wl_data_device,
+    static void data_device_handle_selection(void* data, wl_data_device* wl_data_device,
                                      struct wl_data_offer* id)
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
@@ -790,31 +791,31 @@ public:
             device->m_has_plain_text_utf8_mime = false;
         }
     }
-    static void data_device_handle_enter(void* data, struct wl_data_device* wl_data_device,
-                                 uint32_t serial, struct wl_surface* surface,
-                                 wl_fixed_t x, wl_fixed_t y, struct wl_data_offer* id)
+    static void data_device_handle_enter(void* data, wl_data_device* wl_data_device,
+                                 uint32_t serial, wl_surface* surface,
+                                 wl_fixed_t x, wl_fixed_t y, wl_data_offer* id)
     {
     }
 
-    static void data_device_handle_motion(void* data, struct wl_data_device* wl_data_device,
+    static void data_device_handle_motion(void* data, wl_data_device* wl_data_device,
                                   uint32_t time, wl_fixed_t x, wl_fixed_t y)
     {
     }
 
-    static void data_device_handle_drop(void* data, struct wl_data_device* wl_data_device)
+    static void data_device_handle_drop(void* data, wl_data_device* wl_data_device)
     {
     }
 
-    static void data_device_handle_leave(void* data, struct wl_data_device* wl_data_device)
+    static void data_device_handle_leave(void* data, wl_data_device* wl_data_device)
     {
     }
 
-    static void data_source_handle_target(void* data, struct wl_data_source* wl_data_source,
+    static void data_source_handle_target(void* data, wl_data_source* wl_data_source,
                                   const char* mime_type)
     {
     }
 
-    static void data_source_handle_send(void* data, struct wl_data_source* source,
+    static void data_source_handle_send(void* data, wl_data_source* source,
                                         const char* mime_type, int fd)
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
@@ -827,24 +828,53 @@ public:
         close(fd);
     }
 
-    static void data_source_handle_cancelled(void* data,
-                                             struct wl_data_source* source)
+    static void data_source_handle_cancelled(void* data, wl_data_source* source)
     {
         // An application has replaced the clipboard contents
         wl_data_source_destroy(source);
     }
 
-    static void data_source_handle_dnd_drop_performed(void* data, struct wl_data_source* wl_data_source)
+    static void data_source_handle_dnd_drop_performed(void* data, wl_data_source* wl_data_source)
     {
     }
 
-    static void data_source_handle_dnd_finished(void* data, struct wl_data_source* wl_data_source)
+    static void data_source_handle_dnd_finished(void* data, wl_data_source* wl_data_source)
     {
     }
 
-    static void data_source_handle_action(void* data, struct wl_data_source* wl_data_source,
-                                  uint32_t dnd_action)
+    static void data_source_handle_action(void* data, wl_data_source* wl_data_source, uint32_t dnd_action)
     {
+    }
+
+
+    static void get_next_frame(uint32_t time)
+    {
+
+    }
+
+    static void surface_frame_done(void* data, wl_callback* cb, uint32_t time)
+    {
+        CIrrDeviceWayland::CCursorControl* cursor_control = (CIrrDeviceWayland::CCursorControl*)data;
+        wl_callback_destroy(cb);
+
+        if(cursor_control->m_is_animated) {
+
+            wl_surface* surface = cursor_control->m_device->m_cursor_surface;
+            cb = wl_surface_frame(surface);
+            wl_callback_add_listener(cb, &WaylandCallbacks::surface_frame_listener, data);
+
+            CIrrDeviceWayland* device = cursor_control->m_device;
+
+            wl_cursor_image* image = cursor_control->getNextFrame(time);
+            wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+
+            wl_pointer_set_cursor(device->m_pointer, device->m_enter_serial, surface,
+                                  image->hotspot_x, image->hotspot_y);
+
+            wl_surface_attach(surface, buffer, 0, 0);
+            wl_surface_damage(surface, 0, 0, image->width, image->height);
+            wl_surface_commit(surface);
+        }
     }
 };
 
@@ -943,7 +973,11 @@ const wl_data_source_listener WaylandCallbacks::data_source_listener =
     WaylandCallbacks::data_source_handle_cancelled,
     WaylandCallbacks::data_source_handle_dnd_drop_performed,
     WaylandCallbacks::data_source_handle_dnd_finished,
-    WaylandCallbacks::data_source_handle_action,
+    WaylandCallbacks::data_source_handle_action
+};
+const struct wl_callback_listener WaylandCallbacks::surface_frame_listener =
+{
+    WaylandCallbacks::surface_frame_done
 };
 
 
@@ -2022,8 +2056,10 @@ void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
 
     wl_cursor* cursor = Cursors[iconId];
     if(!cursor) {
-        if(iconId != irr::gui::ECI_NORMAL)
+        if(iconId != irr::gui::ECI_NORMAL) {
             cursor = Cursors[irr::gui::ECI_NORMAL];
+            m_active_icon = iconId;
+        }
         if(!cursor)
             return;
     }
@@ -2039,6 +2075,36 @@ void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
     wl_surface_attach(m_device->m_cursor_surface, buffer, 0, 0);
     wl_surface_damage(m_device->m_cursor_surface, 0, 0, image->width, image->height);
     wl_surface_commit(m_device->m_cursor_surface);
+
+    bool was_animated = m_is_animated;
+
+    m_is_animated = cursor->image_count > 1;
+
+    if(m_is_animated) {
+        m_last_time = 0;
+        m_last_frame = 0;
+        if(!was_animated) {
+            wl_callback* cb = wl_surface_frame(m_device->m_cursor_surface);
+            wl_callback_add_listener(cb, &WaylandCallbacks::surface_frame_listener, this);
+        }
+    }
+}
+
+wl_cursor_image* CIrrDeviceWayland::CCursorControl::getNextFrame(uint32_t time)
+{
+    wl_cursor* cursor = Cursors[m_active_icon];
+    wl_cursor_image* current = cursor->images[m_last_frame];
+    if(m_last_time != 0) {
+        uint32_t elapsed = time - m_last_time;
+        while(elapsed >= current->delay) {
+            elapsed -= current->delay;
+            m_last_frame = (m_last_frame + 1) % cursor->image_count;
+            current = cursor->images[m_last_frame];
+        }
+    }
+    m_last_time = time;
+
+    return current;
 }
 
 } // end namespace
