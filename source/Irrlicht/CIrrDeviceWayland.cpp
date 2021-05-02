@@ -857,7 +857,7 @@ public:
         CIrrDeviceWayland::CCursorControl* cursor_control = (CIrrDeviceWayland::CCursorControl*)data;
         wl_callback_destroy(cb);
 
-        if(cursor_control->m_is_animated) {
+        if(cursor_control->m_is_animated && cursor_control->m_is_visible) {
 
             wl_surface* surface = cursor_control->m_device->m_cursor_surface;
             cb = wl_surface_frame(surface);
