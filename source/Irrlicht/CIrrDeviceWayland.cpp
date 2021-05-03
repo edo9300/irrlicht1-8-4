@@ -1624,7 +1624,7 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
     if(!m_clipboard_changed)
         return m_readclipboard.c_str();
 
-    m_readclipboard = "";
+    m_readclipboard.clear();
 
     if(!m_data_offer)
         return m_readclipboard.c_str();
@@ -1650,6 +1650,8 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
         }
         m_readclipboard.append(buf, n);
     }
+    m_readclipboard.append("", 0);
+
     close(pipefd[0]);
     m_clipboard_changed = false;
     return m_readclipboard.c_str();
