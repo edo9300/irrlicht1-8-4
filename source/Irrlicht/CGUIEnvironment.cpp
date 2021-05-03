@@ -419,6 +419,7 @@ bool CGUIEnvironment::OnEvent(const SEvent& event)
 	if (UserReceiver
 		&& (event.EventType != EET_MOUSE_INPUT_EVENT)
 		&& (event.EventType != EET_KEY_INPUT_EVENT)
+		&& (event.EventType != EET_DROP_EVENT)
 		&& (event.EventType != EET_GUI_EVENT || event.GUIEvent.Caller != this))
 	{
 		ret = UserReceiver->OnEvent(event);

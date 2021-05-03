@@ -357,10 +357,11 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			int32_t metaState = AMotionEvent_getMetaState(androidEvent);
 			os::Printer::log("metaState: ", core::stringc(metaState).c_str(), ELL_DEBUG);
 			int32_t edgeFlags = AMotionEvent_getEdgeFlags(androidEvent);
-			os::Printer::log("edgeFlags: ", core::stringc(flags).c_str(), ELL_DEBUG);
+			os::Printer::log("edgeFlags: ", core::stringc(edgeFlags).c_str(), ELL_DEBUG);
 #endif
 
 			bool touchReceived = true;
+			bool mouseReceived = false;
 
 			switch (eventType)
 			{
@@ -376,12 +377,45 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			case AMOTION_EVENT_ACTION_CANCEL:
 				event.TouchInput.Event = ETIE_LEFT_UP;
 				break;
+			case AMOTION_EVENT_ACTION_HOVER_MOVE:
+				event.EventType = EET_MOUSE_INPUT_EVENT;
+				event.MouseInput.Event = EMIE_MOUSE_MOVED;
+				mouseReceived = true;
+				break;
+			case AMOTION_EVENT_ACTION_SCROLL:
+				event.EventType = EET_MOUSE_INPUT_EVENT;
+				event.MouseInput.Event = EMIE_MOUSE_WHEEL;
+				mouseReceived = true;
+				break;
 			default:
+				os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
 				touchReceived = false;
 				break;
 			}
 
-			if (touchReceived)
+			if (mouseReceived) {
+				if(event.MouseInput.Event == EMIE_MOUSE_MOVED) {
+					s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
+					event.MouseInput.Shift = false;
+					event.MouseInput.Control = false;
+					event.MouseInput.ButtonStates = 0;
+
+					for (s32 i = 0; i < pointerCount; ++i)
+					{
+						event.MouseInput.X = AMotionEvent_getX(androidEvent, i);
+						event.MouseInput.Y = AMotionEvent_getY(androidEvent, i);
+
+						device->postEventFromUser(event);
+					}
+				}
+				else
+				{
+					event.MouseInput.Wheel = AMotionEvent_getAxisValue(androidEvent, AMOTION_EVENT_AXIS_VSCROLL, 0);
+					device->postEventFromUser(event);
+				}
+				status = 1;
+			}
+			else if (touchReceived)
 			{
 				// Process all touches for move action.
 				if (event.TouchInput.Event == ETIE_MOVED)
