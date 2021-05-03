@@ -138,6 +138,8 @@ namespace irr
         //! Remove all messages pending in the system message loop
         virtual void clearSystemMessages();
 
+        virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
+
         //! Get the device type
         virtual E_DEVICE_TYPE getType() const
         {
@@ -149,11 +151,6 @@ namespace irr
         void updateCursor();
         unsigned int getWidth() {return m_width;}
         unsigned int getHeight() {return m_height;}
-        mutable core::stringc m_clipboard;
-        wl_data_offer* m_data_offer;
-        mutable bool m_clipboard_changed;
-        bool m_has_plain_text_mime;
-        bool m_has_plain_text_utf8_mime;
         
 
         //! Implementation of the linux cursor control
@@ -376,6 +373,29 @@ namespace irr
         mutable core::stringc m_readclipboard;
         std::map<int, EKEY_CODE> m_key_map;
         irr::core::array<SEvent> m_events;
+
+        bool(*m_drag_and_drop_check)(irr::core::vector2di pos, bool isFile);
+        bool m_dragging_file;
+        irr::core::vector2di m_drop_pos;
+
+        mutable core::stringc m_clipboard;
+        wl_data_offer* m_clipboard_data_offer;
+        mutable bool m_clipboard_changed;
+
+        enum DATA_MIME {
+            PLAIN_TEXT = 1,
+            PLAIN_TEXT_UTF8 = 2,
+            PLAIN_TEXT_UTF8_2 = 4,
+            URI_LIST = 8,
+        };
+
+        u32 m_clipboard_mime;
+        u32 m_current_selection_mime;
+
+        bool m_drag_has_copy;
+        wl_data_offer* m_drag_data_offer;
+        uint32_t m_drag_data_offer_serial;
+        bool m_drag_is_dropping;
 
         bool initWayland();
         void createDriver();

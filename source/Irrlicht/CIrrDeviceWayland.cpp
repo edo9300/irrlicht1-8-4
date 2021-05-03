@@ -71,6 +71,115 @@ namespace irr
     }
 }
 
+/* Decodes URI escape sequences in string buf of len bytes
+   (excluding the terminating NULL byte) in-place. Since
+   URI-encoded characters take three times the space of
+   normal characters, this should not be an issue.
+   Returns the number of decoded bytes that wound up in
+   the buffer, excluding the terminating NULL byte.
+   The buffer is guaranteed to be NULL-terminated but
+   may contain embedded NULL bytes.
+   On error, -1 is returned.
+ */
+static int URIDecode(char* buf, int len) {
+    int ri, wi, di;
+    char decode = '\0';
+    if(buf == NULL || len < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if(len == 0) {
+        len = strlen(buf);
+    }
+    for(ri = 0, wi = 0, di = 0; ri < len && wi < len; ri += 1) {
+        if(di == 0) {
+            /* start decoding */
+            if(buf[ri] == '%') {
+                decode = '\0';
+                di += 1;
+                continue;
+            }
+            /* normal write */
+            buf[wi] = buf[ri];
+            wi += 1;
+            continue;
+        } else if(di == 1 || di == 2) {
+            char off = '\0';
+            char isa = buf[ri] >= 'a' && buf[ri] <= 'f';
+            char isA = buf[ri] >= 'A' && buf[ri] <= 'F';
+            char isn = buf[ri] >= '0' && buf[ri] <= '9';
+            if(!(isa || isA || isn)) {
+                /* not a hexadecimal */
+                int sri;
+                for(sri = ri - di; sri <= ri; sri += 1) {
+                    buf[wi] = buf[sri];
+                    wi += 1;
+                }
+                di = 0;
+                continue;
+            }
+            /* itsy bitsy magicsy */
+            if(isn) {
+                off = 0 - '0';
+            } else if(isa) {
+                off = 10 - 'a';
+            } else if(isA) {
+                off = 10 - 'A';
+            }
+            decode |= (buf[ri] + off) << (2 - di) * 4;
+            if(di == 2) {
+                buf[wi] = decode;
+                wi += 1;
+                di = 0;
+            } else {
+                di += 1;
+            }
+            continue;
+        }
+    }
+    buf[wi] = '\0';
+    return wi;
+}
+
+/* Convert URI to local filename
+   return filename if possible, else NULL
+*/
+static char* URIToLocal(char* uri) {
+    char* file = NULL;
+    bool local;
+
+    if(memcmp(uri, "file:/", 6) == 0) uri += 6;      /* local file? */
+    else if(strstr(uri, ":/") != NULL) return file; /* wrong scheme */
+
+    local = uri[0] != '/' || (uri[0] != '\0' && uri[1] == '/');
+
+    /* got a hostname? */
+    if(!local && uri[0] == '/' && uri[2] != '/') {
+        char* hostname_end = strchr(uri + 1, '/');
+        if(hostname_end != NULL) {
+            char hostname[257];
+            if(gethostname(hostname, 255) == 0) {
+                hostname[256] = '\0';
+                if(memcmp(uri + 1, hostname, hostname_end - (uri + 1)) == 0) {
+                    uri = hostname_end + 1;
+                    local = true;
+                }
+            }
+        }
+    }
+    if(local) {
+        file = uri;
+        /* Convert URI escape sequences to real characters */
+        URIDecode(file, 0);
+        if(uri[1] == '/') {
+            file++;
+        } else {
+            file--;
+        }
+    }
+    return file;
+}
+
 namespace irr
 {
 
@@ -745,69 +854,230 @@ public:
         }
     }
 
-    static void registry_global_remove(void* data, wl_registry* registry,
-                                       uint32_t name)
+    static void registry_global_remove(void* data, wl_registry* registry, uint32_t name)
     {
     }
 
 
-    static void data_offer_handle_offer(void* data, wl_data_offer* wl_data_offer,
-                                const char* mime_type)
+    static void data_offer_handle_offer(void* data, wl_data_offer* wl_data_offer, const char* mime_type)
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
-        if(!device->m_has_plain_text_mime && strcmp(mime_type, "text/plain") == 0)
-            device->m_has_plain_text_mime = true;
-        else if(!device->m_has_plain_text_utf8_mime &&
+        u32& cur_mime = device->m_current_selection_mime;
+        if((cur_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT) == 0 && strcmp(mime_type, "text/plain") == 0)
+            cur_mime |= CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT;
+        else if((cur_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8) == 0 &&
                 strcmp(mime_type, "text/plain;charset=UTF-8") == 0)
-            device->m_has_plain_text_utf8_mime = true;
+            cur_mime |= CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8;
+        else if((cur_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2) == 0 &&
+                strcmp(mime_type, "text/plain;charset=utf-8") == 0)
+            cur_mime |= CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2;
+        else if((cur_mime & CIrrDeviceWayland::DATA_MIME::URI_LIST) == 0 &&
+                strcmp(mime_type, "text/uri-list") == 0)
+            cur_mime |= CIrrDeviceWayland::DATA_MIME::URI_LIST;
     }
 
-    static void data_offer_handle_source_actions(void* data, wl_data_offer* wl_data_offer,
-                                         uint32_t source_actions)
+    static void data_offer_handle_source_actions(void* data, wl_data_offer* wl_data_offer, uint32_t source_actions)
+    {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        device->m_drag_has_copy = source_actions & WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+    }
+
+    static void data_offer_handle_actions(void* data, wl_data_offer* wl_data_offer, uint32_t dnd_action)
     {
     }
 
-    static void data_offer_handle_actions(void* data, wl_data_offer* wl_data_offer,
-                                  uint32_t dnd_action)
+    static void data_device_handle_data_offer(void* data, wl_data_device* wl_data_device, wl_data_offer* id)
     {
-    }
-
-    static void data_device_handle_data_offer(void* data, wl_data_device* wl_data_device,
-                                      struct wl_data_offer* id)
-    {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        device->m_current_selection_mime = 0;
         wl_data_offer_add_listener(id, &data_offer_listener, data);
     }
 
-    static void data_device_handle_selection(void* data, wl_data_device* wl_data_device,
-                                     struct wl_data_offer* id)
+    static void data_device_handle_selection(void* data, wl_data_device* wl_data_device, wl_data_offer* id)
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
-        if(device->m_data_offer != id) {
-            if(device->m_data_offer)
-                wl_data_offer_destroy(device->m_data_offer);
-            device->m_data_offer = id;
+        if(device->m_clipboard_data_offer != id) {
+            if(device->m_clipboard_data_offer)
+                wl_data_offer_destroy(device->m_clipboard_data_offer);
+            device->m_clipboard_data_offer = id;
             device->m_clipboard_changed = true;
-            device->m_has_plain_text_mime = false;
-            device->m_has_plain_text_utf8_mime = false;
+            device->m_clipboard_mime = device->m_current_selection_mime;
         }
     }
+
     static void data_device_handle_enter(void* data, wl_data_device* wl_data_device,
                                  uint32_t serial, wl_surface* surface,
-                                 wl_fixed_t x, wl_fixed_t y, wl_data_offer* id)
+                                 wl_fixed_t x, wl_fixed_t y, wl_data_offer* offer)
     {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+
+        device->m_drag_data_offer = offer;
+        device->m_drag_data_offer_serial = serial;
+
+        uint32_t dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+        const char* accept = NULL;
+
+        if(!device->m_drag_has_copy || device->m_current_selection_mime == 0)
+            dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+
+        bool is_file = device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::URI_LIST;
+
+        if(dnd_action == WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY) {
+            device->m_drop_pos = core::vector2di(wl_fixed_to_int(x), wl_fixed_to_int(y));
+            if(device->m_drag_and_drop_check && !device->m_drag_and_drop_check(device->m_drop_pos, is_file))
+                dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+            else {
+                if(is_file)
+                    accept = "text/uri-list";
+                else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8)
+                    accept = "text/plain;charset=UTF-8";
+                else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)
+                    accept = "text/plain;charset=utf-8";
+                else
+                    accept = "text/plain";
+            }
+        }
+
+        wl_data_offer_accept(offer, serial, accept);
+
+
+        if(wl_data_offer_get_version(offer) >= 3) {
+            wl_data_offer_set_actions(offer, dnd_action, dnd_action);
+        }
     }
 
     static void data_device_handle_motion(void* data, wl_data_device* wl_data_device,
                                   uint32_t time, wl_fixed_t x, wl_fixed_t y)
     {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        uint32_t dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
+        const char* accept = NULL;
+
+        bool is_file = device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::URI_LIST;
+
+        if(dnd_action == WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY) {
+            device->m_drop_pos = core::vector2di(wl_fixed_to_int(x), wl_fixed_to_int(y));
+            if(device->m_drag_and_drop_check && !device->m_drag_and_drop_check(device->m_drop_pos, is_file))
+                dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+            else {
+                if(is_file)
+                    accept = "text/uri-list";
+                else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8)
+                    accept = "text/plain;charset=UTF-8";
+                else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)
+                    accept = "text/plain;charset=utf-8";
+                else
+                    accept = "text/plain";
+            }
+        }
+
+        wl_data_offer_accept(device->m_drag_data_offer, device->m_drag_data_offer_serial, accept);
+
+
+        if(wl_data_offer_get_version(device->m_drag_data_offer) >= 3) {
+            wl_data_offer_set_actions(device->m_drag_data_offer, dnd_action, dnd_action);
+        }
     }
 
     static void data_device_handle_drop(void* data, wl_data_device* wl_data_device)
     {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        if(!device->m_drag_data_offer)
+            return;
+
+        device->m_drag_is_dropping = true;
+
+        bool is_file = device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::URI_LIST;
+
+        core::stringc read_text;
+
+        int pipefd[2];
+        if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) != -1) {
+
+            const char* accept = NULL;
+
+            if(is_file)
+                accept = "text/uri-list";
+            else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8)
+                accept = "text/plain;charset=UTF-8";
+            else if(device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)
+                accept = "text/plain;charset=utf-8";
+            else
+                accept = "text/plain";
+
+            wl_data_offer_receive(device->m_drag_data_offer, accept, pipefd[1]);
+
+            close(pipefd[1]);
+
+            wl_display_roundtrip(device->m_display);
+
+            while(true) {
+                char buf[1024];
+                ssize_t n = read(pipefd[0], buf, sizeof(buf));
+                if(n <= 0) {
+                    break;
+                }
+                read_text.append(buf, n);
+            }
+            close(pipefd[0]);
+        }
+
+        read_text.append("", 0);
+
+        irr::SEvent event;
+        event.EventType = irr::EET_DROP_EVENT;
+        event.DropEvent.DropType = irr::DROP_START;
+        event.DropEvent.X = device->m_drop_pos.X;
+        event.DropEvent.Y = device->m_drop_pos.Y;
+        event.DropEvent.Text = nullptr;
+        device->postEventFromUser(event);
+
+        event.DropEvent.DropType = is_file ? irr::DROP_FILE : irr::DROP_TEXT;
+
+        if(is_file) {
+            char* saveptr = NULL;
+            char* buffer = &read_text[0];
+            char* token = strtok_r(buffer, "\r\n", &saveptr);
+            while(token != NULL) {
+                char* fn = URIToLocal(token);
+                if(fn) {
+                    size_t lenOld = strlen(fn);
+                    wchar_t* ws = new wchar_t[lenOld + 1];
+                    core::utf8ToWchar(fn, ws, (lenOld + 1) * sizeof(wchar_t));
+                    event.DropEvent.Text = ws;
+                    device->postEventFromUser(event);
+                    delete[] ws;
+                }
+                token = strtok_r(NULL, "\r\n", &saveptr);
+            }
+        } else {
+            size_t lenOld = read_text.size();
+            wchar_t* ws = new wchar_t[lenOld + 1];
+            core::utf8ToWchar(read_text.c_str(), ws, (lenOld + 1) * sizeof(wchar_t));
+            event.DropEvent.Text = ws;
+            device->postEventFromUser(event);
+            delete[] ws;
+        }
+
+        event.DropEvent.DropType = irr::DROP_END;
+        device->postEventFromUser(event);
+
+        wl_data_offer_finish(device->m_drag_data_offer);
+        wl_data_offer_destroy(device->m_drag_data_offer);
+        device->m_drag_data_offer = NULL;
+        device->m_drag_data_offer_serial = 0;
+        device->m_drag_is_dropping = false;
     }
 
     static void data_device_handle_leave(void* data, wl_data_device* wl_data_device)
     {
+        CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
+        if(!device->m_drag_is_dropping) {
+            if(device->m_drag_data_offer)
+                wl_data_offer_destroy(device->m_drag_data_offer);
+            device->m_drag_data_offer = NULL;
+            device->m_drag_data_offer_serial = 0;
+        }
     }
 
     static void data_source_handle_target(void* data, wl_data_source* wl_data_source,
@@ -1058,10 +1328,24 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_window_has_focus = false;
     m_window_minimized = false;
 
+    m_drag_and_drop_check = NULL;
+    m_dragging_file = false;
+
+    m_clipboard_data_offer = NULL;
     m_clipboard_changed = false;
 
     m_selection_serial = 0;
     m_data_source = nullptr;
+
+    m_clipboard_mime = 0;
+    m_current_selection_mime = 0;
+
+    m_drag_has_copy = false;
+
+    m_drag_data_offer = NULL;
+    m_drag_data_offer_serial = 0;
+
+    m_drag_is_dropping = false;
     
     #ifdef _DEBUG
     setDebugName("CIrrDeviceWayland");
@@ -1145,8 +1429,11 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
     if (m_data_device_manager)
         wl_data_device_manager_destroy(m_data_device_manager);
     
-    if (m_data_offer)
-        wl_data_offer_destroy(m_data_offer);
+    if (m_clipboard_data_offer)
+        wl_data_offer_destroy(m_clipboard_data_offer);
+    
+    if (m_drag_data_offer)
+        wl_data_offer_destroy(m_drag_data_offer);
         
     if (m_shm)
         wl_shm_destroy(m_shm);
@@ -1626,17 +1913,23 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
 
     m_readclipboard.clear();
 
-    if(!m_data_offer)
+    if(!m_clipboard_data_offer)
         return m_readclipboard.c_str();
 
-    if(!m_has_plain_text_mime && !m_has_plain_text_utf8_mime)
+    if((m_clipboard_mime & (CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT |
+                           CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8 |
+                           CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)) == 0)
         return m_readclipboard.c_str();
 
     int pipefd[2];
     if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) == -1)
         return m_readclipboard.c_str();
 
-    wl_data_offer_receive(m_data_offer, m_has_plain_text_utf8_mime ? "text/plain;charset=UTF-8" : "text/plain", pipefd[1]);
+    wl_data_offer_receive(m_clipboard_data_offer,
+                          (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8) ? "text/plain;charset=UTF-8" :
+                          (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2) ? "text/plain;charset=utf-8" :
+                          "text/plain",
+                          pipefd[1]);
 
     close(pipefd[1]);
 
@@ -1680,6 +1973,14 @@ void CIrrDeviceWayland::copyToClipboard(const c8* text)
 //! Remove all messages pending in the system message loop
 void CIrrDeviceWayland::clearSystemMessages()
 {
+}
+
+void CIrrDeviceWayland::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile))
+{
+    if(enable)
+        m_drag_and_drop_check = dragCheck;
+    else
+        m_drag_and_drop_check = NULL;
 }
 
 void CIrrDeviceWayland::createKeyMap()
