@@ -26,6 +26,9 @@
 #include <IrrCompileConfig.h>
 
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#include "CWaylandProxyFunctionsWorkaround.h"
+#endif
 
 #include <stdlib.h>
 #include <stdint.h>

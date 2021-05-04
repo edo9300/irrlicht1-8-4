@@ -31,14 +31,18 @@
 #include <IrrCompileConfig.h>
 
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#include "CWaylandProxyFunctionsWorkaround.h"
+#endif
 
 #include <stdlib.h>
 #include <stdint.h>
 #include "wayland-util.h"
 
-extern const struct wl_interface wl_output_interface;
-extern const struct wl_interface wl_seat_interface;
-extern const struct wl_interface wl_surface_interface;
+// extern const struct wl_interface wl_output_interface;
+// extern const struct wl_interface wl_seat_interface;
+// extern const struct wl_interface wl_surface_interface;
+extern "C" {
 extern const struct wl_interface xdg_popup_interface;
 extern const struct wl_interface xdg_positioner_interface;
 extern const struct wl_interface xdg_surface_interface;
@@ -82,7 +86,7 @@ static const struct wl_message xdg_wm_base_events[] = {
 	{ "ping", "u", types + 0 },
 };
 
-WL_EXPORT const struct wl_interface xdg_wm_base_interface = {
+extern const struct wl_interface xdg_wm_base_interface = {
 	"xdg_wm_base", 2,
 	4, xdg_wm_base_requests,
 	1, xdg_wm_base_events,
@@ -98,7 +102,7 @@ static const struct wl_message xdg_positioner_requests[] = {
 	{ "set_offset", "ii", types + 0 },
 };
 
-WL_EXPORT const struct wl_interface xdg_positioner_interface = {
+extern const struct wl_interface xdg_positioner_interface = {
 	"xdg_positioner", 2,
 	7, xdg_positioner_requests,
 	0, NULL,
@@ -116,7 +120,7 @@ static const struct wl_message xdg_surface_events[] = {
 	{ "configure", "u", types + 0 },
 };
 
-WL_EXPORT const struct wl_interface xdg_surface_interface = {
+extern const struct wl_interface xdg_surface_interface = {
 	"xdg_surface", 2,
 	5, xdg_surface_requests,
 	1, xdg_surface_events,
@@ -144,7 +148,7 @@ static const struct wl_message xdg_toplevel_events[] = {
 	{ "close", "", types + 0 },
 };
 
-WL_EXPORT const struct wl_interface xdg_toplevel_interface = {
+extern const struct wl_interface xdg_toplevel_interface = {
 	"xdg_toplevel", 2,
 	14, xdg_toplevel_requests,
 	2, xdg_toplevel_events,
@@ -160,10 +164,11 @@ static const struct wl_message xdg_popup_events[] = {
 	{ "popup_done", "", types + 0 },
 };
 
-WL_EXPORT const struct wl_interface xdg_popup_interface = {
+extern const struct wl_interface xdg_popup_interface = {
 	"xdg_popup", 2,
 	2, xdg_popup_requests,
 	2, xdg_popup_events,
 };
+}
 
 #endif

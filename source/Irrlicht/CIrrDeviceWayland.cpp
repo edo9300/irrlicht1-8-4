@@ -44,6 +44,9 @@
 #include <linux/joystick.h>
 #endif
 #endif
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#include <dlfcn.h>
+#endif
 
 #include "CColorConverter.h"
 #include "COSOperator.h"
@@ -70,6 +73,47 @@ namespace irr
                 io::IFileSystem* io, IContextManager* device);
     }
 }
+
+
+
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#define WAYLAND_FUNC(name, ret_type, ...) ret_type(* irr::CIrrDeviceWayland::p##name)(__VA_ARGS__) = nullptr;
+#define WAYLAND_INTERFACE(name) wl_interface* irr::CIrrDeviceWayland::p##name = nullptr;
+void* irr::CIrrDeviceWayland::LibWaylandEGL = nullptr;
+void* irr::CIrrDeviceWayland::LibWaylandCursor = nullptr;
+void* irr::CIrrDeviceWayland::LibXKBCommon = nullptr;
+void* irr::CIrrDeviceWayland::LibWaylandClient = nullptr;
+int irr::CIrrDeviceWayland::WaylandLoadCount = 0;
+#else
+#define WAYLAND_FUNC(name, ret_type, ...) ret_type(* irr::CIrrDeviceWayland::p##name)(__VA_ARGS__) = &name;
+#define WAYLAND_INTERFACE(name)
+#endif
+#define WAYLAND_EGL_CORE
+#define WAYLAND_CURSOR
+#define XKB_COMMMON
+#define WAYLAND_CLIENT
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_CLIENT
+#undef XKB_COMMMON
+#undef WAYLAND_CURSOR
+#undef WAYLAND_EGL_CORE
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
+
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#define WAYLAND_CLIENT
+#define ONLY_PROXY
+#define WAYLAND_FUNC(name, ret_type, ...) ret_type(* irr__internal__p__##name)(__VA_ARGS__) = nullptr;
+#define WAYLAND_INTERFACE(name) const wl_interface* irr__internal__p__##name = nullptr;
+#include "CWaylandFunctions.inl"
+#undef ONLY_PROXY
+#undef WAYLAND_CLIENT
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
+#endif
+
+
+
 
 /* Decodes URI escape sequences in string buf of len bytes
    (excluding the terminating NULL byte) in-place. Since
@@ -388,7 +432,7 @@ public:
             return;
         }
 
-        device->m_xkb_keymap = xkb_keymap_new_from_string(
+        device->m_xkb_keymap = CIrrDeviceWayland::pxkb_keymap_new_from_string(
                                                    device->m_xkb_context,
                                                    map_str,
                                                    XKB_KEYMAP_FORMAT_TEXT_V1,
@@ -399,21 +443,21 @@ public:
         if (!device->m_xkb_keymap)
             return;
 
-        device->m_xkb_state = xkb_state_new(device->m_xkb_keymap);
+        device->m_xkb_state = CIrrDeviceWayland::pxkb_state_new(device->m_xkb_keymap);
 
         if (!device->m_xkb_state)
         {
-            xkb_keymap_unref(device->m_xkb_keymap);
+            CIrrDeviceWayland::pxkb_keymap_unref(device->m_xkb_keymap);
             device->m_xkb_keymap = NULL;
             return;
         }
 
         device->m_xkb_alt_mask =
-            1 << xkb_keymap_mod_get_index(device->m_xkb_keymap, "Mod1");
+            1 << CIrrDeviceWayland::pxkb_keymap_mod_get_index(device->m_xkb_keymap, "Mod1");
         device->m_xkb_ctrl_mask =
-            1 << xkb_keymap_mod_get_index(device->m_xkb_keymap, "Control");
+            1 << CIrrDeviceWayland::pxkb_keymap_mod_get_index(device->m_xkb_keymap, "Control");
         device->m_xkb_shift_mask =
-            1 << xkb_keymap_mod_get_index(device->m_xkb_keymap, "Shift");
+            1 << CIrrDeviceWayland::pxkb_keymap_mod_get_index(device->m_xkb_keymap, "Shift");
 
         const char* locale = getenv("LC_ALL");
 
@@ -426,7 +470,7 @@ public:
         if (!locale)
             locale = "C";
 
-        device->m_xkb_compose_table = xkb_compose_table_new_from_locale(
+        device->m_xkb_compose_table = CIrrDeviceWayland::pxkb_compose_table_new_from_locale(
                                                   device->m_xkb_context,
                                                   locale,
                                                   XKB_COMPOSE_COMPILE_NO_FLAGS);
@@ -434,13 +478,13 @@ public:
         if (!device->m_xkb_compose_table)
             return;
 
-        device->m_xkb_compose_state = xkb_compose_state_new(
+        device->m_xkb_compose_state = CIrrDeviceWayland::pxkb_compose_state_new(
                                                 device->m_xkb_compose_table,
                                                 XKB_COMPOSE_STATE_NO_FLAGS);
 
         if (!device->m_xkb_compose_state)
         {
-            xkb_compose_table_unref(device->m_xkb_compose_table);
+            CIrrDeviceWayland::pxkb_compose_table_unref(device->m_xkb_compose_table);
             device->m_xkb_compose_table = NULL;
         }
     }
@@ -471,7 +515,7 @@ public:
             xkb_keysym_t sym = XKB_KEY_NoSymbol;
 
             const xkb_keysym_t* syms;
-            uint32_t num_syms = xkb_state_key_get_syms(device->m_xkb_state,
+            uint32_t num_syms = CIrrDeviceWayland::pxkb_state_key_get_syms(device->m_xkb_state,
                                                        key + 8, &syms);
 
             if (num_syms == 1)
@@ -479,12 +523,12 @@ public:
 
             if (sym != XKB_KEY_NoSymbol && device->m_xkb_compose_state)
             {
-                xkb_compose_feed_result result = xkb_compose_state_feed(
+                xkb_compose_feed_result result = CIrrDeviceWayland::pxkb_compose_state_feed(
                                               device->m_xkb_compose_state, sym);
 
                 if (result == XKB_COMPOSE_FEED_ACCEPTED)
                 {
-                    xkb_compose_status status = xkb_compose_state_get_status(
+                    xkb_compose_status status = CIrrDeviceWayland::pxkb_compose_state_get_status(
                                                    device->m_xkb_compose_state);
                     switch (status)
                     {
@@ -493,7 +537,7 @@ public:
                         sym = XKB_KEY_NoSymbol;
                         break;
                     case XKB_COMPOSE_COMPOSED:
-                        sym = xkb_compose_state_get_one_sym(
+                        sym = CIrrDeviceWayland::pxkb_compose_state_get_one_sym(
                                                    device->m_xkb_compose_state);
                         break;
                     default:
@@ -504,7 +548,7 @@ public:
 
             if (sym != XKB_KEY_NoSymbol)
             {
-                key_char = xkb_keysym_to_utf32(sym);
+                key_char = CIrrDeviceWayland::pxkb_keysym_to_utf32(sym);
             }
         }
 
@@ -523,7 +567,7 @@ public:
 
         device->signalEvent(irrevent);
 
-        bool repeats = xkb_keymap_key_repeats(device->m_xkb_keymap, key + 8);
+        bool repeats = CIrrDeviceWayland::pxkb_keymap_key_repeats(device->m_xkb_keymap, key + 8);
 
         if (repeats && state == WL_KEYBOARD_KEY_STATE_PRESSED)
         {
@@ -548,12 +592,12 @@ public:
         if (!device->m_xkb_keymap)
             return;
 
-        xkb_state_update_mask(device->m_xkb_state, mods_depressed, mods_latched,
+        CIrrDeviceWayland::pxkb_state_update_mask(device->m_xkb_state, mods_depressed, mods_latched,
                               mods_locked, 0, 0, group);
         xkb_state_component state_component = (xkb_state_component)(
                             XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_LATCHED);
 
-        xkb_mod_mask_t mods = xkb_state_serialize_mods(device->m_xkb_state,
+        xkb_mod_mask_t mods = CIrrDeviceWayland::pxkb_state_serialize_mods(device->m_xkb_state,
                                                        state_component);
 
         device->m_xkb_alt_pressed = (mods & device->m_xkb_alt_mask) != 0;
@@ -1009,7 +1053,7 @@ public:
 
             close(pipefd[1]);
 
-            wl_display_roundtrip(device->m_display);
+            CIrrDeviceWayland::pwl_display_roundtrip(device->m_display);
 
             while(true) {
                 char buf[1024];
@@ -1136,7 +1180,7 @@ public:
             CIrrDeviceWayland* device = cursor_control->m_device;
 
             wl_cursor_image* image = cursor_control->getNextFrame(time);
-            wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+            wl_buffer* buffer = CIrrDeviceWayland::pwl_cursor_image_get_buffer(image);
 
             wl_pointer_set_cursor(device->m_pointer, device->m_enter_serial, surface,
                                   image->hotspot_x, image->hotspot_y);
@@ -1256,12 +1300,12 @@ bool CIrrDeviceWayland::isWaylandDeviceWorking()
 {
     bool is_working = false;
 
-    wl_display* display = wl_display_connect(NULL);
+    wl_display* display = pwl_display_connect(NULL);
 
     if (display != NULL)
     {
         is_working = true;
-        wl_display_disconnect(display);
+        pwl_display_disconnect(display);
     }
 
     return is_working;
@@ -1403,7 +1447,7 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         wl_surface_destroy(m_cursor_surface);
 
     if (m_cursor_theme)
-        wl_cursor_theme_destroy(m_cursor_theme);
+        pwl_cursor_theme_destroy(m_cursor_theme);
         
     if (m_xdg_toplevel)
         xdg_toplevel_destroy(m_xdg_toplevel);
@@ -1421,7 +1465,7 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         wl_shell_destroy(m_shell);
 
     if (m_egl_window)
-        wl_egl_window_destroy(m_egl_window);
+        pwl_egl_window_destroy(m_egl_window);
     
     if (m_surface)
         wl_surface_destroy(m_surface);
@@ -1454,32 +1498,66 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         wl_registry_destroy(m_registry);
 
     if (m_xkb_state)
-        xkb_state_unref(m_xkb_state);
+        pxkb_state_unref(m_xkb_state);
         
     if (m_xkb_keymap)
-        xkb_keymap_unref(m_xkb_keymap);
+        pxkb_keymap_unref(m_xkb_keymap);
         
     if (m_xkb_compose_state)
-        xkb_compose_state_unref(m_xkb_compose_state);
+        pxkb_compose_state_unref(m_xkb_compose_state);
         
     if (m_xkb_compose_table)
-        xkb_compose_table_unref(m_xkb_compose_table);
+        pxkb_compose_table_unref(m_xkb_compose_table);
 
     if (m_xkb_context)
-        xkb_context_unref(m_xkb_context);
+        pxkb_context_unref(m_xkb_context);
 
     if (m_display)
     {
-        wl_display_flush(m_display);
-        wl_display_disconnect(m_display);
+        pwl_display_flush(m_display);
+        pwl_display_disconnect(m_display);
     }
 
     closeJoysticks();
+
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+    if(LibWaylandEGL) {
+        WaylandLoadCount--;
+        if(WaylandLoadCount == 0) {
+            clearWaylandFunctions();
+        }
+    }
+#endif
 }
 
 bool CIrrDeviceWayland::initWayland()
 {
-    m_display = wl_display_connect(NULL);
+    do {
+        if(!loadEglCoreFunctions()) {
+            os::Printer::log("Couldn't load wayland egl core functions.", ELL_ERROR);
+            break;
+        }
+        if(!loadWaylandCursorFunctions()) {
+            os::Printer::log("Couldn't load wayland cursor functions.", ELL_ERROR);
+            break;
+        }
+        if(!loadXKBCommonFunctions()) {
+            os::Printer::log("Couldn't load XKB common functions.", ELL_ERROR);
+            break;
+        }
+        if(!loadWaylandClientFunctions()) {
+            os::Printer::log("Couldn't load wayland client functions.", ELL_ERROR);
+            break;
+        }
+        WaylandLoadCount++;
+    } while(0);
+
+    if(WaylandLoadCount == 0) {
+        clearWaylandFunctions();
+        return false;
+    }
+
+    m_display = pwl_display_connect(NULL);
     
     if (m_display == NULL)
     {
@@ -1487,7 +1565,7 @@ bool CIrrDeviceWayland::initWayland()
         return false;
     }
     
-    m_xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+    m_xkb_context = CIrrDeviceWayland::pxkb_context_new(XKB_CONTEXT_NO_FLAGS);
     
     if (m_xkb_context == NULL)
     {
@@ -1499,8 +1577,8 @@ bool CIrrDeviceWayland::initWayland()
     wl_registry_add_listener(m_registry, &WaylandCallbacks::registry_listener, 
                              this);
     
-    wl_display_dispatch(m_display);
-    wl_display_roundtrip(m_display);
+    pwl_display_dispatch(m_display);
+    pwl_display_roundtrip(m_display);
     
     if (m_compositor == NULL || m_seat == NULL || m_output == NULL)
     {
@@ -1546,7 +1624,7 @@ bool CIrrDeviceWayland::createWindow()
 {
     m_surface = wl_compositor_create_surface(m_compositor);
 
-    m_egl_window = wl_egl_window_create(m_surface, m_width, m_height);
+    m_egl_window = pwl_egl_window_create(m_surface, m_width, m_height);
 
     if (m_xdg_wm_base != NULL)
     {
@@ -1571,7 +1649,7 @@ bool CIrrDeviceWayland::createWindow()
                                     
         while (!m_surface_configured)
         {
-            wl_display_dispatch(m_display);
+            pwl_display_dispatch(m_display);
             usleep(1000);
         }
         
@@ -1619,7 +1697,7 @@ bool CIrrDeviceWayland::createWindow()
     if (m_shm)
     {
         m_cursor_surface = wl_compositor_create_surface(m_compositor);
-        m_cursor_theme = wl_cursor_theme_load(NULL, 32, m_shm);
+        m_cursor_theme = pwl_cursor_theme_load(NULL, 32, m_shm);
     }
 
     if (!m_cursor_theme)
@@ -1702,7 +1780,7 @@ bool CIrrDeviceWayland::run()
 {
     os::Timer::tick();
 
-    if (wl_display_dispatch_pending(m_display) == -1)
+    if (pwl_display_dispatch_pending(m_display) == -1)
     {
         closeDevice();
     }
@@ -1933,7 +2011,7 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
 
     close(pipefd[1]);
 
-    wl_display_roundtrip(m_display);
+    pwl_display_roundtrip(m_display);
 
     while(true) {
         char buf[1024];
@@ -2279,13 +2357,143 @@ void CIrrDeviceWayland::setSelectionSerial(uint32_t serial) {
         wl_data_device_set_selection(m_data_device, m_data_source, serial);
     }
 }
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+
+#define WAYLAND_EGL_CORE
+bool CIrrDeviceWayland::loadEglCoreFunctions() {
+    if(LibWaylandEGL) {
+        WaylandLoadCount++;
+        return true;
+    }
+    if((LibWaylandEGL = dlopen("libwayland-egl.so.1", RTLD_NOW)) == nullptr) {
+        os::Printer::log("Couldn't load libwayland-egl.so.1.", ELL_ERROR);
+        return false;
+    }
+    do {
+#define WAYLAND_FUNC(name, ret_type, ...) p##name = (ret_type(*)(__VA_ARGS__))dlsym(LibWaylandEGL, #name); if(!p##name) break;
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_FUNC
+        WaylandLoadCount++;
+        return true;
+    } while(0);
+    return false;
+}
+#undef WAYLAND_EGL_CORE
+
+#define WAYLAND_CURSOR
+bool CIrrDeviceWayland::loadWaylandCursorFunctions() {
+    if(LibWaylandCursor)
+        return true;
+
+    if((LibWaylandCursor = dlopen("libwayland-cursor.so.0", RTLD_NOW)) == nullptr) {
+        os::Printer::log("Couldn't load libwayland-cursor.so.0.", ELL_ERROR);
+        return false;
+    }
+    do {
+#define WAYLAND_FUNC(name, ret_type, ...) p##name = (ret_type(*)(__VA_ARGS__))dlsym(LibWaylandCursor, #name); if(!p##name) break;
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_FUNC
+        return true;
+    } while(0);
+    return false;
+}
+#undef WAYLAND_CURSOR
+
+#define XKB_COMMMON
+bool CIrrDeviceWayland::loadXKBCommonFunctions() {
+    if(LibXKBCommon)
+        return true;
+
+    if((LibXKBCommon = dlopen("libxkbcommon.so.0", RTLD_NOW)) == nullptr) {
+        os::Printer::log("Couldn't load libxkbcommon.so.0.", ELL_ERROR);
+        return false;
+    }
+    do {
+#define WAYLAND_FUNC(name, ret_type, ...) p##name = (ret_type(*)(__VA_ARGS__))dlsym(LibXKBCommon, #name); if(!p##name) break;
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_FUNC
+        return true;
+    } while(0);
+    return false;
+}
+#undef XKB_COMMMON
+
+#define WAYLAND_CLIENT
+bool CIrrDeviceWayland::loadWaylandClientFunctions() {
+    if(LibWaylandClient)
+        return true;
+
+    if((LibWaylandClient = dlopen("libwayland-client.so.0", RTLD_NOW)) == nullptr) {
+        os::Printer::log("Couldn't load libwayland-client.so.0.", ELL_ERROR);
+        return false;
+    }
+    do {
+#define WAYLAND_FUNC(name, ret_type, ...) p##name = (ret_type(*)(__VA_ARGS__))dlsym(LibWaylandClient, #name); if(!p##name) break;
+#define WAYLAND_INTERFACE(name) p##name = (wl_interface *)dlsym(LibWaylandClient, #name); if(!p##name) break;
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
+#define ONLY_PROXY
+#define WAYLAND_FUNC(name, ret_type, ...) irr__internal__p__##name = p##name;
+#define WAYLAND_INTERFACE(name) irr__internal__p__##name = p##name;
+#include "CWaylandFunctions.inl"
+#undef ONLY_PROXY
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
+        return true;
+    } while(0);
+    return false;
+}
+#undef WAYLAND_CLIENT
+
+#define WAYLAND_CLIENT
+#define XKB_COMMMON
+#define WAYLAND_CURSOR
+#define WAYLAND_EGL_CORE
+void CIrrDeviceWayland::clearWaylandFunctions() {
+#define WAYLAND_FUNC(name, ret_type, ...) p##name = nullptr;
+#define WAYLAND_INTERFACE(name)
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
+#undef WAYLAND_EGL_CORE
+#undef WAYLAND_CURSOR
+#undef XKB_COMMMON
+
+#define ONLY_PROXY
+#define WAYLAND_FUNC(name, ret_type, ...) irr__internal__p__##name = nullptr;
+#define WAYLAND_INTERFACE(name) irr__internal__p__##name = nullptr;
+#include "CWaylandFunctions.inl"
+#undef ONLY_PROXY
+#undef WAYLAND_FUNC
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_CLIENT
+    if(LibWaylandEGL) {
+        dlclose(LibWaylandEGL);
+        LibWaylandEGL = nullptr;
+    }
+    if(LibWaylandCursor) {
+        dlclose(LibWaylandCursor);
+        LibWaylandCursor = nullptr;
+    }
+    if(LibXKBCommon) {
+        dlclose(LibXKBCommon);
+        LibXKBCommon = nullptr;
+    }
+    if(LibWaylandClient) {
+        dlclose(LibWaylandClient);
+        LibXKBCommon = nullptr;
+    }
+}
+
+#endif
 
 static wl_cursor* LoadWaylandCursor(wl_cursor_theme* theme, const char* const cursors[]) {
     if(!theme)
         return nullptr;
     const char* first = *cursors;
     while(*cursors) {
-        if(wl_cursor* ret = wl_cursor_theme_get_cursor(theme, *cursors))
+        if(wl_cursor* ret = CIrrDeviceWayland::pwl_cursor_theme_get_cursor(theme, *cursors))
             return ret;
         cursors++;
     }
@@ -2368,7 +2576,7 @@ void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
     }
 
     wl_cursor_image* image = cursor->images[0];
-    wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+    wl_buffer* buffer = pwl_cursor_image_get_buffer(image);
 
     if(!buffer)
         return;

@@ -26,6 +26,9 @@
 #include "CIrrDeviceStub.h"
 #include "IImagePresenter.h"
 #include "ICursorControl.h"
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#include "CWaylandProxyFunctionsWorkaround.h"
+#endif
 #include "xdg_decoration_unstable_v1_client_protocol.h"
 #include "xdg_shell_client_protocol.h"
 
@@ -405,6 +408,38 @@ namespace irr
         void pollJoysticks();
         void closeJoysticks();
         void setSelectionSerial(uint32_t serial);
+#define WAYLAND_FUNC(name, ret_type, ...) static ret_type(* p##name)(__VA_ARGS__);
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#define WAYLAND_INTERFACE(name) static wl_interface *p##name;
+        void clearWaylandFunctions();
+        bool loadEglCoreFunctions();
+        bool loadWaylandCursorFunctions();
+        bool loadXKBCommonFunctions();
+        bool loadWaylandClientFunctions();
+        static void* LibWaylandEGL;
+        static void* LibWaylandCursor;
+        static void* LibXKBCommon;
+        static void* LibWaylandClient;
+        static int WaylandLoadCount;
+#else
+#define WAYLAND_INTERFACE(name)
+        bool loadEglCoreFunctions() { return true; }
+        bool loadWaylandCursorFunctions() { return true; }
+        bool loadXKBCommonFunctions() { return true; }
+        bool loadWaylandClientFunctions() { return true; }
+#endif
+    public:
+#define WAYLAND_EGL_CORE
+#define WAYLAND_CURSOR
+#define XKB_COMMMON
+#define WAYLAND_CLIENT
+#include "CWaylandFunctions.inl"
+#undef WAYLAND_CLIENT
+#undef XKB_COMMMON
+#undef WAYLAND_CURSOR
+#undef WAYLAND_EGL_CORE
+#undef WAYLAND_INTERFACE
+#undef WAYLAND_FUNC
     };
 
 } // end namespace irr
