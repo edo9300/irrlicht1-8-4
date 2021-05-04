@@ -1778,6 +1778,8 @@ void CIrrDeviceWayland::signalEvent(const SEvent &event)
 //! runs the device. Returns false if device wants to be deleted
 bool CIrrDeviceWayland::run()
 {
+    if(!VideoDriver)
+        return false;
     os::Timer::tick();
 
     if (pwl_display_dispatch_pending(m_display) == -1)
