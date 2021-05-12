@@ -428,40 +428,40 @@ bool CWGLManager::generateContext()
 		const int* iAttribs;
 		// with 3.0 all available profiles should be usable, higher versions impose restrictions
 		// we need at least 1.1
+		const int openGLAttribs[] =
+		{
+			WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
+			WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+	//		WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,	// enable to get a debug context (depends on driver if that does anything)
+			0
+		};
+		const int openGLES1Attribs[] =
+		{
+			WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
+			WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
+			0
+		};
+		const int openGLES2Attribs[] =
+		{
+			WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
+			WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
+			0
+		};
 		switch(Params.DriverType) {
 		case irr::video::E_DRIVER_TYPE::EDT_OPENGL:
 		{
-			const int openGLAttribs[] =
-			{
-				WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
-				WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-	//			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,	// enable to get a debug context (depends on driver if that does anything)
-				0
-			};
 			iAttribs = openGLAttribs;
 			break;
 		}
 		case irr::video::E_DRIVER_TYPE::EDT_OGLES1:
 		{
-			const int openGLES1Attribs[] =
-			{
-				WGL_CONTEXT_MAJOR_VERSION_ARB, 1,
-				WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
-				0
-			};
 			iAttribs = openGLES1Attribs;
 			break;
 		}
 		case irr::video::E_DRIVER_TYPE::EDT_OGLES2:
 		{
-			const int openGLES2Attribs[] =
-			{
-				WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
-				WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-				WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_ES_PROFILE_BIT_EXT,
-				0
-			};
 			iAttribs = openGLES2Attribs;
 			break;
 		}
