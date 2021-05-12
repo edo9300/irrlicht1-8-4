@@ -1295,20 +1295,24 @@ void CIrrDeviceWin32::createDriver()
 		switchToFullScreen();
 
 		ContextManager = new video::CWGLManager();
-		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 1.1 context via nvidia extensions, try egl
+		if(ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd)))
+			VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
 #ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+		if(!VideoDriver) { // failed to create opengles 1.1 context via nvidia extensions, try egl
 			ContextManager->drop();
 			ContextManager = new video::CEGLManager();
 			if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
-#endif
 				os::Printer::log("Failed to initialize OpenGL-ES1 context.", ELL_ERROR);
 				break;
-#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
 			}
-#endif
+			VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
 		}
-
-		VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
+#else
+		else {
+			os::Printer::log("Failed to initialize OpenGL-ES1 context.", ELL_ERROR);
+			break;
+		}
+#endif
 
 		if (!VideoDriver)
 			os::Printer::log("Could not create OpenGL-ES1 driver.", ELL_ERROR);
@@ -1321,20 +1325,25 @@ void CIrrDeviceWin32::createDriver()
 		switchToFullScreen();
 
 		ContextManager = new video::CWGLManager();
-		if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) { // failed to create opengles 2.0+ context via nvidia extensions, try egl
+		if(ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
+			VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);
+		}
 #ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
+		if(!VideoDriver) { // failed to create opengles 2.0+ context via nvidia extensions, try egl
 			ContextManager->drop();
 			ContextManager = new video::CEGLManager();
 			if(!ContextManager->initialize(CreationParams, video::SExposedVideoData(HWnd))) {
-#endif
 				os::Printer::log("Failed to initialize OpenGL-ES2 context.", ELL_ERROR);
 				break;
-#ifdef _IRR_COMPILE_WITH_EGL_MANAGER_
 			}
-#endif
+			VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);
 		}
-
-		VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);
+#else
+		else {
+			os::Printer::log("Failed to initialize OpenGL-ES2 context.", ELL_ERROR);
+			break;
+		}
+#endif
 
 		if (!VideoDriver)
 			os::Printer::log("Could not create OpenGL-ES2 driver.", ELL_ERROR);
