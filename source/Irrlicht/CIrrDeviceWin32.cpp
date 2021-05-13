@@ -1068,6 +1068,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 namespace irr
 {
 
+bool CIrrDeviceWin32::is_vista_or_greater = false;
+
 //! constructor
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
@@ -1737,8 +1739,13 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		out.append(workstation ? str1 : str2);
 	};
 
-	if(GetWineVersion())
+	if(GetWineVersion()) {
+		is_vista_or_greater = true;
 		return;
+	}
+
+	if(osvi.dwMinorVersion >= 6)
+		is_vista_or_greater = true;
 
 	switch(osvi.dwPlatformId) {
 		case VER_PLATFORM_WIN32_NT:
@@ -2197,21 +2204,7 @@ void CIrrDeviceWin32::ReportLastWinApiError()
 // Same function Windows offers in VersionHelpers.h, but we can't use that as it's not available in older sdk's (minimum is SDK 8.1)
 bool CIrrDeviceWin32::isWindowsVistaOrGreater()
 {
-#if (_WIN32_WINNT >= 0x0500)
-	OSVERSIONINFOEX osvi;
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-	osvi.dwMajorVersion = 6; //  Windows Vista
-
-	if ( !GetVersionEx((OSVERSIONINFO*)&osvi) )
-	{
-		return false;
-	}
-
-	return VerifyVersionInfo(&osvi, VER_MAJORVERSION, VerSetConditionMask(0, VER_MAJORVERSION, VER_GREATER_EQUAL)) ? true : false;
-#else
-    return false;
-#endif
+	return is_vista_or_greater;
 }
 
 // Convert an Irrlicht texture to a Windows cursor

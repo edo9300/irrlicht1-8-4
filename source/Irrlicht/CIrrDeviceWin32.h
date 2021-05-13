@@ -453,6 +453,8 @@ namespace irr
 		bool has_charevent;
 
 		irr::SEvent key_event;
+
+		static bool is_vista_or_greater;
 	};
 
 } // end namespace irr
