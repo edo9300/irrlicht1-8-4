@@ -122,6 +122,8 @@ namespace irr
 		void handleInputEvent(const char* str);
 		void processKeyEvent();
 
+		void presentSoftwareImage(NSRect dirtyRect);
+
 	private:
 
 		//! create the driver

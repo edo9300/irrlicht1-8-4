@@ -468,6 +468,27 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
 	return value;
 }
 
+@interface ContentView : NSView
+@end
+
+@implementation ContentView {
+    irr::CIrrDeviceMacOSX* device;
+}
+
+- (instancetype)initWithWindow:(irr::CIrrDeviceMacOSX*)_device {
+    self = [super init];
+    if (self != nil) {
+        device = _device;
+    }
+    return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect {
+	device->presentSoftwareImage(dirtyRect);
+}
+
+@end
+
 namespace irr
 {
 	namespace video
@@ -1005,8 +1026,12 @@ void CIrrDeviceMacOSX::createDriver()
 	{
 		case video::EDT_SOFTWARE:
 #ifdef _IRR_COMPILE_WITH_SOFTWARE_
-			VideoDriver = video::createSoftwareDriver(CreationParams.WindowSize, CreationParams.Fullscreen, FileSystem, this);
-			SoftwareRendererType = 2;
+			{
+				VideoDriver = video::createSoftwareDriver(CreationParams.WindowSize, CreationParams.Fullscreen, FileSystem, this);
+				SoftwareRendererType = 2;
+				ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
+				[Window setContentView:view];
+			}
 #else
 			os::Printer::log("No Software driver support compiled in.", ELL_ERROR);
 #endif
@@ -1014,8 +1039,12 @@ void CIrrDeviceMacOSX::createDriver()
 
 		case video::EDT_BURNINGSVIDEO:
 #ifdef _IRR_COMPILE_WITH_BURNINGSVIDEO_
-			VideoDriver = video::createBurningVideoDriver(CreationParams, FileSystem, this);
-			SoftwareRendererType = 1;
+			{
+				VideoDriver = video::createBurningVideoDriver(CreationParams, FileSystem, this);
+				SoftwareRendererType = 1;
+				ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
+				[Window setContentView:view];
+			}
 #else
 			os::Printer::log("Burning's video driver was not compiled in.", ELL_ERROR);
 #endif
@@ -1672,7 +1701,11 @@ core::position2di CIrrDeviceMacOSX::getWindowPosition()
 	return core::position2di(rect.origin.x, screenHeight - rect.origin.y - rect.size.height);
 }
 
-
+void CIrrDeviceMacOSX::presentSoftwareImage(NSRect dirtyRect) {
+	NSImage *nsimage = [[[NSImage alloc] init] autorelease];
+	[nsimage addRepresentation:SoftwareDriverTarget];
+	[nsimage drawInRect:dirtyRect];
+}
 
 bool CIrrDeviceMacOSX::present(video::IImage* surface, void* windowId, core::rect<s32>* src )
 {
@@ -1747,7 +1780,7 @@ bool CIrrDeviceMacOSX::present(video::IImage* surface, void* windowId, core::rec
 		}
 
 		// todo: draw properly into a sub-view
-		[SoftwareDriverTarget draw];
+		[[Window contentView] setNeedsDisplay:YES];
 	}
 
 	return false;
