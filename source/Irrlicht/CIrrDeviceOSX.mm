@@ -969,6 +969,10 @@ bool CIrrDeviceMacOSX::createWindow()
     {
         if (Window)
         {
+            if(CreationParams.DriverType == video::EDT_SOFTWARE || CreationParams.DriverType == video::EDT_BURNINGSVIDEO) {
+                ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
+                [Window setContentView:view];
+            }
             [Window setDelegate:(id<NSWindowDelegate>)[NSApp delegate]];
             [Window setAcceptsMouseMovedEvents:TRUE];
             [Window setIsVisible:TRUE];
@@ -1026,12 +1030,8 @@ void CIrrDeviceMacOSX::createDriver()
 	{
 		case video::EDT_SOFTWARE:
 #ifdef _IRR_COMPILE_WITH_SOFTWARE_
-			{
-				VideoDriver = video::createSoftwareDriver(CreationParams.WindowSize, CreationParams.Fullscreen, FileSystem, this);
-				SoftwareRendererType = 2;
-				ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
-				[Window setContentView:view];
-			}
+			VideoDriver = video::createSoftwareDriver(CreationParams.WindowSize, CreationParams.Fullscreen, FileSystem, this);
+			SoftwareRendererType = 2;
 #else
 			os::Printer::log("No Software driver support compiled in.", ELL_ERROR);
 #endif
@@ -1039,12 +1039,8 @@ void CIrrDeviceMacOSX::createDriver()
 
 		case video::EDT_BURNINGSVIDEO:
 #ifdef _IRR_COMPILE_WITH_BURNINGSVIDEO_
-			{
-				VideoDriver = video::createBurningVideoDriver(CreationParams, FileSystem, this);
-				SoftwareRendererType = 1;
-				ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
-				[Window setContentView:view];
-			}
+			VideoDriver = video::createBurningVideoDriver(CreationParams, FileSystem, this);
+			SoftwareRendererType = 1;
 #else
 			os::Printer::log("Burning's video driver was not compiled in.", ELL_ERROR);
 #endif
