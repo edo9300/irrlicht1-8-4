@@ -1273,6 +1273,7 @@ void CIrrDeviceWin32::createDriver()
 
 #ifdef _IRR_COMPILE_WITH_OPENGL_
 		os::Printer::log("Falling back to OpenGL driver.", ELL_ERROR);
+		CreationParams.DriverType = video::EDT_OPENGL;
 #endif
 	case video::EDT_OPENGL:
 #ifdef _IRR_COMPILE_WITH_OPENGL_
