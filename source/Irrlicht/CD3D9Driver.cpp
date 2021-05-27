@@ -3582,7 +3582,7 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 				hr = captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY);
 				if(SUCCEEDED(hr)) {
 					// d3d pads the image, so we need to copy the correct number of bytes
-					u32* dP = (u32*)newImage->lock();
+					u32* dP = (u32*)newImage->getData();
 					u8 * sP = (u8 *)lockedRect.pBits;
 
 					// If the display mode format doesn't promise anything about the Alpha value
@@ -3605,7 +3605,6 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 						}
 					}
 
-					newImage->unlock();
 					// we can unlock and release the surface
 					captureSurface->UnlockRect();
 				}

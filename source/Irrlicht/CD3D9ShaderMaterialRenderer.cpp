@@ -337,7 +337,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShader(LPCSTR pSrcData,
 		if ((uintptr_t)AssembleShader != 1)
 		{
 			// call already loaded function
-			return static_cast<AssembleShaderFunction>(AssembleShader)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return reinterpret_cast<AssembleShaderFunction>(AssembleShader)(pSrcData, SrcDataLen, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -389,7 +389,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXAssembleShaderFromFile(LPCSTR pSrcF
 		if ((uintptr_t)AssembleShaderFile != 1)
 		{
 			// call already loaded function
-			return static_cast<AssembleShaderFromFileFunction>(AssembleShaderFile)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
+			return reinterpret_cast<AssembleShaderFromFileFunction>(AssembleShaderFile)(pSrcFile, pDefines, pInclude, Flags, ppShader, ppErrorMsgs);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -442,7 +442,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShader(LPCSTR pSrcData, UINT
 		if ((uintptr_t)CompileShader != 1)
 		{
 			// call already loaded function
-			return static_cast<D3DXCompileShaderFunction>(CompileShader)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return reinterpret_cast<D3DXCompileShaderFunction>(CompileShader)(pSrcData, SrcDataLen, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
@@ -494,7 +494,7 @@ HRESULT CD3D9ShaderMaterialRenderer::stubD3DXCompileShaderFromFile(LPCSTR pSrcFi
 		if ((uintptr_t)CompileShaderFile != 1)
 		{
 			// call already loaded function
-			return static_cast<D3DXCompileShaderFromFileFunction>(CompileShaderFile)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
+			return reinterpret_cast<D3DXCompileShaderFromFileFunction>(CompileShaderFile)(pSrcFile, pDefines, pInclude, pFunctionName, pProfile, Flags, ppShader, ppErrorMsgs, ppConstantTable);
 		}
 	}
 	#endif // D3DX_SDK_VERSION < 24
