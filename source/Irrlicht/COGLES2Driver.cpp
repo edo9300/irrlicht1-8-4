@@ -2762,6 +2762,24 @@ COGLES2Driver::~COGLES2Driver()
 			p2 -= pitch;
 		}
 		delete [] tmpBuffer;
+		
+		// also GL_RGBA doesn't match the internal encoding of the image (which is BGRA)
+		if (GL_RGBA == internalformat && GL_UNSIGNED_BYTE == type)
+		{
+			pixels = static_cast<u8*>(newImage->getData());
+			for (u32 i = 0; i < ScreenSize.Height; i++)
+			{
+				for (u32 j = 0; j < ScreenSize.Width; j++)
+				{
+					u8* output = pixels + 4 * j;
+					u8 tmp = output[0];
+					output[0] = output[2];
+					output[2] = tmp;
+					output[3] = 0xff; //also remove the alpha to not make the screenshot transparent
+				}
+				pixels += pitch;
+			}
+		}
 
 		if (testGLError(__LINE__))
 		{
