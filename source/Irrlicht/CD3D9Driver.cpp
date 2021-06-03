@@ -755,8 +755,9 @@ bool CD3D9Driver::setActiveTexture(u32 stage, const video::ITexture* texture)
 	{
 		pID3DDevice->SetTexture(stage, ((const CD3D9Texture*)texture)->getDX9BaseTexture());
 
-		if (stage <= 4)
-            pID3DDevice->SetTexture(D3DVERTEXTEXTURESAMPLER0 + stage, ((const CD3D9Texture*)texture)->getDX9BaseTexture());
+		//If directx 9 is being emulated by windows using directx 10, this function is too costly
+		/*if (stage <= 4)
+            pID3DDevice->SetTexture(D3DVERTEXTEXTURESAMPLER0 + stage, ((const CD3D9Texture*)texture)->getDX9BaseTexture());*/
 	}
 	return true;
 }
