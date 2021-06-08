@@ -51,6 +51,9 @@ bool CImageLoaderJPG::isALoadableFileExtension(const io::path& filename) const
 
         // for longjmp, to return to caller on a fatal error
         jmp_buf setjmp_buffer;
+
+        // for having access to the filename when printing the error messages
+        core::stringc* filename;
     };
 
 void CImageLoaderJPG::init_source (j_decompress_ptr cinfo)
@@ -108,7 +111,9 @@ void CImageLoaderJPG::output_message(j_common_ptr cinfo)
 	c8 temp1[JMSG_LENGTH_MAX];
 	(*cinfo->err->format_message)(cinfo, temp1);
 	core::stringc errMsg("JPEG FATAL ERROR in ");
-	errMsg += *(core::stringc*)(cinfo->client_data);
+
+	irr_jpeg_error_mgr* myerr = (irr_jpeg_error_mgr*)cinfo->err;
+	errMsg += *myerr->filename;
 	os::Printer::log(errMsg.c_str(),temp1, ELL_ERROR);
 }
 #endif // _IRR_COMPILE_WITH_LIBJPEG_
@@ -157,7 +162,7 @@ IImage* CImageLoaderJPG::loadImage(io::IReadFile* file) const
 	cinfo.err = jpeg_std_error(&jerr.pub);
 	cinfo.err->error_exit = error_exit;
 	cinfo.err->output_message = output_message;
-	cinfo.client_data = &filename;
+	jerr.filename = &filename;
 
 	// compatibility fudge:
 	// we need to use setjmp/longjmp for error handling as gcc-linux
