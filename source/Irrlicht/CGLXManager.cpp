@@ -61,7 +61,7 @@ CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExpos
 		os::Printer::log("Failed to load LibGL.so", ELL_ERROR);
 	LibGLX = dlopen("libGLX.so", RTLD_LAZY);
 	if(!LibGLX)
-		LibGLX = dlopen("libGLX.so.1", RTLD_LAZY);
+		LibGLX = dlopen("libGLX.so.0", RTLD_LAZY);
 	if(!LibGLX) {
 		os::Printer::log("Failed to load libGLX.so", ELL_ERROR);
 		return;
