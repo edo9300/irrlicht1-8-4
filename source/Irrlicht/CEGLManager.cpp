@@ -648,6 +648,12 @@ void* CEGLManager::loadFunction(const char* function_name)
 #else
 		ret = (void*)dlsym(LibGLES, function_name);
 #endif
+	if(!ret && LibEGL)
+#ifdef _WIN32
+		ret = (void*)GetProcAddress((HMODULE)LibEGL, function_name);
+#else
+		ret = (void*)dlsym(LibEGL, function_name);
+#endif
 #endif
 	return ret;
 }
@@ -744,16 +750,17 @@ bool CEGLManager::LoadEGL() {
 #if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
 #ifdef _WIN32
 #define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
-	HMODULE EGLLib = LoadLibrary(TEXT("atioglxx.dll"));
-	if(EGLLib != nullptr) {
-		do {
+	HMODULE EGLLib = LoadLibrary(TEXT("libEGL.dll"));
+	if(EGLLib == nullptr) {
+		if((EGLLib = LoadLibrary(TEXT("atioglxx.dll"))) != nullptr) {
+			do {
 #include "CEGLFunctions.inl"
-			LibEGL = EGLLib;
-			return true;
-		} while(0);
-		FreeLibrary(EGLLib);
+				LibEGL = EGLLib;
+				return true;
+			} while(0);
+			FreeLibrary(EGLLib);
+		}
 	}
-	EGLLib = LoadLibrary(TEXT("libEGL.dll"));
 	if(!EGLLib)
 		return false;
 	const fschar_t* name = GetGLLibName(Params.DriverType);
@@ -794,7 +801,7 @@ bool CEGLManager::LoadEGL() {
 	dlclose(EGLLib);
 	dlclose(GLESLib);
 #endif
-	os::Printer::log("Failed to load all egl required functions", ELL_ERROR);
+	os::Printer::log("Failed to load all required egl functions", ELL_ERROR);
 	return false;
 #else
 	return true;
