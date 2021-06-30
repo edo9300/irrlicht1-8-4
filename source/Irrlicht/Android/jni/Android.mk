@@ -155,6 +155,7 @@ LOCAL_SRC_FILES := \
 					COGLES2NormalMapRenderer.cpp \
 					COGLES2ParallaxMapRenderer.cpp \
 					COGLES2Renderer2D.cpp \
+					COGLES2StaticShaders.cpp \
 					COGLESDriver.cpp \
 					COGLESExtensionHandler.cpp \
 					COgreMeshFileLoader.cpp \
