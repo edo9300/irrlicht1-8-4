@@ -761,7 +761,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 	}
 
 	uname(&name);
-	Operator = new COSOperator(name.version);
+	Operator = new COSOperator(name.version, EIDT_OSX);
 	os::Printer::log(name.version,ELL_INFORMATION);
 
 	initKeycodes();

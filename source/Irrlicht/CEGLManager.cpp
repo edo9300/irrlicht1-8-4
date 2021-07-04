@@ -82,6 +82,9 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 #elif defined(_IRR_EMSCRIPTEN_PLATFORM_)
 	EglWindow = 0;
 	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
+#elif defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+	EglWindow = (NativeWindowType)Data.OpenGLWayland.EGLWindow;
+	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLWayland.EGLDisplay);
 #elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 	EglWindow = (NativeWindowType)Data.OpenGLLinux.X11Window;
 	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLLinux.X11Display);
@@ -779,7 +782,7 @@ bool CEGLManager::LoadEGL() {
 	FreeLibrary(EGLLib);
 	FreeLibrary(GLESLib);
 #undef EGL_FUNC
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
 	void* EGLLib = dlopen("libEGL.so.1", RTLD_LAZY);
 	if(!EGLLib)
 		return false;

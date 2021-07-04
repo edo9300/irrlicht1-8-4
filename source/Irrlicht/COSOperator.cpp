@@ -22,6 +22,9 @@
 #if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 #include "CIrrDeviceLinux.h"
 #endif
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+#include "CIrrDeviceWayland.h"
+#endif
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 #import <Cocoa/Cocoa.h>
 #endif
@@ -33,14 +36,28 @@ namespace irr
 
 #if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 // constructor  linux
-	COSOperator::COSOperator(const core::stringc& osVersion, CIrrDeviceLinux* device)
-: OperatingSystem(osVersion), IrrDeviceLinux(device)
+COSOperator::COSOperator(const core::stringc& osVersion, CIrrDeviceLinux* device)
+	: OperatingSystem(osVersion), IrrDeviceLinux(device), DeviceType(EIDT_X11)
 {
+	#ifdef _DEBUG
+	setDebugName("COSOperator");
+	#endif
+}
+#endif
+
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+// constructor  linux
+COSOperator::COSOperator(const core::stringc& osVersion, CIrrDeviceWayland* device)
+	: OperatingSystem(osVersion), IrrDeviceWayland(device), DeviceType(EIDT_WAYLAND)
+{
+	#ifdef _DEBUG
+	setDebugName("COSOperator");
+	#endif
 }
 #endif
 
 // constructor
-COSOperator::COSOperator(const core::stringc& osVersion) : OperatingSystem(osVersion)
+COSOperator::COSOperator(const core::stringc& osVersion, E_DEVICE_TYPE deviceType) : OperatingSystem(osVersion), DeviceType(deviceType)
 {
 	#ifdef _DEBUG
 	setDebugName("COSOperator");
@@ -78,6 +95,17 @@ static void copyClipboardWindows(const wchar_t* wtext, size_t wlen) {
 }
 #endif
 
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+static void copyClipboardOSX(const char* ctext) {
+	NSString* str;
+	NSPasteboard* board;
+	str = [NSString stringWithUTF8String : ctext];
+	board = [NSPasteboard generalPasteboard];
+	[board declareTypes : [NSArray arrayWithObject : NSStringPboardType] owner : NSApp] ;
+	[board setString : str forType : NSStringPboardType] ;
+}
+#endif
+
 //! copies text to the clipboard
 void COSOperator::copyToClipboard(const wchar_t* wtext) const
 {
@@ -87,28 +115,92 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 	if(wlen == 0)
 		return;
 
-#if defined(_IRR_WINDOWS_API_)
-	copyClipboardWindows(wtext, wlen);
-#else
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
+	if(DeviceType == EIDT_WIN32) {
+		copyClipboardWindows(wtext, wlen);
+		return;
+	}
+#endif
+
 	const size_t lenOld = (wlen + 1) * sizeof(wchar_t);
 	char* ctext = new char[lenOld];
 	core::wcharToUtf8(wtext, ctext, lenOld);
+
+	switch(DeviceType) {
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-	NSString* str;
-	NSPasteboard* board;
-	str = [NSString stringWithUTF8String : ctext];
-	board = [NSPasteboard generalPasteboard];
-	[board declareTypes : [NSArray arrayWithObject : NSStringPboardType] owner : NSApp] ;
-	[board setString : str forType : NSStringPboardType] ;
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	if(IrrDeviceLinux)
-		IrrDeviceLinux->copyToClipboard(ctext);
-#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
-	SDL_SetClipboardText(ctext);
+	case EIDT_OSX:
+		copyClipboardOSX(ctext);
+		break;
 #endif
+#if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+	case EIDT_SDL:
+		SDL_SetClipboardText(ctext);
+		break;
+#endif
+#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	case EIDT_X11:
+		if(IrrDeviceLinux)
+			IrrDeviceLinux->copyToClipboard(ctext);
+		break;
+#endif
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+	case EIDT_WAYLAND:
+		if(IrrDeviceWayland)
+			IrrDeviceWayland->copyToClipboard(ctext);
+		break;
+#endif
+	case EIDT_BEST: //we need at least 1 valid case to not generate compiler warnings about switch without case
+	default:
+		break;
+	}
 	delete[] ctext;
-#endif
 }
+
+
+#if defined(_IRR_WINDOWS_API_)
+static void* RetrieveBuffer(HANDLE& hData, UINT type) {
+	if(hData = GetClipboardData(type)) {
+		void* buffer = GlobalLock(hData);
+		if(!buffer) {
+			GlobalUnlock(hData);
+			hData = nullptr;
+			return nullptr;
+		}
+		return buffer;
+	}
+	return nullptr;
+}
+
+static void* getClipboardWindows(const char*& cbuffer, const wchar_t*& wbuffer) {
+	if(!OpenClipboard(NULL))
+		return nullptr;
+
+	HANDLE hData = nullptr;
+
+	if((wbuffer = (wchar_t*)RetrieveBuffer(hData, CF_UNICODETEXT)) == nullptr)
+		cbuffer = (char*)RetrieveBuffer(hData, CF_TEXT);
+
+	return (void*)hData;
+}
+
+static void closeClipboardWindows(void* hData) {
+	GlobalUnlock((HANDLE)hData);
+	CloseClipboard();
+}
+#endif
+
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+static const char* getClipboardOSX() {
+	NSString* str = nil;
+	NSPasteboard* board = nil;
+	board = [NSPasteboard generalPasteboard];
+	str = [board stringForType : NSStringPboardType];
+	if(str != nil)
+		return (char*)[str UTF8String];
+	return nullptr;
+}
+#endif
+
 
 
 //! gets text from the clipboard
@@ -116,45 +208,42 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 const wchar_t* COSOperator::getTextFromClipboard() const {
 	static core::stringw wstring;
 	const char* cbuffer = nullptr;
-	wchar_t* wbuffer = nullptr;
-#if defined(_IRR_WINDOWS_API_)
-	if(!OpenClipboard(NULL))
-		return nullptr;
-
-	HANDLE hData = nullptr;
-
-	auto RetrieveBuffer = [](HANDLE& hData, UINT type)->void* {
-		if(hData = GetClipboardData(type)) {
-			void* buffer = GlobalLock(hData);
-			if(!buffer) {
-				GlobalUnlock(hData);
-				hData = nullptr;
-				return nullptr;
-			}
-			return buffer;
-		}
-		return nullptr;
-	};
-
-	if((wbuffer = (wchar_t*)RetrieveBuffer(hData, CF_UNICODETEXT)) == nullptr)
-		cbuffer = (char*)RetrieveBuffer(hData, CF_TEXT);
-
-#elif defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-	NSString* str = nil;
-	NSPasteboard* board = nil;
-
-	board = [NSPasteboard generalPasteboard];
-	str = [board stringForType : NSStringPboardType];
-
-	if(str != nil)
-		cbuffer = (char*)[str UTF8String];
-
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	if(IrrDeviceLinux)
-		cbuffer = IrrDeviceLinux->getTextFromClipboard();
-#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
-	cbuffer = SDL_GetClipboardText();
+	const wchar_t* wbuffer = nullptr;
+	void* hData = nullptr;
+	(void)wbuffer;
+	(void)hData;
+	switch(DeviceType) {
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
+	case EIDT_WIN32:
+		hData = getClipboardWindows(cbuffer, wbuffer);
+		break;
 #endif
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+	case EIDT_OSX:
+		cbuffer = getClipboardOSX();
+		break;
+#endif
+#if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+	case EIDT_SDL:
+		cbuffer = SDL_GetClipboardText();
+		break;
+#endif
+#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	case EIDT_X11:
+		if(IrrDeviceLinux)
+			cbuffer = IrrDeviceLinux->getTextFromClipboard();
+		break;
+#endif
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+	case EIDT_WAYLAND:
+		if(IrrDeviceWayland)
+			cbuffer = IrrDeviceWayland->getTextFromClipboard();
+		break;
+#endif
+	case EIDT_BEST: //we need at least 1 valid case to not generate compiler warnings about switch without case
+	default:
+		break;
+	}
 	if(!wbuffer && !cbuffer)
 		return nullptr;
 	if(cbuffer) {
@@ -165,9 +254,9 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		delete[] ws;
 	} else
 		wstring = wbuffer;
-#if defined(_IRR_WINDOWS_API_)
-	GlobalUnlock(hData);
-	CloseClipboard();
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
+	if(hData)
+		closeClipboardWindows(hData);
 #endif
 	return wstring.c_str();
 }

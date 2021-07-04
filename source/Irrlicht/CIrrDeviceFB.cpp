@@ -73,7 +73,7 @@ CIrrDeviceFB::CIrrDeviceFB(const SIrrlichtCreationParameters& params)
 	linuxversion += " ";
 	linuxversion += FBInfo.machine;
 
-	Operator = new COSOperator(linuxversion);
+	Operator = new COSOperator(linuxversion, EIDT_BEST);
 	os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
 
 	// create window
