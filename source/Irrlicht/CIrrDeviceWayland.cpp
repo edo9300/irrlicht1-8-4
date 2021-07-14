@@ -897,6 +897,13 @@ public:
                                     wl_registry_bind(registry, name, 
                                     &zxdg_decoration_manager_v1_interface, 1));
         }
+        else if (strcmp(interface, org_kde_kwin_server_decoration_manager_interface.name) == 0)
+        {
+            device->m_kwin_server_decoration_manager = 
+                                    static_cast<org_kde_kwin_server_decoration_manager*>(
+                                    wl_registry_bind(registry, name, 
+                                    &org_kde_kwin_server_decoration_manager_interface, 1));
+        }
         else if (strcmp(interface, xdg_wm_base_interface.name) == 0)
         {
             device->m_has_xdg_wm_base = true;
@@ -1351,6 +1358,9 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     
     m_decoration_manager = NULL;
     m_decoration = NULL;
+    
+    m_kwin_server_decoration_manager = NULL;
+    m_kwin_server_decoration = NULL;
 
     m_xkb_context = NULL;
     m_xkb_compose_table = NULL;
@@ -1442,6 +1452,12 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         
     if (m_decoration_manager)
         zxdg_decoration_manager_v1_destroy(m_decoration_manager);
+	
+    if (m_kwin_server_decoration)
+        org_kde_kwin_server_decoration_release(m_kwin_server_decoration);
+        
+    if (m_kwin_server_decoration_manager)
+        org_kde_kwin_server_decoration_manager_destroy(m_kwin_server_decoration_manager);
     
     if (m_keyboard)
         wl_keyboard_destroy(m_keyboard);
@@ -1670,6 +1686,18 @@ bool CIrrDeviceWayland::createWindow()
             zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
                                 ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
         }
+        
+        if (m_kwin_server_decoration_manager != NULL)
+        {
+            m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
+                                        m_kwin_server_decoration_manager, m_surface);
+        }
+		
+                                                       
+        if (m_kwin_server_decoration != NULL)
+        {
+            org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
+        }
     }
     else if (m_shell != NULL)
     {
@@ -1687,6 +1715,18 @@ bool CIrrDeviceWayland::createWindow()
         else
         {
             wl_shell_surface_set_toplevel(m_shell_surface);
+        }
+        
+        if (m_kwin_server_decoration_manager != NULL)
+        {
+            m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
+                                        m_kwin_server_decoration_manager, m_surface);
+        }
+		
+                                                       
+        if (m_kwin_server_decoration != NULL)
+        {
+            org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
         }
     }
     else

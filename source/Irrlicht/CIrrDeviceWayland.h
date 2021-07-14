@@ -31,6 +31,7 @@
 #endif
 #include "xdg_decoration_unstable_v1_client_protocol.h"
 #include "xdg_shell_client_protocol.h"
+#include "org_kde_kwin_server_decoration_manager.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -343,6 +344,9 @@ namespace irr
         
         zxdg_decoration_manager_v1* m_decoration_manager;
         zxdg_toplevel_decoration_v1* m_decoration;
+        
+        org_kde_kwin_server_decoration_manager* m_kwin_server_decoration_manager;
+        org_kde_kwin_server_decoration* m_kwin_server_decoration;
 
         xkb_context* m_xkb_context;
         xkb_compose_table* m_xkb_compose_table;
