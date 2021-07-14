@@ -861,15 +861,21 @@ public:
                                                    version < 4 ? version : 4));
                                                    
             wl_seat_add_listener(device->m_seat, &seat_listener, device);
+            if(!device->m_data_device && device->m_data_device_manager) {
+                device->m_data_device = wl_data_device_manager_get_data_device(device->m_data_device_manager, device->m_seat);
 
-            device->m_data_device = wl_data_device_manager_get_data_device(device->m_data_device_manager, device->m_seat);
-
-            wl_data_device_add_listener(device->m_data_device, &data_device_listener, data);
+                wl_data_device_add_listener(device->m_data_device, &data_device_listener, data);
+            }
         }
         else if (strcmp(interface, wl_data_device_manager_interface.name) == 0)
         {
             device->m_data_device_manager = static_cast<wl_data_device_manager*>(wl_registry_bind(registry,
                                                    name, &wl_data_device_manager_interface, 3));
+            if(!device->m_data_device && device->m_seat) {
+                device->m_data_device = wl_data_device_manager_get_data_device(device->m_data_device_manager, device->m_seat);
+
+                wl_data_device_add_listener(device->m_data_device, &data_device_listener, data);
+            }
         }
         else if (strcmp(interface, wl_shm_interface.name) == 0)
         {
