@@ -240,6 +240,9 @@ public:
     static const xdg_wm_base_listener wm_base_listener;
     static const xdg_surface_listener surface_listener;
     static const xdg_toplevel_listener toplevel_listener;
+    static const zxdg_shell_v6_listener zxdg_shell_listener;
+    static const zxdg_surface_v6_listener zxdg_surface_listener;
+    static const zxdg_toplevel_v6_listener zxdg_toplevel_listener;
     static const wl_data_device_listener data_device_listener;
     static const wl_data_offer_listener data_offer_listener;
     static const wl_data_source_listener data_source_listener;
@@ -795,6 +798,12 @@ public:
         xdg_wm_base_pong(shell, serial);
     }
     
+    static void zxdg_wm_shell_ping(void* data, zxdg_shell_v6* shell, 
+                                 uint32_t serial)
+    {
+        zxdg_shell_v6_pong(shell, serial);
+    }
+    
     static void xdg_surface_configure(void* data, xdg_surface* surface,
                                       uint32_t serial)
     {
@@ -829,6 +838,46 @@ public:
     }
     
     static void xdg_toplevel_close(void* data, xdg_toplevel* xdg_toplevel)
+    {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+        
+        device->closeDevice();
+    }
+    
+    static void zxdg_surface_configure(void* data, zxdg_surface_v6* surface,
+                                      uint32_t serial)
+    {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+        
+        zxdg_surface_v6_ack_configure(surface, serial);
+        
+        device->m_surface_configured = true;
+    }
+    
+    static void zxdg_toplevel_configure(void* data, zxdg_toplevel_v6* toplevel,
+                                       int32_t width, int32_t height,
+                                       wl_array* states)
+    {
+        //void* state_p;
+        
+        //wl_array_for_each(state_p, states) 
+        //{
+        //    uint32_t state = *(uint32_t*)state_p;
+        //    
+        //    switch (state) 
+        //    {
+        //    case ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN:
+        //    case ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED:
+        //    case ZXDG_TOPLEVEL_V6_STATE_ACTIVATED:
+        //    case ZXDG_TOPLEVEL_V6_STATE_RESIZING:
+        //        break;
+        //    default:
+        //        break;
+        //    }
+        //}
+    }
+    
+    static void zxdg_toplevel_close(void* data, zxdg_toplevel_v6* zxdg_toplevel_v6)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
         
@@ -908,6 +957,11 @@ public:
         {
             device->m_has_xdg_wm_base = true;
             device->m_xdg_wm_base_name = name;
+        }
+        else if (strcmp(interface, zxdg_shell_v6_interface.name) == 0)
+        {
+            device->m_has_zxdg_shell = true;
+            device->m_zxdg_shell_name = name;
         }
     }
 
@@ -1270,10 +1324,26 @@ const xdg_surface_listener WaylandCallbacks::surface_listener =
     WaylandCallbacks::xdg_surface_configure
 };
 
+const zxdg_shell_v6_listener WaylandCallbacks::zxdg_shell_listener = 
+{
+    WaylandCallbacks::zxdg_wm_shell_ping
+};
+
 const xdg_toplevel_listener WaylandCallbacks::toplevel_listener = 
 {
     WaylandCallbacks::xdg_toplevel_configure,
     WaylandCallbacks::xdg_toplevel_close
+};
+
+const zxdg_surface_v6_listener WaylandCallbacks::zxdg_surface_listener = 
+{
+    WaylandCallbacks::zxdg_surface_configure
+};
+
+const zxdg_toplevel_v6_listener WaylandCallbacks::zxdg_toplevel_listener = 
+{
+    WaylandCallbacks::zxdg_toplevel_configure,
+    WaylandCallbacks::zxdg_toplevel_close
 };
 
 const wl_data_device_listener WaylandCallbacks::data_device_listener =
@@ -1353,8 +1423,15 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_xdg_surface = NULL;
     m_xdg_toplevel = NULL;
     m_has_xdg_wm_base = false;
-    m_surface_configured = false;
     m_xdg_wm_base_name = 0;
+    
+    m_zxdg_shell = NULL;
+    m_zxdg_surface = NULL;
+    m_zxdg_toplevel = NULL;
+    m_has_zxdg_shell = false;
+    m_zxdg_shell_name = 0;
+	
+    m_surface_configured = false;
     
     m_decoration_manager = NULL;
     m_decoration = NULL;
@@ -1479,6 +1556,15 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         
     if (m_xdg_wm_base)
         xdg_wm_base_destroy(m_xdg_wm_base);
+        
+    if (m_zxdg_toplevel)
+        zxdg_toplevel_v6_destroy(m_zxdg_toplevel);
+
+    if (m_zxdg_surface)
+        zxdg_surface_v6_destroy(m_zxdg_surface);
+        
+    if (m_zxdg_shell)
+        zxdg_shell_v6_destroy(m_zxdg_shell);
         
     if (m_shell_surface)
         wl_shell_surface_destroy(m_shell_surface);
@@ -1608,7 +1694,7 @@ bool CIrrDeviceWayland::initWayland()
         return false;
     }
     
-    if (!m_has_wl_shell && !m_has_xdg_wm_base)
+    if (!m_has_wl_shell && !m_has_xdg_wm_base && !m_has_zxdg_shell)
     {
         os::Printer::log("Shell protocol is not available.", ELL_ERROR);
         return false;
@@ -1623,6 +1709,14 @@ bool CIrrDeviceWayland::initWayland()
                                                  
             xdg_wm_base_add_listener(m_xdg_wm_base, 
                                      &WaylandCallbacks::wm_base_listener, this);
+        }
+        else if (m_has_zxdg_shell)
+        {
+            m_zxdg_shell = static_cast<zxdg_shell_v6*>(wl_registry_bind(
+                    m_registry, m_zxdg_shell_name, &zxdg_shell_v6_interface, 1));
+                                                 
+            zxdg_shell_v6_add_listener(m_zxdg_shell, 
+                                     &WaylandCallbacks::zxdg_shell_listener, this);
         }
         else if (m_has_wl_shell)
         {
@@ -1674,29 +1768,31 @@ bool CIrrDeviceWayland::createWindow()
             pwl_display_dispatch(m_display);
             usleep(1000);
         }
+    } else if (m_zxdg_shell != NULL)
+    {
+        m_zxdg_surface = zxdg_shell_v6_get_xdg_surface(m_zxdg_shell, m_surface);
         
-        if (m_decoration_manager != NULL)
+        zxdg_surface_v6_add_listener(m_zxdg_surface, 
+                                 &WaylandCallbacks::zxdg_surface_listener, this);
+                                     
+        m_zxdg_toplevel = zxdg_surface_v6_get_toplevel(m_zxdg_surface);
+
+        zxdg_toplevel_v6_add_listener(m_zxdg_toplevel,
+                                  &WaylandCallbacks::zxdg_toplevel_listener, this);
+
+        wl_surface_commit(m_surface);
+                                    
+        if (CreationParams.Fullscreen)
         {
-            m_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
-                                        m_decoration_manager, m_xdg_toplevel);
-        }
-                                                       
-        if (m_decoration != NULL)
-        {
-            zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
-                                ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+            zxdg_toplevel_v6_set_fullscreen(m_zxdg_toplevel, NULL);
         }
         
-        if (m_kwin_server_decoration_manager != NULL)
+        zxdg_surface_v6_set_window_geometry(m_zxdg_surface, 0, 0, m_width, m_height);
+                                    
+        while (!m_surface_configured)
         {
-            m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
-                                        m_kwin_server_decoration_manager, m_surface);
-        }
-		
-                                                       
-        if (m_kwin_server_decoration != NULL)
-        {
-            org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
+            pwl_display_dispatch(m_display);
+            usleep(1000);
         }
     }
     else if (m_shell != NULL)
@@ -1716,23 +1812,35 @@ bool CIrrDeviceWayland::createWindow()
         {
             wl_shell_surface_set_toplevel(m_shell_surface);
         }
-        
-        if (m_kwin_server_decoration_manager != NULL)
-        {
-            m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
-                                        m_kwin_server_decoration_manager, m_surface);
-        }
-		
-                                                       
-        if (m_kwin_server_decoration != NULL)
-        {
-            org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
-        }
     }
     else
     {
         os::Printer::log("Cannot create shell surface.", ELL_ERROR);
         return false;
+    }
+        
+    if (m_decoration_manager != NULL)
+    {
+        m_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
+                                    m_decoration_manager, m_xdg_toplevel);
+    }
+                                                       
+    if (m_decoration != NULL)
+    {
+        zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
+                            ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+    }
+        
+    if (m_kwin_server_decoration_manager != NULL)
+    {
+        m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
+                                    m_kwin_server_decoration_manager, m_surface);
+    }
+		
+                                                       
+    if (m_kwin_server_decoration != NULL)
+    {
+        org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
     }
 
     wl_region* region = wl_compositor_create_region(m_compositor);
