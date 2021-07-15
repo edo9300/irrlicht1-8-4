@@ -2014,19 +2014,6 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
     }
 }
 
-//! sets the class of the window
-void CIrrDeviceWayland::setWindowClass(const char* text)
-{
-    if (m_xdg_toplevel)
-    {
-        xdg_toplevel_set_app_id(m_xdg_toplevel, text);
-    }
-    else if (m_shell_surface)
-    {
-        wl_shell_surface_set_class(m_shell_surface, text);
-    }
-}
-
 //! presents a surface in the client area
 bool CIrrDeviceWayland::present(video::IImage* image, void* windowId,
                                 core::rect<s32>* srcRect)
