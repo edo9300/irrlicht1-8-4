@@ -2008,6 +2008,10 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
     {
         xdg_toplevel_set_title(m_xdg_toplevel, title);
     }
+    else if (m_zxdg_toplevel)
+    {
+        zxdg_toplevel_v6_set_title(m_zxdg_toplevel, title);
+    }
     else if (m_shell_surface)
     {
         wl_shell_surface_set_title(m_shell_surface, title);
