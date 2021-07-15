@@ -2000,9 +2000,9 @@ void CIrrDeviceWayland::sleep(u32 timeMs, bool pauseTimer = false)
 //! sets the caption of the window
 void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
 {
-    char title[1024];
-    wcstombs(title, text, sizeof(title));
-    title[1023] = '\0';
+    const size_t lenOld = (wcslen(text) + 1) * sizeof(wchar_t);
+    char* title = new char[lenOld];
+    core::wcharToUtf8(text, title, lenOld);
 
     if (m_xdg_toplevel)
     {
