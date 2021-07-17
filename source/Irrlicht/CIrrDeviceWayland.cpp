@@ -128,7 +128,7 @@ int irr::CIrrDeviceWayland::WaylandLoadCount = 0;
 static int URIDecode(char* buf, int len) {
     int ri, wi, di;
     char decode = '\0';
-    if(buf == NULL || len < 0) {
+    if(buf == nullptr || len < 0) {
         return -1;
     }
     if(len == 0) {
@@ -185,21 +185,21 @@ static int URIDecode(char* buf, int len) {
 }
 
 /* Convert URI to local filename
-   return filename if possible, else NULL
+   return filename if possible, else nullptr
 */
 static char* URIToLocal(char* uri) {
-    char* file = NULL;
+    char* file = nullptr;
     bool local;
 
     if(memcmp(uri, "file:/", 6) == 0) uri += 6;      /* local file? */
-    else if(strstr(uri, ":/") != NULL) return file; /* wrong scheme */
+    else if(strstr(uri, ":/") != nullptr) return file; /* wrong scheme */
 
     local = uri[0] != '/' || (uri[0] != '\0' && uri[1] == '/');
 
     /* got a hostname? */
     if(!local && uri[0] == '/' && uri[2] != '/') {
         char* hostname_end = strchr(uri + 1, '/');
-        if(hostname_end != NULL) {
+        if(hostname_end != nullptr) {
             char hostname[257];
             if(gethostname(hostname, 255) == 0) {
                 hostname[256] = '\0';
@@ -425,7 +425,7 @@ public:
             return;
         }
 
-        char* map_str = static_cast<char*>(mmap(NULL, size, PROT_READ,
+        char* map_str = static_cast<char*>(mmap(nullptr, size, PROT_READ,
                                                 MAP_SHARED, fd, 0));
 
         if (map_str == MAP_FAILED)
@@ -450,7 +450,7 @@ public:
         if (!device->m_xkb_state)
         {
             CIrrDeviceWayland::pxkb_keymap_unref(device->m_xkb_keymap);
-            device->m_xkb_keymap = NULL;
+            device->m_xkb_keymap = nullptr;
             return;
         }
 
@@ -487,7 +487,7 @@ public:
         if (!device->m_xkb_compose_state)
         {
             CIrrDeviceWayland::pxkb_compose_table_unref(device->m_xkb_compose_table);
-            device->m_xkb_compose_table = NULL;
+            device->m_xkb_compose_table = nullptr;
         }
     }
 
@@ -633,8 +633,8 @@ public:
              
         if (device->m_touches_count == 0)
         {
-            pointer_motion(data, NULL, 0, x, y);
-            pointer_button(data, NULL, 0, 0, BTN_LEFT, 
+            pointer_motion(data, nullptr, 0, x, y);
+            pointer_button(data, nullptr, 0, 0, BTN_LEFT, 
                            WL_POINTER_BUTTON_STATE_PRESSED);
         }
 
@@ -657,7 +657,7 @@ public:
         
         if (device->m_touches_count == 1)
         {
-            pointer_button(data, NULL, 0, 0, BTN_LEFT, 
+            pointer_button(data, nullptr, 0, 0, BTN_LEFT, 
                            WL_POINTER_BUTTON_STATE_RELEASED);
         }
 
@@ -680,7 +680,7 @@ public:
         
         if (device->m_touches_count == 1)
         {
-            pointer_motion(data, NULL, 0, x, y);
+            pointer_motion(data, nullptr, 0, x, y);
         }
     }
     
@@ -707,7 +707,7 @@ public:
         else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && device->m_pointer)
         {
             wl_pointer_destroy(device->m_pointer);
-            device->m_pointer = NULL;
+            device->m_pointer = nullptr;
         }
 
         if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && !device->m_keyboard)
@@ -720,7 +720,7 @@ public:
         else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && device->m_keyboard)
         {
             wl_keyboard_destroy(device->m_keyboard);
-            device->m_keyboard = NULL;
+            device->m_keyboard = nullptr;
         }
         
         if ((caps & WL_SEAT_CAPABILITY_TOUCH) && !device->m_touch)
@@ -733,7 +733,7 @@ public:
         else if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && device->m_touch)
         {
             wl_touch_destroy(device->m_touch);
-            device->m_touch = NULL;
+            device->m_touch = nullptr;
         }
     }
 
@@ -889,7 +889,7 @@ public:
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
 
-        if (interface == NULL)
+        if (interface == nullptr)
             return;
 
         if (strcmp(interface, wl_compositor_interface.name) == 0)
@@ -1025,7 +1025,7 @@ public:
         device->m_drag_data_offer_serial = serial;
 
         uint32_t dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
-        const char* accept = NULL;
+        const char* accept = nullptr;
 
         if(!device->m_drag_has_copy || device->m_current_selection_mime == 0)
             dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
@@ -1061,7 +1061,7 @@ public:
     {
         CIrrDeviceWayland* device = (CIrrDeviceWayland*)data;
         uint32_t dnd_action = WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
-        const char* accept = NULL;
+        const char* accept = nullptr;
 
         bool is_file = device->m_current_selection_mime & CIrrDeviceWayland::DATA_MIME::URI_LIST;
 
@@ -1104,7 +1104,7 @@ public:
         int pipefd[2];
         if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) != -1) {
 
-            const char* accept = NULL;
+            const char* accept = nullptr;
 
             if(is_file)
                 accept = "text/uri-list";
@@ -1145,10 +1145,10 @@ public:
         event.DropEvent.DropType = is_file ? irr::DROP_FILE : irr::DROP_TEXT;
 
         if(is_file) {
-            char* saveptr = NULL;
+            char* saveptr = nullptr;
             char* buffer = &read_text[0];
             char* token = strtok_r(buffer, "\r\n", &saveptr);
-            while(token != NULL) {
+            while(token != nullptr) {
                 char* fn = URIToLocal(token);
                 if(fn) {
                     size_t lenOld = strlen(fn);
@@ -1158,7 +1158,7 @@ public:
                     device->postEventFromUser(event);
                     delete[] ws;
                 }
-                token = strtok_r(NULL, "\r\n", &saveptr);
+                token = strtok_r(nullptr, "\r\n", &saveptr);
             }
         } else {
             size_t lenOld = read_text.size();
@@ -1174,7 +1174,7 @@ public:
 
         wl_data_offer_finish(device->m_drag_data_offer);
         wl_data_offer_destroy(device->m_drag_data_offer);
-        device->m_drag_data_offer = NULL;
+        device->m_drag_data_offer = nullptr;
         device->m_drag_data_offer_serial = 0;
         device->m_drag_is_dropping = false;
     }
@@ -1185,7 +1185,7 @@ public:
         if(!device->m_drag_is_dropping) {
             if(device->m_drag_data_offer)
                 wl_data_offer_destroy(device->m_drag_data_offer);
-            device->m_drag_data_offer = NULL;
+            device->m_drag_data_offer = nullptr;
             device->m_drag_data_offer_serial = 0;
         }
     }
@@ -1382,9 +1382,9 @@ bool CIrrDeviceWayland::isWaylandDeviceWorking()
 {
     bool is_working = false;
 
-    wl_display* display = pwl_display_connect(NULL);
+    wl_display* display = pwl_display_connect(nullptr);
 
-    if (display != NULL)
+    if (display != nullptr)
     {
         is_working = true;
         pwl_display_disconnect(display);
@@ -1396,53 +1396,53 @@ bool CIrrDeviceWayland::isWaylandDeviceWorking()
 CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     : CIrrDeviceStub(params)
 {
-    m_compositor = NULL;
-    m_cursor_theme = NULL;
-    m_display = NULL;
-    m_egl_window = NULL;
-    m_keyboard = NULL;
-    m_touch = NULL;
-    m_output = NULL;
-    m_pointer = NULL;
-    m_registry = NULL;
-    m_seat = NULL;
-    m_data_device = NULL;
-    m_shm = NULL;
-    m_cursor_surface = NULL;
-    m_surface = NULL;
-    m_data_device_manager = NULL;
+    m_compositor = nullptr;
+    m_cursor_theme = nullptr;
+    m_display = nullptr;
+    m_egl_window = nullptr;
+    m_keyboard = nullptr;
+    m_touch = nullptr;
+    m_output = nullptr;
+    m_pointer = nullptr;
+    m_registry = nullptr;
+    m_seat = nullptr;
+    m_data_device = nullptr;
+    m_shm = nullptr;
+    m_cursor_surface = nullptr;
+    m_surface = nullptr;
+    m_data_device_manager = nullptr;
     m_enter_serial = 0;
 
-    m_shell = NULL;
-    m_shell_surface = NULL;
+    m_shell = nullptr;
+    m_shell_surface = nullptr;
     m_has_wl_shell = false;
     m_wl_shell_name = 0;
     
-    m_xdg_wm_base = NULL;
-    m_xdg_surface = NULL;
-    m_xdg_toplevel = NULL;
+    m_xdg_wm_base = nullptr;
+    m_xdg_surface = nullptr;
+    m_xdg_toplevel = nullptr;
     m_has_xdg_wm_base = false;
     m_xdg_wm_base_name = 0;
     
-    m_zxdg_shell = NULL;
-    m_zxdg_surface = NULL;
-    m_zxdg_toplevel = NULL;
+    m_zxdg_shell = nullptr;
+    m_zxdg_surface = nullptr;
+    m_zxdg_toplevel = nullptr;
     m_has_zxdg_shell = false;
     m_zxdg_shell_name = 0;
 	
     m_surface_configured = false;
     
-    m_decoration_manager = NULL;
-    m_decoration = NULL;
+    m_decoration_manager = nullptr;
+    m_decoration = nullptr;
     
-    m_kwin_server_decoration_manager = NULL;
-    m_kwin_server_decoration = NULL;
+    m_kwin_server_decoration_manager = nullptr;
+    m_kwin_server_decoration = nullptr;
 
-    m_xkb_context = NULL;
-    m_xkb_compose_table = NULL;
-    m_xkb_compose_state = NULL;
-    m_xkb_keymap = NULL;
-    m_xkb_state = NULL;
+    m_xkb_context = nullptr;
+    m_xkb_compose_table = nullptr;
+    m_xkb_compose_state = nullptr;
+    m_xkb_keymap = nullptr;
+    m_xkb_state = nullptr;
     m_xkb_alt_mask = 0;
     m_xkb_ctrl_mask = 0;
     m_xkb_shift_mask = 0;
@@ -1464,10 +1464,10 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_window_has_focus = false;
     m_window_minimized = false;
 
-    m_drag_and_drop_check = NULL;
+    m_drag_and_drop_check = nullptr;
     m_dragging_file = false;
 
-    m_clipboard_data_offer = NULL;
+    m_clipboard_data_offer = nullptr;
     m_clipboard_changed = false;
 
     m_selection_serial = 0;
@@ -1478,7 +1478,7 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
 
     m_drag_has_copy = false;
 
-    m_drag_data_offer = NULL;
+    m_drag_data_offer = nullptr;
     m_drag_data_offer_serial = 0;
 
     m_drag_is_dropping = false;
@@ -1664,9 +1664,9 @@ bool CIrrDeviceWayland::initWayland()
         return false;
     }
 
-    m_display = pwl_display_connect(NULL);
+    m_display = pwl_display_connect(nullptr);
     
-    if (m_display == NULL)
+    if (m_display == nullptr)
     {
         os::Printer::log("Couldn't open display.", ELL_ERROR);
         return false;
@@ -1674,7 +1674,7 @@ bool CIrrDeviceWayland::initWayland()
     
     m_xkb_context = CIrrDeviceWayland::pxkb_context_new(XKB_CONTEXT_NO_FLAGS);
     
-    if (m_xkb_context == NULL)
+    if (m_xkb_context == nullptr)
     {
         os::Printer::log("Couldn't create xkb context.", ELL_ERROR);
         return false;
@@ -1687,7 +1687,7 @@ bool CIrrDeviceWayland::initWayland()
     pwl_display_dispatch(m_display);
     pwl_display_roundtrip(m_display);
     
-    if (m_compositor == NULL || m_seat == NULL || m_output == NULL)
+    if (m_compositor == nullptr || m_seat == nullptr || m_output == nullptr)
     {
         os::Printer::log("Important protocols are not available.", ELL_ERROR);
         return false;
@@ -1741,7 +1741,7 @@ bool CIrrDeviceWayland::createWindow()
 
     m_egl_window = pwl_egl_window_create(m_surface, m_width, m_height);
 
-    if (m_xdg_wm_base != NULL)
+    if (m_xdg_wm_base != nullptr)
     {
         m_xdg_surface = xdg_wm_base_get_xdg_surface(m_xdg_wm_base, m_surface);
         
@@ -1757,7 +1757,7 @@ bool CIrrDeviceWayland::createWindow()
                                     
         if (CreationParams.Fullscreen)
         {
-            xdg_toplevel_set_fullscreen(m_xdg_toplevel, NULL);
+            xdg_toplevel_set_fullscreen(m_xdg_toplevel, nullptr);
         }
         
         xdg_surface_set_window_geometry(m_xdg_surface, 0, 0, m_width, m_height);
@@ -1767,7 +1767,7 @@ bool CIrrDeviceWayland::createWindow()
             pwl_display_dispatch(m_display);
             usleep(1000);
         }
-    } else if (m_zxdg_shell != NULL)
+    } else if (m_zxdg_shell != nullptr)
     {
         m_zxdg_surface = zxdg_shell_v6_get_xdg_surface(m_zxdg_shell, m_surface);
         
@@ -1783,7 +1783,7 @@ bool CIrrDeviceWayland::createWindow()
                                     
         if (CreationParams.Fullscreen)
         {
-            zxdg_toplevel_v6_set_fullscreen(m_zxdg_toplevel, NULL);
+            zxdg_toplevel_v6_set_fullscreen(m_zxdg_toplevel, nullptr);
         }
         
         zxdg_surface_v6_set_window_geometry(m_zxdg_surface, 0, 0, m_width, m_height);
@@ -1794,7 +1794,7 @@ bool CIrrDeviceWayland::createWindow()
             usleep(1000);
         }
     }
-    else if (m_shell != NULL)
+    else if (m_shell != nullptr)
     {
         m_shell_surface = wl_shell_get_shell_surface(m_shell, m_surface);
 
@@ -1818,26 +1818,26 @@ bool CIrrDeviceWayland::createWindow()
         return false;
     }
         
-    if (m_decoration_manager != NULL)
+    if (m_decoration_manager != nullptr)
     {
         m_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
                                     m_decoration_manager, m_xdg_toplevel);
     }
                                                        
-    if (m_decoration != NULL)
+    if (m_decoration != nullptr)
     {
         zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
                             ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     }
         
-    if (m_kwin_server_decoration_manager != NULL)
+    if (m_kwin_server_decoration_manager != nullptr)
     {
         m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
                                     m_kwin_server_decoration_manager, m_surface);
     }
 		
                                                        
-    if (m_kwin_server_decoration != NULL)
+    if (m_kwin_server_decoration != nullptr)
     {
         org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
     }
@@ -1850,7 +1850,7 @@ bool CIrrDeviceWayland::createWindow()
     if (m_shm)
     {
         m_cursor_surface = wl_compositor_create_surface(m_compositor);
-        m_cursor_theme = pwl_cursor_theme_load(NULL, 32, m_shm);
+        m_cursor_theme = pwl_cursor_theme_load(nullptr, 32, m_shm);
     }
 
     if (!m_cursor_theme)
@@ -1915,7 +1915,7 @@ void CIrrDeviceWayland::updateCursor()
 
     if (!getCursorControl()->isVisible())
     {
-        wl_pointer_set_cursor(m_pointer, m_enter_serial, NULL, 0, 0);
+        wl_pointer_set_cursor(m_pointer, m_enter_serial, nullptr, 0, 0);
     }
     else
     {
@@ -1971,7 +1971,7 @@ bool CIrrDeviceWayland::run()
 void CIrrDeviceWayland::yield()
 {
     struct timespec ts = {0,1};
-    nanosleep(&ts, NULL);
+    nanosleep(&ts, nullptr);
 }
 
 //! Pause execution and let other processes to run for a specified amount of time.
@@ -1988,7 +1988,7 @@ void CIrrDeviceWayland::sleep(u32 timeMs, bool pauseTimer = false)
         Timer->stop();
     }
 
-    nanosleep(&ts, NULL);
+    nanosleep(&ts, nullptr);
 
     if (pauseTimer && !wasStopped)
     {
@@ -2015,6 +2015,8 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
     {
         wl_shell_surface_set_title(m_shell_surface, title);
     }
+	
+    delete[] title;
 }
 
 //! presents a surface in the client area
@@ -2204,7 +2206,7 @@ void CIrrDeviceWayland::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::
     if(enable)
         m_drag_and_drop_check = dragCheck;
     else
-        m_drag_and_drop_check = NULL;
+        m_drag_and_drop_check = nullptr;
 }
 
 void CIrrDeviceWayland::createKeyMap()
