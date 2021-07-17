@@ -15,6 +15,10 @@
 #include "SExposedVideoData.h"
 #include "IContextManager.h"
 
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+#include "CIrrDeviceWayland.h"
+#endif
+
 namespace irr
 {
 namespace video
@@ -25,6 +29,10 @@ namespace video
 	public:
 		//! Constructor.
 		CEGLManager();
+
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+		CEGLManager(CIrrDeviceWayland* wayland_device);
+#endif
 
 		//! Destructor.
 		virtual ~CEGLManager();
@@ -125,6 +133,9 @@ namespace video
 #endif
 #include "CEGLFunctions.inl"
 #undef EGL_FUNC
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+		CIrrDeviceWayland* WaylandDevice;
+#endif
 	};
 }
 }

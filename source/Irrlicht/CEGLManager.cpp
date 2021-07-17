@@ -37,11 +37,20 @@ CEGLManager::CEGLManager() : IContextManager(), EglWindow(0), EglDisplay(EGL_NO_
 #include "CEGLFunctions.inl"
 #undef EGL_FUNC
 #endif
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+	, WaylandDevice(nullptr)
+#endif
 {
 	#ifdef _DEBUG
 	setDebugName("CEGLManager");
 	#endif
 }
+
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+CEGLManager::CEGLManager(CIrrDeviceWayland* wayland_device) : CEGLManager() {
+	WaylandDevice = wayland_device;
+}
+#endif
 
 CEGLManager::~CEGLManager()
 {
@@ -633,7 +642,12 @@ const SExposedVideoData& CEGLManager::getContext() const
 
 bool CEGLManager::swapBuffers()
 {
-    return (peglSwapBuffers(EglDisplay, EglSurface)==EGL_TRUE);
+	auto result = peglSwapBuffers(EglDisplay, EglSurface) == EGL_TRUE;
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+	if(WaylandDevice)
+		WaylandDevice->checkPendingResizes();
+#endif
+	return result;
 }
 
 void CEGLManager::swapInterval(int interval)

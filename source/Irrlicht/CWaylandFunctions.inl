@@ -1,6 +1,7 @@
 #ifdef WAYLAND_EGL_CORE
 WAYLAND_FUNC(wl_egl_window_destroy, void, wl_egl_window* egl_window)
 WAYLAND_FUNC(wl_egl_window_create, wl_egl_window*, wl_surface* surface, int width, int height)
+WAYLAND_FUNC(wl_egl_window_resize, void, wl_egl_window* egl_window, int width, int height, int dx, int dy)
 #endif
 #ifdef WAYLAND_CURSOR
 WAYLAND_FUNC(wl_cursor_theme_destroy, void, wl_cursor_theme* theme)

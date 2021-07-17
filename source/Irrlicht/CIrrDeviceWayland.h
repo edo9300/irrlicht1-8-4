@@ -149,6 +149,8 @@ namespace irr
         }
 
         static bool isWaylandDeviceWorking();
+
+        void checkPendingResizes();
 		
         void updateCursor();
         unsigned int getWidth() {return m_width;}
@@ -408,6 +410,14 @@ namespace irr
         wl_data_offer* m_drag_data_offer;
         uint32_t m_drag_data_offer_serial;
         bool m_drag_is_dropping;
+
+        struct {
+            int32_t width;
+            int32_t height;
+            uint32_t serial;
+            bool configure;
+            bool pending;
+        } m_resizing_state;
 
         bool initWayland();
         void createDriver();

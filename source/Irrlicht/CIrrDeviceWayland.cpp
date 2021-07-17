@@ -784,6 +784,17 @@ public:
                                         uint32_t edges, int32_t width,
                                         int32_t height)
     {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+        if(width == 0 || height == 0) {
+            return;
+        }
+
+        if(!device->CreationParams.Fullscreen && !device->CreationParams.WindowResizable)
+            return;
+
+        device->m_resizing_state.width = width;
+        device->m_resizing_state.height = height;
+        device->m_resizing_state.pending = true;
     }
 
     static void shell_surface_popup_done(void* data,
@@ -807,33 +818,56 @@ public:
                                       uint32_t serial)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
-        xdg_surface_ack_configure(surface, serial);
-        
-        device->m_surface_configured = true;
+
+        if(!device->m_surface_configured) {
+
+            CIrrDeviceWayland::pwl_egl_window_resize(device->m_egl_window, device->m_width, device->m_height, 0, 0);
+
+            xdg_surface_ack_configure(surface, serial);
+
+            wl_region* region = wl_compositor_create_region(device->m_compositor);
+            wl_region_add(region, 0, 0, device->m_width, device->m_height);
+            wl_surface_set_opaque_region(device->m_surface, region);
+            wl_region_destroy(region);
+
+            device->m_surface_configured = true;
+        } else {
+            device->m_resizing_state.pending = true;
+            device->m_resizing_state.configure = true;
+            device->m_resizing_state.serial = serial;
+        }
     }
     
     static void xdg_toplevel_configure(void* data, xdg_toplevel* toplevel,
                                        int32_t width, int32_t height,
                                        wl_array* states)
     {
-        //void* state_p;
-        
-        //wl_array_for_each(state_p, states) 
-        //{
-        //    uint32_t state = *(uint32_t*)state_p;
-        //    
-        //    switch (state) 
-        //    {
-        //    case ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN:
-        //    case ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED:
-        //    case ZXDG_TOPLEVEL_V6_STATE_ACTIVATED:
-        //    case ZXDG_TOPLEVEL_V6_STATE_RESIZING:
-        //        break;
-        //    default:
-        //        break;
-        //    }
-        //}
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+
+        void* state_p;
+        bool fullscreen = false;
+        wl_array_for_each(state_p, states) {
+            if(*(xdg_toplevel_state*)state_p == XDG_TOPLEVEL_STATE_FULLSCREEN) {
+                fullscreen = true;
+            }
+        }
+        if(width == 0 || height == 0) {
+            width = device->m_width;
+            height = device->m_height;
+        }
+
+        if(!fullscreen) {
+
+            /* zxdg_toplevel spec states that this is a suggestion.
+               Ignore if less than or greater than max/min size. */
+
+            if(!device->CreationParams.WindowResizable) {
+                width = device->m_width;
+                height = device->m_height;
+            }
+        }
+        device->m_resizing_state.width = width;
+        device->m_resizing_state.height = height;
     }
     
     static void xdg_toplevel_close(void* data, xdg_toplevel* xdg_toplevel)
@@ -847,33 +881,56 @@ public:
                                       uint32_t serial)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
-        zxdg_surface_v6_ack_configure(surface, serial);
-        
-        device->m_surface_configured = true;
+
+        if(!device->m_surface_configured) {
+
+            CIrrDeviceWayland::pwl_egl_window_resize(device->m_egl_window, device->m_width, device->m_height, 0, 0);
+
+            zxdg_surface_v6_ack_configure(surface, serial);
+
+            wl_region* region = wl_compositor_create_region(device->m_compositor);
+            wl_region_add(region, 0, 0, device->m_width, device->m_height);
+            wl_surface_set_opaque_region(device->m_surface, region);
+            wl_region_destroy(region);
+
+            device->m_surface_configured = true;
+        } else {
+            device->m_resizing_state.pending = true;
+            device->m_resizing_state.configure = true;
+            device->m_resizing_state.serial = serial;
+        }
     }
     
     static void zxdg_toplevel_configure(void* data, zxdg_toplevel_v6* toplevel,
                                        int32_t width, int32_t height,
                                        wl_array* states)
     {
-        //void* state_p;
-        
-        //wl_array_for_each(state_p, states) 
-        //{
-        //    uint32_t state = *(uint32_t*)state_p;
-        //    
-        //    switch (state) 
-        //    {
-        //    case ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN:
-        //    case ZXDG_TOPLEVEL_V6_STATE_MAXIMIZED:
-        //    case ZXDG_TOPLEVEL_V6_STATE_ACTIVATED:
-        //    case ZXDG_TOPLEVEL_V6_STATE_RESIZING:
-        //        break;
-        //    default:
-        //        break;
-        //    }
-        //}
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+
+        void* state_p;
+        bool fullscreen = false;
+        wl_array_for_each(state_p, states) {
+            if(*(zxdg_toplevel_v6_state*)state_p == ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN) {
+                fullscreen = true;
+            }
+        }
+        if(width == 0 || height == 0) {
+            width = device->m_width;
+            height = device->m_height;
+        }
+
+        if(!fullscreen) {
+
+            /* zxdg_toplevel spec states that this is a suggestion.
+               Ignore if less than or greater than max/min size. */
+
+            if(!device->CreationParams.WindowResizable) {
+                width = device->m_width;
+                height = device->m_height;
+            }
+        }
+        device->m_resizing_state.width = width;
+        device->m_resizing_state.height = height;
     }
     
     static void zxdg_toplevel_close(void* data, zxdg_toplevel_v6* zxdg_toplevel_v6)
@@ -1482,6 +1539,9 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_drag_data_offer_serial = 0;
 
     m_drag_is_dropping = false;
+
+    m_resizing_state.configure = false;
+    m_resizing_state.pending = false;
     
     #ifdef _DEBUG
     setDebugName("CIrrDeviceWayland");
@@ -1754,6 +1814,7 @@ bool CIrrDeviceWayland::createWindow()
                                   &WaylandCallbacks::toplevel_listener, this);
 
         wl_surface_commit(m_surface);
+        pwl_display_flush(m_display);
                                     
         if (CreationParams.Fullscreen)
         {
@@ -1764,6 +1825,7 @@ bool CIrrDeviceWayland::createWindow()
                                     
         while (!m_surface_configured)
         {
+            pwl_display_flush(m_display);
             pwl_display_dispatch(m_display);
             usleep(1000);
         }
@@ -1780,6 +1842,7 @@ bool CIrrDeviceWayland::createWindow()
                                   &WaylandCallbacks::zxdg_toplevel_listener, this);
 
         wl_surface_commit(m_surface);
+        pwl_display_flush(m_display);
                                     
         if (CreationParams.Fullscreen)
         {
@@ -1790,6 +1853,7 @@ bool CIrrDeviceWayland::createWindow()
                                     
         while (!m_surface_configured)
         {
+            pwl_display_flush(m_display);
             pwl_display_dispatch(m_display);
             usleep(1000);
         }
@@ -1858,6 +1922,8 @@ bool CIrrDeviceWayland::createWindow()
         os::Printer::log("Couldn't load cursor theme.", ELL_ERROR);
     }
 
+    pwl_display_flush(m_display);
+
     return true;
 }
 
@@ -1871,7 +1937,7 @@ void CIrrDeviceWayland::createDriver()
         video::SExposedVideoData data;
         data.OpenGLWayland.EGLWindow = m_egl_window;
         data.OpenGLWayland.EGLDisplay = m_display;
-        ContextManager = new video::CEGLManager();
+        ContextManager = new video::CEGLManager(this);
         if(!ContextManager->initialize(CreationParams, data)) {
             os::Printer::log("Failed to initialize OpenGL context.", ELL_ERROR);
             break;
@@ -1888,7 +1954,7 @@ void CIrrDeviceWayland::createDriver()
         video::SExposedVideoData data;
         data.OpenGLWayland.EGLWindow = m_egl_window;
         data.OpenGLWayland.EGLDisplay = m_display;
-        ContextManager = new video::CEGLManager();
+        ContextManager = new video::CEGLManager(this);
         if(!ContextManager->initialize(CreationParams, data)) {
             os::Printer::log("Failed to initialize OpenGL-ES2 context.", ELL_ERROR);
             break;
@@ -1906,6 +1972,35 @@ void CIrrDeviceWayland::createDriver()
         os::Printer::log("Wayland driver only supports OpenGL.", ELL_ERROR);
         break;
     }
+}
+
+void CIrrDeviceWayland::checkPendingResizes()
+{
+    if(!m_resizing_state.pending)
+        return;
+    m_width = m_resizing_state.width;
+    m_height = m_resizing_state.height;
+    getVideoDriver()->OnResize(irr::core::dimension2du((u32)m_width, (u32)m_height));
+
+    //wl_surface_set_buffer_scale(data->surface, data->scale_factor);
+    pwl_egl_window_resize(m_egl_window, m_width, m_height, 0, 0);
+
+    if(m_resizing_state.configure) {
+        if(m_xdg_surface) {
+            xdg_surface_ack_configure(m_xdg_surface, m_resizing_state.serial);
+        } else if(m_zxdg_surface) {
+            zxdg_surface_v6_ack_configure(m_zxdg_surface, m_resizing_state.serial);
+        }
+        m_resizing_state.configure = false;
+    }
+
+    wl_region* region = wl_compositor_create_region(m_compositor);
+    wl_region_add(region, 0, 0, m_width, m_height);
+    wl_surface_set_opaque_region(m_surface, region);
+    wl_region_destroy(region);
+
+    m_resizing_state.pending = false;
+    pwl_display_flush(m_display);
 }
 
 void CIrrDeviceWayland::updateCursor()
@@ -2015,7 +2110,9 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
     {
         wl_shell_surface_set_title(m_shell_surface, title);
     }
-	
+
+    pwl_display_flush(m_display);
+
     delete[] title;
 }
 
@@ -2059,13 +2156,16 @@ video::ECOLOR_FORMAT CIrrDeviceWayland::getColorFormat() const
 //! Sets if the window should be resizable in windowed mode.
 void CIrrDeviceWayland::setResizable(bool resize)
 {
+    CreationParams.WindowResizable = resize;
+    int width = resize ? 0 : m_width;
+    int height = resize ? 0 : m_height;
     if (m_xdg_toplevel)
-    {
-        int width = resize ? 0 : m_width;
-        int height = resize ? 0 : m_height;
-        
+    {        
         xdg_toplevel_set_min_size(m_xdg_toplevel, width, height);
         xdg_toplevel_set_max_size(m_xdg_toplevel, width, height);
+    } else if(m_zxdg_shell) {
+        zxdg_toplevel_v6_set_min_size(m_zxdg_toplevel, width, height);
+        zxdg_toplevel_v6_set_max_size(m_zxdg_toplevel, width, height);
     }
 }
 
