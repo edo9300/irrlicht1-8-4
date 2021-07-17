@@ -129,7 +129,6 @@ static int URIDecode(char* buf, int len) {
     int ri, wi, di;
     char decode = '\0';
     if(buf == NULL || len < 0) {
-        errno = EINVAL;
         return -1;
     }
     if(len == 0) {
