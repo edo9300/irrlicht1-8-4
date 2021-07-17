@@ -821,6 +821,8 @@ public:
 
         if(!device->m_surface_configured) {
 
+            device->m_width = device->m_resizing_state.width;
+            device->m_height = device->m_resizing_state.height;
             CIrrDeviceWayland::pwl_egl_window_resize(device->m_egl_window, device->m_width, device->m_height, 0, 0);
 
             xdg_surface_ack_configure(surface, serial);
@@ -884,6 +886,8 @@ public:
 
         if(!device->m_surface_configured) {
 
+            device->m_width = device->m_resizing_state.width;
+            device->m_height = device->m_resizing_state.height;
             CIrrDeviceWayland::pwl_egl_window_resize(device->m_egl_window, device->m_width, device->m_height, 0, 0);
 
             zxdg_surface_v6_ack_configure(surface, serial);
@@ -1987,8 +1991,10 @@ void CIrrDeviceWayland::checkPendingResizes()
 
     if(m_resizing_state.configure) {
         if(m_xdg_surface) {
+            xdg_surface_set_window_geometry(m_xdg_surface, 0, 0, m_width, m_height);
             xdg_surface_ack_configure(m_xdg_surface, m_resizing_state.serial);
         } else if(m_zxdg_surface) {
+            zxdg_surface_v6_set_window_geometry(m_zxdg_surface, 0, 0, m_width, m_height);
             zxdg_surface_v6_ack_configure(m_zxdg_surface, m_resizing_state.serial);
         }
         m_resizing_state.configure = false;
