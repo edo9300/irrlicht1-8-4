@@ -295,6 +295,10 @@ public:
             {
                 xdg_toplevel_move(device->m_xdg_toplevel, device->m_seat, serial);
             }
+            else if (device->m_zxdg_toplevel)
+            {
+                zxdg_toplevel_v6_move(device->m_zxdg_toplevel, device->m_seat, serial);
+            }
             else if (device->m_shell_surface)
             {
                 wl_shell_surface_move(device->m_shell_surface, device->m_seat, serial);
