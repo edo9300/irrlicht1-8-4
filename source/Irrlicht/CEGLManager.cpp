@@ -406,10 +406,10 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 #ifdef EGL_VERSION_1_3
 	EGLint attribRenderableType = 0;
 	peglGetConfigAttrib( EglDisplay, config, EGL_RENDERABLE_TYPE, &attribRenderableType);
-	if  ( attribRenderableType != eglOpenGLBIT )
+	if  ( !(attribRenderableType & eglOpenGLBIT) )
 	{
 		if ( log )
-			os::Printer::log("EGL_RENDERABLE_TYPE != eglOpenGLBIT");
+			os::Printer::log("!(EGL_RENDERABLE_TYPE & eglOpenGLBIT)");
 		return -1;
 	}
 #endif
