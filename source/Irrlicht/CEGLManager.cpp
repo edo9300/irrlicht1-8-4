@@ -176,9 +176,11 @@ bool CEGLManager::generateSurface()
 	EglWindow = (ANativeWindow*)Data.OGLESAndroid.Window;
 #endif
 
-#if defined(_IRR_EMSCRIPTEN_PLATFORM_)
-	// peglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
+#if defined(_IRR_EMSCRIPTEN_PLATFORM_) || (defined(__linux__) && !defined(__ANDROID__))
+	// eglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
 	// But the other solution would also be fine as it also only generates a single context so there is not much to choose from.
+	// We also need to manually choose the config under wayland devices, as some compositors might ignore the opacity hints, thus
+	// we need to be 100% sure the selected configuration doesn't have an alpha channel if not wanted
 	EglConfig = chooseConfig(ECS_IRR_CHOOSE);
 #else
 	EglConfig = chooseConfig(ECS_EGL_CHOOSE_FIRST_LOWER_EXPECTATIONS);
@@ -418,7 +420,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	if ( attribSurfaceType != EGL_WINDOW_BIT )
 	{
 		if ( log )
-			os::Printer::log("EGL_SURFACE_TYPE!= EGL_WINDOW_BIT");
+			os::Printer::log("EGL_SURFACE_TYPE != EGL_WINDOW_BIT");
 		return -1;
 	}
 
@@ -480,7 +482,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 	{
 		if ( log )
 			os::Printer::log("Got alpha (unrequested).", ELL_DEBUG);
-		rating ++;
+		rating += 100;
 	}
 
 	EGLint attribStencilSize = 0;
