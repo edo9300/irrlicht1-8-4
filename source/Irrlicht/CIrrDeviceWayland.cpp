@@ -1291,12 +1291,6 @@ public:
     {
     }
 
-
-    static void get_next_frame(uint32_t time)
-    {
-
-    }
-
     static void surface_frame_done(void* data, wl_callback* cb, uint32_t time)
     {
         CIrrDeviceWayland::CCursorControl* cursor_control = (CIrrDeviceWayland::CCursorControl*)data;
