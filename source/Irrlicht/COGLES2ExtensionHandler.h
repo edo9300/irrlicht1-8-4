@@ -49,7 +49,9 @@ namespace video
 			case EVDF_VERTEX_SHADER_2_0:
 			case EVDF_ARB_GLSL:
 			case EVDF_TEXTURE_NSQUARE:
+#ifndef _IRR_COMPILE_WITH_IOS_DEVICE_ //always treat ios devices as not supporting power of 2 textures
 			case EVDF_TEXTURE_NPOT:
+#endif
 			case EVDF_FRAMEBUFFER_OBJECT:
 			case EVDF_VERTEX_BUFFER_OBJECT:
 			case EVDF_COLOR_MASK:
@@ -60,6 +62,9 @@ namespace video
 			case EVDF_TEXTURE_MATRIX:
 			case EVDF_TEXTURE_CUBEMAP:
 				return true;
+#ifdef _IRR_COMPILE_WITH_IOS_DEVICE_
+			case EVDF_TEXTURE_NPOT:
+#endif
 			case EVDF_ARB_VERTEX_PROGRAM_1:
 			case EVDF_ARB_FRAGMENT_PROGRAM_1:
 			case EVDF_GEOMETRY_SHADER:
