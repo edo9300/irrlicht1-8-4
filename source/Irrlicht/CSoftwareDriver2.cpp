@@ -304,7 +304,7 @@ CBurningVideoDriver::CBurningVideoDriver(const irr::SIrrlichtCreationParameters&
 	//BurningShader[ETR_FLAT] = createTRFlat2(DepthBuffer);
 	//BurningShader[ETR_FLAT_WIRE] = createTRFlatWire2(DepthBuffer);
 	BurningShader[ETR_GOURAUD] = createTriangleRendererGouraud2(this);
-	BurningShader[ETR_GOURAUD_NOZ] = createTriangleRendererGouraudNoZ2(this);
+	//BurningShader[ETR_GOURAUD_NOZ] = createTriangleRendererGouraudNoZ2(this);
 	//BurningShader[ETR_GOURAUD_ALPHA] = createTriangleRendererGouraudAlpha2(this );
 	BurningShader[ETR_GOURAUD_ALPHA_NOZ] = createTRGouraudAlphaNoZ2(this); // 2D
 	//BurningShader[ETR_GOURAUD_WIRE] = createTriangleRendererGouraudWire2(DepthBuffer);
@@ -334,7 +334,7 @@ CBurningVideoDriver::CBurningVideoDriver(const irr::SIrrlichtCreationParameters&
 	BurningShader[ETR_TRANSPARENT_REFLECTION_2_LAYER] = createTriangleRendererTexture_transparent_reflection_2_layer(this);
 	//BurningShader[ETR_REFERENCE] = createTriangleRendererReference ( this );
 
-	BurningShader[ETR_COLOR] = create_burning_shader_color(this);
+	//BurningShader[ETR_COLOR] = create_burning_shader_color(this);
 
 	// add the same renderer for all solid types
 	CSoftware2MaterialRenderer_SOLID* smr = new CSoftware2MaterialRenderer_SOLID(this);
