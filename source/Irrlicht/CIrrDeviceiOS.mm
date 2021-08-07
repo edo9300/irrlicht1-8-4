@@ -202,18 +202,22 @@ namespace irr
 	irr::SEvent ev;
 	ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
 	ev.TouchInput.Event = irr::ETIE_PRESSED_DOWN;
-    
-	for (UITouch* touch in touches)
-	{
-        ev.TouchInput.ID = (size_t)touch;
-
-		CGPoint touchPoint = [touch locationInView:self];
-        
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
-
+	ev.TouchInput.touchedCount = (irr::s32)[touches count];
+    if(ev.TouchInput.touchedCount > 1) {
         Device->postEventFromUser(ev);
-	}
+    } else {
+        for (UITouch* touch in touches)
+        {
+            ev.TouchInput.ID = (size_t)touch;
+
+            CGPoint touchPoint = [touch locationInView:self];
+			
+            ev.TouchInput.X = touchPoint.x*Scale;
+            ev.TouchInput.Y = touchPoint.y*Scale;
+
+            Device->postEventFromUser(ev);
+        }
+    }
 }
 
 - (void)touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event
@@ -240,18 +244,22 @@ namespace irr
 	irr::SEvent ev;
 	ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
 	ev.TouchInput.Event = irr::ETIE_LEFT_UP;
-    
-	for (UITouch* touch in touches)
-	{
-        ev.TouchInput.ID = (size_t)touch;
-
-		CGPoint touchPoint = [touch locationInView:self];
-        
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
-        
+	ev.TouchInput.touchedCount = (irr::s32)[touches count];
+    if(ev.TouchInput.touchedCount > 1) {
         Device->postEventFromUser(ev);
-	}
+    } else {
+        for (UITouch* touch in touches)
+        {
+            ev.TouchInput.ID = (size_t)touch;
+
+	        CGPoint touchPoint = [touch locationInView:self];
+
+            ev.TouchInput.X = touchPoint.x*Scale;
+            ev.TouchInput.Y = touchPoint.y*Scale;
+
+            Device->postEventFromUser(ev);
+        }
+    }
 }
 
 - (void)touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event
@@ -259,18 +267,22 @@ namespace irr
 	irr::SEvent ev;
 	ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
 	ev.TouchInput.Event = irr::ETIE_LEFT_UP;
-    
-	for (UITouch* touch in touches)
-	{
-        ev.TouchInput.ID = (size_t)touch;
-
-		CGPoint touchPoint = [touch locationInView:self];
-        
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
-        
+	ev.TouchInput.touchedCount = (irr::s32)[touches count];
+    if(ev.TouchInput.touchedCount > 1) {
         Device->postEventFromUser(ev);
-	}
+    } else {
+        for (UITouch* touch in touches)
+        {
+            ev.TouchInput.ID = (size_t)touch;
+
+	        CGPoint touchPoint = [touch locationInView:self];
+
+            ev.TouchInput.X = touchPoint.x*Scale;
+            ev.TouchInput.Y = touchPoint.y*Scale;
+
+            Device->postEventFromUser(ev);
+        }
+    }
 }
 
 @end
