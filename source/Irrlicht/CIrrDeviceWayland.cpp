@@ -71,6 +71,8 @@ namespace irr
                 io::IFileSystem* io, IContextManager* device);
         IVideoDriver* createOGLES2Driver(const SIrrlichtCreationParameters& params,
                 io::IFileSystem* io, IContextManager* device);
+        IVideoDriver* createOGLES1Driver(const SIrrlichtCreationParameters& params,
+                io::IFileSystem* io, IContextManager* device);
     }
 }
 
@@ -1950,6 +1952,23 @@ void CIrrDeviceWayland::createDriver()
         #endif
         break;
 	}
+    case video::EDT_OGLES1:
+	{
+        #ifdef _IRR_COMPILE_WITH_OGLES1_
+        video::SExposedVideoData data;
+        data.OpenGLWayland.EGLWindow = m_egl_window;
+        data.OpenGLWayland.EGLDisplay = m_display;
+        ContextManager = new video::CEGLManager(this);
+        if(!ContextManager->initialize(CreationParams, data)) {
+            os::Printer::log("Failed to initialize OpenGL-ES1 context.", ELL_ERROR);
+            break;
+        }
+        VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
+        #else
+        os::Printer::log("No OpenGL-ES1 support compiled in.", ELL_ERROR);
+        #endif
+        break;
+	}
     case video::EDT_OGLES2:
 	{
         #ifdef _IRR_COMPILE_WITH_OGLES2_
@@ -1971,7 +1990,7 @@ void CIrrDeviceWayland::createDriver()
         VideoDriver = video::createNullDriver(FileSystem, CreationParams.WindowSize);
         break;
     default:
-        os::Printer::log("Wayland driver only supports OpenGL.", ELL_ERROR);
+        os::Printer::log("Wayland driver only supports OpenGL, OpenGL-ES1 and OpenGL-ES2", ELL_ERROR);
         break;
     }
 }
