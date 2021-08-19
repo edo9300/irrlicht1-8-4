@@ -8,7 +8,7 @@
 
 #ifdef _IRR_DYNAMIC_OPENGL_ES_1_
 
-#include "IcontextManager.h"
+#include "IContextManager.h"
 
 namespace irr
 {
