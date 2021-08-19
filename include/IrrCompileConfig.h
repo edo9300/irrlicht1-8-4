@@ -255,7 +255,7 @@ define out. */
 define out.
 Depending on platform you may have to enable _IRR_OGLES1_USE_KHRONOS_API_HEADERS_ as well when using it.
 */
-#if defined(_IRR_ANDROID_PLATFORM_) || defined(_IRR_IOS_PLATFORM_)
+#if defined(_IRR_ANDROID_PLATFORM_) || defined(_IRR_IOS_PLATFORM_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
 #define _IRR_COMPILE_WITH_OGLES1_
 #endif
 #ifdef NO_IRR_COMPILE_WITH_OGLES1_
