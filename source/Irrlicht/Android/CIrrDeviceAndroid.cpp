@@ -33,7 +33,8 @@ namespace irr
 {
 
 CIrrDeviceAndroid::CIrrDeviceAndroid(const SIrrlichtCreationParameters& param)
-	: CIrrDeviceStub(param), Accelerometer(0), Gyroscope(0), Focused(false), Initialized(false), Paused(true), JNIEnvAttachedToVM(0)
+	: CIrrDeviceStub(param), Accelerometer(0), Gyroscope(0), Focused(false), Initialized(false), Paused(true), JNIEnvAttachedToVM(0),
+	LastMouseCursorPosition(0, 0), CurrentMouseButtonState(0)
 {
 #ifdef _DEBUG
 	setDebugName("CIrrDeviceAndroid");
@@ -346,23 +347,104 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			SEvent event;
 			event.EventType = EET_TOUCH_INPUT_EVENT;
 
-			s32 eventAction = AMotionEvent_getAction(androidEvent);
-			s32 eventType =  eventAction & AMOTION_EVENT_ACTION_MASK;
+			const s32 eventAction = AMotionEvent_getAction(androidEvent);
+			const s32 eventType =  eventAction & AMOTION_EVENT_ACTION_MASK;
+			const int32_t metaState = AMotionEvent_getMetaState(androidEvent);
 
 #if 0
+			const auto GetEventName = [&](s32 eventType){
+				#define CASE(X) case X: return core::stringc(#X)
+				switch (eventType)
+				{
+					CASE(AMOTION_EVENT_ACTION_DOWN);
+					CASE(AMOTION_EVENT_ACTION_POINTER_DOWN);
+					CASE(AMOTION_EVENT_ACTION_MOVE);
+					CASE(AMOTION_EVENT_ACTION_UP);
+					CASE(AMOTION_EVENT_ACTION_POINTER_UP);
+					CASE(AMOTION_EVENT_ACTION_CANCEL);
+					CASE(AMOTION_EVENT_ACTION_HOVER_MOVE);
+					CASE(AMOTION_EVENT_ACTION_SCROLL);
+					CASE(AMOTION_EVENT_ACTION_HOVER_ENTER);
+					CASE(AMOTION_EVENT_ACTION_HOVER_EXIT);
+					CASE(AMOTION_EVENT_ACTION_BUTTON_PRESS);
+					CASE(AMOTION_EVENT_ACTION_BUTTON_RELEASE);
+				}
+				#undef CASE
+				return core::stringc(eventType);
+			};
 			// Useful for debugging. We might have to pass some of those infos on at some point.
 			// but preferably device independent (so iphone can use same irrlicht flags).
 			int32_t flags = AMotionEvent_getFlags(androidEvent);
 			os::Printer::log("flags: ", core::stringc(flags).c_str(), ELL_DEBUG);
-			int32_t metaState = AMotionEvent_getMetaState(androidEvent);
 			os::Printer::log("metaState: ", core::stringc(metaState).c_str(), ELL_DEBUG);
 			int32_t edgeFlags = AMotionEvent_getEdgeFlags(androidEvent);
 			os::Printer::log("edgeFlags: ", core::stringc(edgeFlags).c_str(), ELL_DEBUG);
+			int32_t source = AInputEvent_getSource(androidEvent);
+			os::Printer::log("source: ", core::stringc(source).c_str(), ELL_DEBUG);
+			int32_t buttonState = AMotionEvent_getButtonState(androidEvent);
+			os::Printer::log("buttonState: ", core::stringc(buttonState).c_str(), ELL_DEBUG);
+			os::Printer::log("eventType: ", GetEventName(eventType).c_str(), ELL_DEBUG);
 #endif
-
-			bool touchReceived = true;
-			bool mouseReceived = false;
-
+			const bool isMouse = AInputEvent_getSource(androidEvent) == AINPUT_SOURCE_MOUSE ||
+							eventType == AMOTION_EVENT_ACTION_HOVER_MOVE ||
+							eventType == AMOTION_EVENT_ACTION_SCROLL;
+			
+			if(isMouse) {
+				auto GetMouseButtonEvent = [](u32 amotionButton, bool leftUp){
+					switch(amotionButton){
+						case AMOTION_EVENT_BUTTON_PRIMARY:
+							return (leftUp) ? EMIE_LMOUSE_LEFT_UP : EMIE_LMOUSE_PRESSED_DOWN;
+						case AMOTION_EVENT_BUTTON_SECONDARY:
+							return (leftUp) ? EMIE_RMOUSE_LEFT_UP : EMIE_RMOUSE_PRESSED_DOWN;
+						case AMOTION_EVENT_BUTTON_TERTIARY:
+							return (leftUp) ? EMIE_MMOUSE_LEFT_UP : EMIE_MMOUSE_PRESSED_DOWN;
+					}
+				};
+				const size_t mousePointerIdx = eventAction >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+				const s32 mousePointerId = AMotionEvent_getPointerId(androidEvent, mousePointerIdx);
+				event.EventType = EET_MOUSE_INPUT_EVENT;
+				event.MouseInput.Shift = (metaState & AMETA_SHIFT_ON) != 0;
+				event.MouseInput.Control = (metaState & AMETA_CTRL_ON) != 0;
+				event.MouseInput.X = AMotionEvent_getX(androidEvent, mousePointerId);
+				event.MouseInput.Y = AMotionEvent_getY(androidEvent, mousePointerId);
+				switch (eventType)
+				{
+				case AMOTION_EVENT_ACTION_DOWN:
+				case AMOTION_EVENT_ACTION_UP: {
+					static constexpr auto validButtons = AMOTION_EVENT_BUTTON_PRIMARY | AMOTION_EVENT_BUTTON_SECONDARY | AMOTION_EVENT_BUTTON_TERTIARY;
+					const u32 newButtonState = AMotionEvent_getButtonState(androidEvent) & validButtons;
+					if(eventType == AMOTION_EVENT_ACTION_DOWN) {
+						u32 newlyPressed = newButtonState & ~device->CurrentMouseButtonState;
+						if(newlyPressed == 0)
+							return 0;
+						event.MouseInput.Event = GetMouseButtonEvent(newlyPressed, false);
+					} else {
+						u32 leftButton = ~newButtonState & device->CurrentMouseButtonState;
+						if(leftButton == 0)
+							return 0;
+						event.MouseInput.Event = GetMouseButtonEvent(leftButton, true);
+					}
+					device->CurrentMouseButtonState = newButtonState;
+					break;
+				}
+				case AMOTION_EVENT_ACTION_MOVE:
+				case AMOTION_EVENT_ACTION_HOVER_MOVE:
+					event.MouseInput.Event = EMIE_MOUSE_MOVED;
+					break;
+				case AMOTION_EVENT_ACTION_SCROLL:
+					event.MouseInput.Event = EMIE_MOUSE_WHEEL;
+					break;
+				default:
+					os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
+					return 0;
+				}
+				event.MouseInput.ButtonStates = device->CurrentMouseButtonState;
+				device->postEventFromUser(event);
+				device->LastMouseCursorPosition.X = event.MouseInput.X;
+				device->LastMouseCursorPosition.Y = event.MouseInput.Y;
+				break;
+			}
+			
 			switch (eventType)
 			{
 			case AMOTION_EVENT_ACTION_DOWN:
@@ -377,75 +459,40 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			case AMOTION_EVENT_ACTION_CANCEL:
 				event.TouchInput.Event = ETIE_LEFT_UP;
 				break;
-			case AMOTION_EVENT_ACTION_HOVER_MOVE:
-				event.EventType = EET_MOUSE_INPUT_EVENT;
-				event.MouseInput.Event = EMIE_MOUSE_MOVED;
-				mouseReceived = true;
-				break;
-			case AMOTION_EVENT_ACTION_SCROLL:
-				event.EventType = EET_MOUSE_INPUT_EVENT;
-				event.MouseInput.Event = EMIE_MOUSE_WHEEL;
-				mouseReceived = true;
-				break;
 			default:
 				os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
-				touchReceived = false;
 				break;
 			}
 
-			if (mouseReceived) {
-				if(event.MouseInput.Event == EMIE_MOUSE_MOVED) {
-					s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
-					event.MouseInput.Shift = false;
-					event.MouseInput.Control = false;
-					event.MouseInput.ButtonStates = 0;
-
-					for (s32 i = 0; i < pointerCount; ++i)
-					{
-						event.MouseInput.X = AMotionEvent_getX(androidEvent, i);
-						event.MouseInput.Y = AMotionEvent_getY(androidEvent, i);
-
-						device->postEventFromUser(event);
-					}
-				}
-				else
-				{
-					event.MouseInput.Wheel = AMotionEvent_getAxisValue(androidEvent, AMOTION_EVENT_AXIS_VSCROLL, 0);
-					device->postEventFromUser(event);
-				}
-				status = 1;
-			}
-			else if (touchReceived)
+			// Process all touches for move action.
+			if (event.TouchInput.Event == ETIE_MOVED)
 			{
-				// Process all touches for move action.
-				if (event.TouchInput.Event == ETIE_MOVED)
+				s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
+
+				for (s32 i = 0; i < pointerCount; ++i)
 				{
-					s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
-
-					for (s32 i = 0; i < pointerCount; ++i)
-					{
-						event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, i);
-						event.TouchInput.X = AMotionEvent_getX(androidEvent, i);
-						event.TouchInput.Y = AMotionEvent_getY(androidEvent, i);
-						event.TouchInput.touchedCount = pointerCount;
-
-						device->postEventFromUser(event);
-					}
-				}
-				else // Process one touch for other actions.
-				{
-					s32 pointerIndex = (eventAction & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
-
-					event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, pointerIndex);
-					event.TouchInput.X = AMotionEvent_getX(androidEvent, pointerIndex);
-					event.TouchInput.Y = AMotionEvent_getY(androidEvent, pointerIndex);
-					event.TouchInput.touchedCount = AMotionEvent_getPointerCount(androidEvent);
+					event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, i);
+					event.TouchInput.X = AMotionEvent_getX(androidEvent, i);
+					event.TouchInput.Y = AMotionEvent_getY(androidEvent, i);
+					event.TouchInput.touchedCount = pointerCount;
 
 					device->postEventFromUser(event);
 				}
-
-				status = 1;
+					
 			}
+			else // Process one touch for other actions.
+			{
+				s32 pointerIndex = (eventAction & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+
+				event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, pointerIndex);
+				event.TouchInput.X = AMotionEvent_getX(androidEvent, pointerIndex);
+				event.TouchInput.Y = AMotionEvent_getY(androidEvent, pointerIndex);
+				event.TouchInput.touchedCount = AMotionEvent_getPointerCount(androidEvent);
+
+				device->postEventFromUser(event);
+			}
+
+			status = 1;
 		}
 		break;
 		case AINPUT_EVENT_TYPE_KEY:
@@ -458,6 +505,31 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 
 			int32_t keyAction = AKeyEvent_getAction(androidEvent);
 			int32_t keyMetaState = AKeyEvent_getMetaState(androidEvent);
+			
+			if(keyCode == AKEYCODE_BACK) {
+				//Android sends right mouse button always as a keycode back with source mouse,
+				//map it to a proper mouse event instead
+				status=1;
+				if(AInputEvent_getSource(androidEvent) != AINPUT_SOURCE_MOUSE)
+					break;
+				if(keyAction != AKEY_EVENT_ACTION_DOWN && keyAction != AKEY_EVENT_ACTION_UP)
+					break;
+				if(keyAction == AKEY_EVENT_ACTION_DOWN){
+					if(device->CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY)
+						break;
+					device->CurrentMouseButtonState |= AMOTION_EVENT_BUTTON_SECONDARY;
+				} else
+					device->CurrentMouseButtonState &= ~AMOTION_EVENT_BUTTON_SECONDARY;
+				event.EventType = EET_MOUSE_INPUT_EVENT;
+				event.MouseInput.Shift = (keyMetaState & AMETA_SHIFT_ON) != 0;
+				event.MouseInput.Control = (keyMetaState & AMETA_CTRL_ON) != 0;
+				event.MouseInput.Event = (device->CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY) ? EMIE_RMOUSE_PRESSED_DOWN : EMIE_RMOUSE_LEFT_UP;
+				event.MouseInput.X = device->LastMouseCursorPosition.X;
+				event.MouseInput.Y = device->LastMouseCursorPosition.Y;
+				event.MouseInput.ButtonStates = device->CurrentMouseButtonState;
+				device->postEventFromUser(event);
+				break;
+			}
 
 			if ( keyCode >= 0 && (u32)keyCode < device->KeyMap.size() )
 				event.KeyInput.Key = device->KeyMap[keyCode];

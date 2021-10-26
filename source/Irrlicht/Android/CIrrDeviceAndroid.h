@@ -99,6 +99,9 @@ namespace irr
 		video::SExposedVideoData ExposedVideoData;
 
 		core::array<EKEY_CODE> KeyMap;
+		
+		core::position2di LastMouseCursorPosition;
+		u32 CurrentMouseButtonState;
 	};
 
 } // end namespace irr
