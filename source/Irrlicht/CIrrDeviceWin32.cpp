@@ -1795,13 +1795,26 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 				case 10:
 					switch(osvi.dwMinorVersion) {
 						case 0:
-							if(osvi.wProductType == VER_NT_WORKSTATION)
-								out.append("10 ");
-							else {
-								if(osvi.dwBuildNumber == 14393)
-									out.append("Server 2016 ");
-								else if(osvi.dwBuildNumber == 17763)
-									out.append("Server 2019 ");
+							if(osvi.wProductType == VER_NT_WORKSTATION) {
+								if(osvi.dwBuildNumber >= 22000)
+									out.append("11 ");
+								else
+									out.append("10 ");
+							} else {
+								out.append("Server ");
+								switch(osvi.dwBuildNumber) {
+								case 14393:
+									out.append("2016 ");
+									break;
+								case 17763:
+									out.append("2019 ");
+									break;
+								case 20348:
+									out.append("2022 ");
+									break;
+								default:
+									break;
+								}
 							}
 							break;
 					}
