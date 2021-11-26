@@ -1562,6 +1562,7 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     linuxversion += LinuxInfo.version;
     linuxversion += " ";
     linuxversion += LinuxInfo.machine;
+    linuxversion += " (Wayland)";
 
     Operator = new COSOperator(linuxversion, this);
     os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);

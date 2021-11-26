@@ -149,6 +149,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	linuxversion += LinuxInfo.version;
 	linuxversion += " ";
 	linuxversion += LinuxInfo.machine;
+	linuxversion += " (X11)";
 	
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	if(!libx11.Init()) {
