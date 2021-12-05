@@ -964,6 +964,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if ((wParam & 0xFFF0) == SC_SCREENSAVE ||
 			(wParam & 0xFFF0) == SC_MONITORPOWER)
 			return 0;
+		if((wParam & 0xFFFF) == 1) {
+			MessageBox(hWnd, __TEXT("Congratulations, here's a cookie ;)"), __TEXT("Easter egg"), MB_ICONINFORMATION|MB_OK);
+			return 0;
+		}
 
 		break;
 
@@ -1161,6 +1165,10 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		{
 			os::Printer::log("Window could not be created.", ELL_ERROR);
 		}
+
+		HMENU menu = GetSystemMenu(HWnd, FALSE);
+		AppendMenu(menu, MF_SEPARATOR, 1, NULL);
+		AppendMenu(menu, MF_STRING, 1, __TEXT("Click me"));
 
 		CreationParams.WindowId = HWnd;
 //		CreationParams.WindowSize.Width = realWidth;
