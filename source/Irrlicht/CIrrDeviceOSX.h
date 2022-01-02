@@ -123,6 +123,8 @@ namespace irr
 		void processKeyEvent();
 
 		void presentSoftwareImage(NSRect dirtyRect);
+		
+		NSCursor* getCurrentNSCursor();
 
 	private:
 
@@ -227,6 +229,19 @@ namespace irr
 				else
 					UseReferenceRect = false;
 			}
+			
+			//! Sets the active cursor icon
+			virtual void setActiveIcon(gui::ECURSOR_ICON iconId) _IRR_OVERRIDE_
+			{
+				ActiveIcon = iconId;
+				Device->changeCursorIcon(ActiveIcon);
+			}
+
+			//! Gets the currently active icon
+			virtual gui::ECURSOR_ICON getActiveIcon() const _IRR_OVERRIDE_
+			{
+				return ActiveIcon;
+			}
 
 			//! Updates the internal cursor position
 			void updateInternalCursorPosition(int x,int y)
@@ -244,11 +259,13 @@ namespace irr
 			CIrrDeviceMacOSX *Device;
 			bool IsVisible;
 			bool UseReferenceRect;
+			gui::ECURSOR_ICON ActiveIcon;
 		};
 
 		bool createWindow();
 		void initKeycodes();
 		void storeMouseLocation();
+		void changeCursorIcon(gui::ECURSOR_ICON iconId);
 		void postMouseEvent(void *event, irr::SEvent &ievent);
 		void postKeyEvent(void *event, irr::SEvent &ievent, bool pressed);
 		void pollJoysticks();
@@ -269,6 +286,7 @@ namespace irr
 		bool IsControlDown;
 		bool IsResizable;
 		bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		NSCursor* currentCursor;
 	};
 
 

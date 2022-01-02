@@ -483,8 +483,27 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
     return self;
 }
 
+- (void)resetCursorRects
+{
+	[super resetCursorRects];
+	[self addCursorRect:[self bounds] cursor:device->getCurrentNSCursor()];
+}
+
+- (irr::CIrrDeviceMacOSX*)getDevice
+{
+	return device;
+}
+
+@end
+
+@interface ContentViewSoftware : ContentView
+@end
+
+@implementation ContentViewSoftware {
+}
+
 - (void)drawRect:(NSRect)dirtyRect {
-	device->presentSoftwareImage(dirtyRect);
+	[self getDevice]->presentSoftwareImage(dirtyRect);
 }
 
 @end
@@ -970,6 +989,9 @@ bool CIrrDeviceMacOSX::createWindow()
         if (Window)
         {
             if(CreationParams.DriverType == video::EDT_SOFTWARE || CreationParams.DriverType == video::EDT_BURNINGSVIDEO) {
+                ContentView* view = [[[ContentViewSoftware alloc] initWithWindow:this] autorelease];
+                [Window setContentView:view];
+            } else {
                 ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
                 [Window setContentView:view];
             }
@@ -1517,6 +1539,31 @@ void CIrrDeviceMacOSX::setMouseLocation(int x,int y)
 }
 
 
+void CIrrDeviceMacOSX::changeCursorIcon(gui::ECURSOR_ICON iconId)
+{
+	switch(iconId){
+	case gui::ECURSOR_ICON::ECI_NORMAL:
+	default:
+		currentCursor = [NSCursor arrowCursor];
+		break;
+	case gui::ECURSOR_ICON::ECI_CROSS:
+		currentCursor = [NSCursor crosshairCursor];
+		break;
+	case gui::ECURSOR_ICON::ECI_HAND:
+	case gui::ECURSOR_ICON::ECI_HELP:
+		currentCursor = [NSCursor pointingHandCursor];
+		break;
+	case gui::ECURSOR_ICON::ECI_IBEAM:
+		currentCursor = [NSCursor IBeamCursor];
+		break;
+	case gui::ECURSOR_ICON::ECI_NO:
+		currentCursor = [NSCursor operationNotAllowedCursor];
+		break;
+	}
+	[Window invalidateCursorRectsForView:[Window contentView]];
+}
+
+
 void CIrrDeviceMacOSX::setCursorVisible(bool visible)
 {
 	if (visible)
@@ -1701,6 +1748,10 @@ void CIrrDeviceMacOSX::presentSoftwareImage(NSRect dirtyRect) {
 	NSImage *nsimage = [[[NSImage alloc] init] autorelease];
 	[nsimage addRepresentation:SoftwareDriverTarget];
 	[nsimage drawInRect:dirtyRect];
+}
+
+NSCursor* CIrrDeviceMacOSX::getCurrentNSCursor() {
+	return currentCursor;
 }
 
 bool CIrrDeviceMacOSX::present(video::IImage* surface, void* windowId, core::rect<s32>* src )
