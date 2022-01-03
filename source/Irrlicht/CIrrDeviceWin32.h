@@ -23,7 +23,7 @@
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
-class edoproDropper;
+#include "win_drag_n_dropper.h"
 
 namespace irr
 {
@@ -106,7 +106,7 @@ namespace irr
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
 
-		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, IrrDropTarget::callback_function dragCheck = nullptr) _IRR_OVERRIDE_;
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
@@ -448,7 +448,7 @@ namespace irr
 
 		SJoystickWin32Control* JoyControl;
 
-		edoproDropper* dropper;
+		IDropTarget* dropper;
 
 		bool has_charevent;
 
