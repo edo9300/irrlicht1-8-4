@@ -9,7 +9,6 @@
 #include <Shlobj.h>
 #pragma warning(pop)
 #include <vector>
-#include <string>
 #include <IrrlichtDevice.h>
 
 namespace irr {
