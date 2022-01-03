@@ -4,16 +4,20 @@
 #include <IrrCompileConfig.h>
 #ifdef _IRR_COMPILE_WITH_WINDOWS_DEVICE_
 #include "CWin32DropTarget.h"
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4091) //warning C4091: 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
+#endif
 #include <Shlobj.h>
+#ifdef _MSC_VER
 #pragma warning(pop)
-#include <vector>
+#endif
 #include <IrrlichtDevice.h>
+#include <irrArray.h>
 
 namespace irr {
 
-HRESULT __stdcall CDropTarget::QueryInterface(REFIID riid, void** ppv) {
+HRESULT STDMETHODCALLTYPE CDropTarget::QueryInterface(REFIID riid, void** ppv) {
 	if(riid == IID_IUnknown) {
 		*ppv = static_cast<IUnknown*>(this);
 		return S_OK;
@@ -39,7 +43,7 @@ FORMATETC CheckFormat(IDataObject* pDataObj) {
 		if(ret.cfFormat == CF_HDROP) {
 			STGMEDIUM stg;
 			if(pDataObj->GetData(&ret, &stg) == S_OK) {
-				auto* filelist = static_cast<DROPFILES*>(GlobalLock(stg.hGlobal));
+				DROPFILES* filelist = static_cast<DROPFILES*>(GlobalLock(stg.hGlobal));
 				if(filelist != nullptr) {
 					unicode = filelist->fWide != 0;
 					GlobalUnlock(stg.hGlobal);
@@ -64,14 +68,14 @@ inline bool ScreenToClient(HWND hWnd, POINTL& lpPoint) {
 
 }
 
-inline bool CDropTarget::CheckTarget(POINTL& point) const {
+bool CDropTarget::CheckTarget(POINTL& point) const {
 	if(dragCheck == nullptr)
 		return true;
 	return ScreenToClient(window, point) && dragCheck({ point.x, point.y }, isFile);
 }
 
-HRESULT __stdcall CDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
-	auto format = CheckFormat(pDataObj);
+HRESULT STDMETHODCALLTYPE CDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+	const FORMATETC format = CheckFormat(pDataObj);
 	if(!format.cfFormat) {
 		isDragging = false;
 		*pdwEffect = DROPEFFECT_NONE;
@@ -84,7 +88,7 @@ HRESULT __stdcall CDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyStat
 	return S_OK;
 }
 
-HRESULT __stdcall CDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT STDMETHODCALLTYPE CDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	*pdwEffect = DROPEFFECT_NONE;
 	if(!CheckTarget(pt))
 		return S_FALSE;
@@ -92,7 +96,7 @@ HRESULT __stdcall CDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdw
 	return S_OK;
 }
 
-HRESULT __stdcall CDropTarget::DragLeave() {
+HRESULT STDMETHODCALLTYPE CDropTarget::DragLeave() {
 	isDragging = false;
 	return S_OK;
 }
@@ -117,8 +121,8 @@ inline wchar_t* ToWideAllocated(char* string, size_t* ret_len = nullptr) {
 }
 
 template<typename T>
-inline std::vector<wchar_t*> GetFileListFromText(T* filelist) {
-	std::vector<wchar_t*> res;
+inline core::array<wchar_t*> GetFileListFromText(T* filelist) {
+	core::array<wchar_t*> res;
 	while(*filelist) {
 		size_t len;
 		res.push_back(ToWideAllocated(filelist, &len));
@@ -127,8 +131,8 @@ inline std::vector<wchar_t*> GetFileListFromText(T* filelist) {
 	return res;
 }
 
-inline std::vector<wchar_t*> GetFileList(void* data, bool& unicode) {
-	auto filelist = static_cast<DROPFILES*>(data);
+inline core::array<wchar_t*> GetFileList(void* data, bool& unicode) {
+	DROPFILES* filelist = static_cast<DROPFILES*>(data);
 	unicode = filelist->fWide != 0;
 	void* files = (static_cast<char*>(data) + (filelist->pFiles));
 	if(unicode)
@@ -138,7 +142,7 @@ inline std::vector<wchar_t*> GetFileList(void* data, bool& unicode) {
 
 }
 
-HRESULT __stdcall CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT STDMETHODCALLTYPE CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	if(!isDragging || !ScreenToClient(window, pt))
 		return S_FALSE;
 	isDragging = false;
@@ -164,7 +168,9 @@ HRESULT __stdcall CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, PO
 	if(isFile) {
 		event.DropEvent.DropType = irr::DROP_FILE;
 		bool unicode;
-		for(const auto& file : GetFileList(data, unicode)) {
+		const core::array<wchar_t*> filelist = GetFileList(data, unicode);
+		for(u32 i = 0; i < filelist.size(); i++) {
+			wchar_t* file = filelist[i];
 			event.DropEvent.Text = file;
 			device->postEventFromUser(event);
 			event.DropEvent.Text = nullptr;
