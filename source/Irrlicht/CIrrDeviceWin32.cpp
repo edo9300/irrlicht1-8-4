@@ -1239,12 +1239,6 @@ CIrrDeviceWin32::~CIrrDeviceWin32()
 {
 	delete JoyControl;
 
-	if(dropper) {
-		RevokeDragDrop(HWnd);
-		dropper->Release();
-		OleUninitialize();
-	}
-
 	// unregister environment
 	for (u32 i=0; i< EnvMap.size(); ++i)
 	{
@@ -1534,6 +1528,12 @@ bool CIrrDeviceWin32::present(video::IImage* image, void* windowId, core::rect<s
 //! notifies the device that it should close itself
 void CIrrDeviceWin32::closeDevice()
 {
+	if(dropper) {
+		RevokeDragDrop(HWnd);
+		dropper->Release();
+		OleUninitialize();
+		dropper = nullptr;
+	}
 	if (!ExternalWindow)
 	{
 		MSG msg;
