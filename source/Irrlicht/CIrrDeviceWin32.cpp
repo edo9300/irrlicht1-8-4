@@ -2175,7 +2175,7 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, drop_callback_function_t dragC
 	if((enable && dropper) || (!enable && !dropper))
 		return;
 	if(enable) {
-		dropper = new DropTarget(HWnd, dragCheck, this);
+		dropper = new CDropTarget(HWnd, dragCheck, this);
 		auto res = OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
 	} else {

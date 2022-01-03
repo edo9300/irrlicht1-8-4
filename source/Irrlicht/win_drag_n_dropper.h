@@ -9,10 +9,10 @@
 namespace irr {
 class IrrlichtDevice;
 
-class DropTarget : public IDropTarget {
+class CDropTarget : public IDropTarget {
 public:
 	using callback_function = bool(*)(irr::core::vector2di pos, bool isFile);
-	DropTarget(HWND hwnd, callback_function callback, irr::IrrlichtDevice* dev) :
+	CDropTarget(HWND hwnd, callback_function callback, irr::IrrlichtDevice* dev) :
 		window(hwnd), dragCheck(callback), device(dev) {
 	};
 
@@ -42,7 +42,7 @@ private:
 	bool isFile{ false };
 	callback_function dragCheck{ nullptr };
 	irr::IrrlichtDevice* device{ nullptr };
-	~DropTarget() = default;
+	~CDropTarget() = default;
 
 	bool CheckTarget(POINTL& point) const;
 };

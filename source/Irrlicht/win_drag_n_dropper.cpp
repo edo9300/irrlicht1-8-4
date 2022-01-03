@@ -14,7 +14,7 @@
 
 namespace irr {
 
-HRESULT __stdcall DropTarget::QueryInterface(REFIID riid, void** ppv) {
+HRESULT __stdcall CDropTarget::QueryInterface(REFIID riid, void** ppv) {
 	if(riid == IID_IUnknown) {
 		*ppv = static_cast<IUnknown*>(this);
 		return S_OK;
@@ -65,13 +65,13 @@ inline bool ScreenToClient(HWND hWnd, POINTL& lpPoint) {
 
 }
 
-inline bool DropTarget::CheckTarget(POINTL& point) const {
+inline bool CDropTarget::CheckTarget(POINTL& point) const {
 	if(dragCheck == nullptr)
 		return true;
 	return ScreenToClient(window, point) && dragCheck({ point.x, point.y }, isFile);
 }
 
-HRESULT __stdcall DropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall CDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	auto format = CheckFormat(pDataObj);
 	if(!format.cfFormat) {
 		isDragging = false;
@@ -85,7 +85,7 @@ HRESULT __stdcall DropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState
 	return S_OK;
 }
 
-HRESULT __stdcall DropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall CDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	*pdwEffect = DROPEFFECT_NONE;
 	if(!CheckTarget(pt))
 		return S_FALSE;
@@ -93,7 +93,7 @@ HRESULT __stdcall DropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwE
 	return S_OK;
 }
 
-HRESULT __stdcall DropTarget::DragLeave() {
+HRESULT __stdcall CDropTarget::DragLeave() {
 	isDragging = false;
 	return S_OK;
 }
@@ -139,7 +139,7 @@ inline std::vector<wchar_t*> GetFileList(void* data, bool& unicode) {
 
 }
 
-HRESULT __stdcall DropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	if(!isDragging || !ScreenToClient(window, pt))
 		return S_FALSE;
 	isDragging = false;
