@@ -106,7 +106,7 @@ namespace irr
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
 
-		virtual void enableDragDrop(bool enable, IrrDropTarget::callback_function dragCheck = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_;
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_

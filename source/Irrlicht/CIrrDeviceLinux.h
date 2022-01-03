@@ -119,7 +119,7 @@ namespace irr
 		//! Remove all messages pending in the system message loop
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
 
-		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_;
 
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
@@ -403,7 +403,7 @@ namespace irr
 		Rotation OldRandrRotation;
 		#endif
 		bool ClipboardWaiting;
-		bool(*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		drop_callback_function_t dragAndDropCheck;
 		bool draggingFile;
 		irr::core::vector2di drop_pos;
 #ifdef _IRR_X11_DYNAMIC_LOAD_

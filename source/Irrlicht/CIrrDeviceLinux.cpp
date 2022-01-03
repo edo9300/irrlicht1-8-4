@@ -2386,7 +2386,7 @@ void CIrrDeviceLinux::clearSystemMessages()
 }
 
 //register drag and drop support
-void CIrrDeviceLinux::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+void CIrrDeviceLinux::enableDragDrop(bool enable, drop_callback_function_t dragCheck) {
 	if(enable) {
 		dragAndDropCheck = dragCheck;
 		Atom xdnd_version = 5;

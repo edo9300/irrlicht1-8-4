@@ -2171,7 +2171,7 @@ void CIrrDeviceWin32::clearSystemMessages()
 }
 
 //register drag and drop support
-void CIrrDeviceWin32::enableDragDrop(bool enable, IrrDropTarget::callback_function dragCheck) {
+void CIrrDeviceWin32::enableDragDrop(bool enable, drop_callback_function_t dragCheck) {
 	if((enable && dropper) || (!enable && !dropper))
 		return;
 	if(enable) {

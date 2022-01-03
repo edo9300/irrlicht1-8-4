@@ -140,7 +140,7 @@ namespace irr
         //! Remove all messages pending in the system message loop
         virtual void clearSystemMessages();
 
-        virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr);
+        virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr);
 
         //! Get the device type
         virtual E_DEVICE_TYPE getType() const
@@ -388,7 +388,7 @@ namespace irr
         std::map<int, EKEY_CODE> m_key_map;
         irr::core::array<SEvent> m_events;
 
-        bool(*m_drag_and_drop_check)(irr::core::vector2di pos, bool isFile);
+        drop_callback_function_t m_drag_and_drop_check;
         bool m_dragging_file;
         irr::core::vector2di m_drop_pos;
 

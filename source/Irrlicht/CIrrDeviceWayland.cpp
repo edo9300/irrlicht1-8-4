@@ -2325,7 +2325,7 @@ void CIrrDeviceWayland::clearSystemMessages()
 {
 }
 
-void CIrrDeviceWayland::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile))
+void CIrrDeviceWayland::enableDragDrop(bool enable, drop_callback_function_t dragCheck)
 {
     if(enable)
         m_drag_and_drop_check = dragCheck;

@@ -176,7 +176,7 @@ namespace irr
 		virtual void clearSystemMessages() _IRR_OVERRIDE_;
 
 		//! enable text and files drag and drop
-		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_;
 
 		//! Resize the render window.
 		virtual void setWindowSize(const irr::core::dimension2d<u32>& size) _IRR_OVERRIDE_ {}

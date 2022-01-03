@@ -105,7 +105,7 @@ namespace irr
 		//! supported by the gfx adapter.
 		virtual video::IVideoModeList* getVideoModeList() _IRR_OVERRIDE_;
 
-		virtual void enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile) = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_;
 
 		virtual bool isDraggable(int x, int y, bool isFile);
 
@@ -285,7 +285,7 @@ namespace irr
 		bool IsShiftDown;
 		bool IsControlDown;
 		bool IsResizable;
-		bool (*dragAndDropCheck)(irr::core::vector2di pos, bool isFile);
+		drop_callback_function_t dragAndDropCheck;
 		NSCursor* currentCursor;
 	};
 

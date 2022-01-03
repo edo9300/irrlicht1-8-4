@@ -503,7 +503,7 @@ void CIrrDeviceStub::clearSystemMessages()
 {
 }
 
-void CIrrDeviceStub::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile)) {
+void CIrrDeviceStub::enableDragDrop(bool enable, drop_callback_function_t dragCheck) {
 }
 
 

@@ -2072,7 +2072,7 @@ void CIrrDeviceMacOSX::pollJoysticks()
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 }
 
-void CIrrDeviceMacOSX::enableDragDrop(bool enable, bool(*dragCheck)(irr::core::vector2di pos, bool isFile))
+void CIrrDeviceMacOSX::enableDragDrop(bool enable, drop_callback_function_t dragCheck)
 {
 	if (enable) {
 		[Window registerForDraggedTypes:[NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil]];
