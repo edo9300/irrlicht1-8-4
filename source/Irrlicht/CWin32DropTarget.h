@@ -1,8 +1,8 @@
 // Copyright (C) 2020-2021 Edoardo Lolletti
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-#ifndef WIN_DRAG_N_DROPPER_H
-#define WIN_DRAG_N_DROPPER_H
+#ifndef C_WIN32_DROP_TARGET_H
+#define C_WIN32_DROP_TARGET_H
 #include <oleidl.h>
 #include <vector2d.h>
 
@@ -49,4 +49,4 @@ private:
 
 }
 
-#endif //WIN_DRAG_N_DROPPER_H
+#endif //C_WIN32_DROP_TARGET_H

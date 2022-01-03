@@ -14,7 +14,7 @@
 #include "IEventReceiver.h"
 #include "irrList.h"
 #include "os.h"
-#include "win_drag_n_dropper.h"
+#include "CWin32DropTarget.h"
 
 #include "CTimer.h"
 #include "irrString.h"

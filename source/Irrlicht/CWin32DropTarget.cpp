@@ -3,7 +3,7 @@
 
 #include <IrrCompileConfig.h>
 #ifdef _IRR_COMPILE_WITH_WINDOWS_DEVICE_
-#include "win_drag_n_dropper.h"
+#include "CWin32DropTarget.h"
 #pragma warning(push)
 #pragma warning(disable: 4091) //warning C4091: 'typedef ': ignored on left of 'tagGPFIDL_FLAGS' when no variable is declared
 #include <Shlobj.h>
