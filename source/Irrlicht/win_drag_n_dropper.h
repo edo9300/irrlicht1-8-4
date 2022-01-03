@@ -10,10 +10,10 @@ namespace irr {
 class IrrlichtDevice;
 }
 
-class edoproDropper : public IDropTarget {
+class IrrDropTarget : public IDropTarget {
 public:
-	edoproDropper(HWND hwnd, bool(*callback)(irr::core::vector2di pos, bool isFile), irr::IrrlichtDevice* dev) :window(hwnd), dragCheck(callback), device(dev), ref_count(1){};
-	~edoproDropper() = default;
+	IrrDropTarget(HWND hwnd, bool(*callback)(irr::core::vector2di pos, bool isFile), irr::IrrlichtDevice* dev) :window(hwnd), dragCheck(callback), device(dev), ref_count(1){};
+	~IrrDropTarget() = default;
 
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppv) override;
 	virtual ULONG __stdcall AddRef() override { InterlockedIncrement((long*)&ref_count); return ref_count; }
@@ -40,4 +40,4 @@ private:
 
 };
 
-#endif //WIN_DRAG_N_DROPPER_H
+#endif //WIN_DRAG_N_DROPPER_Hs

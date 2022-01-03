@@ -12,7 +12,7 @@
 #include <string>
 #include <IrrlichtDevice.h>
 
-HRESULT __stdcall edoproDropper::QueryInterface(REFIID riid, void** ppv) {
+HRESULT __stdcall IrrDropTarget::QueryInterface(REFIID riid, void** ppv) {
 	if(IsEqualIID(riid, IID_IUnknown)) {
 		*ppv = static_cast<IUnknown*>(this);
 		return S_OK;
@@ -53,7 +53,7 @@ FORMATETC CheckFormat(IDataObject* pDataObj) {
 }
 #define checktarget (!dragCheck || (ScreenToClient(window, reinterpret_cast<LPPOINT>(&pt)) && dragCheck({ pt.x,pt.y }, isFile)))
 
-HRESULT __stdcall edoproDropper::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall IrrDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	auto format = CheckFormat(pDataObj);
 	if(!format.cfFormat) {
 		isDragging = false;
@@ -67,7 +67,7 @@ HRESULT __stdcall edoproDropper::DragEnter(IDataObject* pDataObj, DWORD grfKeySt
 	return S_OK;
 }
 
-HRESULT __stdcall edoproDropper::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall IrrDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	*pdwEffect = DROPEFFECT_NONE;
 	if(!checktarget)
 		return S_FALSE;
@@ -75,7 +75,7 @@ HRESULT __stdcall edoproDropper::DragOver(DWORD grfKeyState, POINTL pt, DWORD* p
 	return S_OK;
 }
 
-HRESULT __stdcall edoproDropper::DragLeave(void) {
+HRESULT __stdcall IrrDropTarget::DragLeave(void) {
 	isDragging = false;
 	return S_OK;
 }
@@ -109,7 +109,7 @@ inline std::vector<wchar_t*> GetFileList(T* filelist) {
 	return res;
 }
 
-HRESULT __stdcall edoproDropper::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall IrrDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	if(!isDragging || !ScreenToClient(window, reinterpret_cast<LPPOINT>(&pt)))
 	   return S_FALSE;
 	isDragging = false;
