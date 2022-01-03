@@ -18,8 +18,10 @@ public:
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppv) override;
 	virtual ULONG __stdcall AddRef() override { InterlockedIncrement((long*)&ref_count); return ref_count; }
 	virtual ULONG __stdcall Release() override {
-		if(InterlockedDecrement((long*)&ref_count) <= 0)
+		if(InterlockedDecrement((long*)&ref_count) <= 0) {
 			delete this;
+			return 0;
+		}
 		return ref_count;
 	}
 
