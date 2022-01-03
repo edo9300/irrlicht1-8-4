@@ -12,7 +12,9 @@
 #include <string>
 #include <IrrlichtDevice.h>
 
-HRESULT __stdcall IrrDropTarget::QueryInterface(REFIID riid, void** ppv) {
+namespace irr {
+
+HRESULT __stdcall DropTarget::QueryInterface(REFIID riid, void** ppv) {
 	if(riid == IID_IUnknown) {
 		*ppv = static_cast<IUnknown*>(this);
 		return S_OK;
@@ -63,13 +65,13 @@ inline bool ScreenToClient(HWND hWnd, POINTL& lpPoint) {
 
 }
 
-inline bool IrrDropTarget::CheckTarget(POINTL& point) const {
+inline bool DropTarget::CheckTarget(POINTL& point) const {
 	if(dragCheck == nullptr)
 		return true;
 	return ScreenToClient(window, point) && dragCheck({ point.x, point.y }, isFile);
 }
 
-HRESULT __stdcall IrrDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall DropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	auto format = CheckFormat(pDataObj);
 	if(!format.cfFormat) {
 		isDragging = false;
@@ -83,7 +85,7 @@ HRESULT __stdcall IrrDropTarget::DragEnter(IDataObject* pDataObj, DWORD grfKeySt
 	return S_OK;
 }
 
-HRESULT __stdcall IrrDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall DropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	*pdwEffect = DROPEFFECT_NONE;
 	if(!CheckTarget(pt))
 		return S_FALSE;
@@ -91,7 +93,7 @@ HRESULT __stdcall IrrDropTarget::DragOver(DWORD grfKeyState, POINTL pt, DWORD* p
 	return S_OK;
 }
 
-HRESULT __stdcall IrrDropTarget::DragLeave() {
+HRESULT __stdcall DropTarget::DragLeave() {
 	isDragging = false;
 	return S_OK;
 }
@@ -137,9 +139,9 @@ inline std::vector<wchar_t*> GetFileList(void* data, bool& unicode) {
 
 }
 
-HRESULT __stdcall IrrDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
+HRESULT __stdcall DropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) {
 	if(!isDragging || !ScreenToClient(window, pt))
-	   return S_FALSE;
+		return S_FALSE;
 	isDragging = false;
 	*pdwEffect = DROPEFFECT_COPY;
 	FORMATETC fe = CheckFormat(pDataObj);
@@ -187,5 +189,7 @@ HRESULT __stdcall IrrDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyState, 
 	GlobalUnlock(stg.hGlobal);
 	ReleaseStgMedium(&stg);
 	return S_OK;
+}
+
 }
 #endif

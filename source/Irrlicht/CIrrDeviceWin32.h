@@ -23,7 +23,7 @@
 #define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
 #endif
 
-#include "win_drag_n_dropper.h"
+struct IDropTarget;
 
 namespace irr
 {

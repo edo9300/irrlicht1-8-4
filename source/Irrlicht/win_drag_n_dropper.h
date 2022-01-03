@@ -8,12 +8,11 @@
 
 namespace irr {
 class IrrlichtDevice;
-}
 
-class IrrDropTarget : public IDropTarget {
+class DropTarget : public IDropTarget {
 public:
 	using callback_function = bool(*)(irr::core::vector2di pos, bool isFile);
-	IrrDropTarget(HWND hwnd, callback_function callback, irr::IrrlichtDevice* dev) :
+	DropTarget(HWND hwnd, callback_function callback, irr::IrrlichtDevice* dev) :
 		window(hwnd), dragCheck(callback), device(dev) {
 	};
 
@@ -31,7 +30,7 @@ public:
 
 	virtual HRESULT __stdcall DragEnter(IDataObject* pDataObj, DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override;
 
-	virtual HRESULT __stdcall DragOver(DWORD grfKeyState, POINTL pt, DWORD *pdwEffect) override;
+	virtual HRESULT __stdcall DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override;
 
 	virtual HRESULT __stdcall DragLeave() override;
 
@@ -43,9 +42,11 @@ private:
 	bool isFile{ false };
 	callback_function dragCheck{ nullptr };
 	irr::IrrlichtDevice* device{ nullptr };
-	~IrrDropTarget() = default;
+	~DropTarget() = default;
 
 	bool CheckTarget(POINTL& point) const;
 };
+
+}
 
 #endif //WIN_DRAG_N_DROPPER_H
