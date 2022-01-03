@@ -158,15 +158,15 @@ HRESULT STDMETHODCALLTYPE CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyS
 		ReleaseStgMedium(&stg);
 		return S_FALSE;
 	}
-	irr::SEvent event;
-	event.EventType = irr::EET_DROP_EVENT;
-	event.DropEvent.DropType = irr::DROP_START;
+	SEvent event;
+	event.EventType = EEVENT_TYPE::EET_DROP_EVENT;
+	event.DropEvent.DropType = EDROP_TYPE::DROP_START;
 	event.DropEvent.X = pt.x;
 	event.DropEvent.Y = pt.y;
 	event.DropEvent.Text = nullptr;
 	device->postEventFromUser(event);
 	if(isFile) {
-		event.DropEvent.DropType = irr::DROP_FILE;
+		event.DropEvent.DropType = EDROP_TYPE::DROP_FILE;
 		bool unicode;
 		const core::array<wchar_t*> filelist = GetFileList(data, unicode);
 		for(u32 i = 0; i < filelist.size(); i++) {
@@ -178,7 +178,7 @@ HRESULT STDMETHODCALLTYPE CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyS
 				delete[] file;
 		}
 	} else {
-		event.DropEvent.DropType = irr::DROP_TEXT;
+		event.DropEvent.DropType = EDROP_TYPE::DROP_TEXT;
 		const bool unicode = fe.cfFormat != CF_TEXT;
 		if(unicode)
 			event.DropEvent.Text = static_cast<wchar_t*>(data);
@@ -189,7 +189,7 @@ HRESULT STDMETHODCALLTYPE CDropTarget::Drop(IDataObject* pDataObj, DWORD grfKeyS
 			delete[] event.DropEvent.Text;
 		event.DropEvent.Text = nullptr;
 	}
-	event.DropEvent.DropType = irr::DROP_END;
+	event.DropEvent.DropType = EDROP_TYPE::DROP_END;
 	device->postEventFromUser(event);
 	GlobalUnlock(stg.hGlobal);
 	ReleaseStgMedium(&stg);
