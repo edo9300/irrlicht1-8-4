@@ -672,8 +672,8 @@ static bool firstLaunch = true;
 	irrevent.DropEvent.Text = nullptr;
 	Device->postEventFromUser(irrevent);
 
-	auto dispatch = ^ (irr::SEvent& irrevent, NSString *str) {
-		auto cstr = [str UTF8String];
+	bool(^dispatch)(irr::SEvent&, NSString*) = ^ (irr::SEvent& irrevent, NSString* str) {
+		const char* cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
 		c_utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
@@ -1129,9 +1129,9 @@ bool CIrrDeviceMacOSX::run()
 	os::Timer::tick();
 	storeMouseLocation();
 
-	auto focusElement = getGUIEnvironment()->getFocus();
+	gui::IGUIElement* focusElement = getGUIEnvironment()->getFocus();
 	bool editing = focusElement && focusElement->getType() == irr::gui::EGUIET_EDIT_BOX;
-	auto textView = (NSTextView*)[NSApp delegate];
+	NSTextView* textView = (NSTextView*)[NSApp delegate];
 	// Fix mouse up events not being raised as a side effect of the IME workaround changing the frame
 	[textView setFrame:NSRect()]; // This sets the NSWindow frame to 0 via the delegate
 	if (!editing)
@@ -1154,7 +1154,7 @@ bool CIrrDeviceMacOSX::run()
 			case NSKeyDown:
 				if (editing)
 				{
-					auto crect = focusElement->getAbsolutePosition();
+					core::rect<s32> crect = focusElement->getAbsolutePosition();
 					// Ensure font height is enough to fill the edit box so the IME window doesn't overlap it
 					[textView setFont:[NSFont userFontOfSize:crect.getHeight()]];
 					// Change origin from top left to bottom right
@@ -2118,8 +2118,8 @@ video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()
 
 			if(Depth)
 			{
-				unsigned int Width = CGDisplayModeGetWidth(CurrentMode);
-				unsigned int Height = CGDisplayModeGetHeight(CurrentMode);
+				unsigned int Width = static_cast<unsigned int>(CGDisplayModeGetWidth(CurrentMode));
+				unsigned int Height = static_cast<unsigned int>(CGDisplayModeGetHeight(CurrentMode));
 
 				VideoModeList->addMode(core::dimension2d<u32>(Width, Height), Depth);
 			}
