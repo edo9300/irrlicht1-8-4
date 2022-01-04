@@ -1437,10 +1437,11 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 
 	if (Window != NULL)
 	{
-		ievent.MouseInput.X = (int)[(NSEvent *)event locationInWindow].x;
-		ievent.MouseInput.Y = DeviceHeight - (int)[(NSEvent *)event locationInWindow].y;
-
-		if (ievent.MouseInput.Y < 0)
+		NSPoint location = [NSEvent mouseLocation];
+		location = [Window convertScreenToBase:location];
+		ievent.MouseInput.X = (int)location.x;
+		ievent.MouseInput.Y = DeviceHeight - (int)location.y;
+		if (ievent.MouseInput.Y < 0 || ievent.MouseInput.X < 0 || ievent.MouseInput.Y > DeviceHeight || ievent.MouseInput.X > DeviceWidth)
 			post = false;
 	}
 	else
