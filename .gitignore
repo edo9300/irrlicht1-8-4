@@ -6,3 +6,5 @@ source/Irrlicht/Android/obj/*
 *.xcworkspacedata
 *.xcuserstate
 source/Irrlicht/build/Irrlicht.build/*
+source/Irrlicht/.vs/*
+source/Irrlicht/obj/*
