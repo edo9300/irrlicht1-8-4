@@ -378,19 +378,3 @@ void wcharToUtf8(const wchar_t *in, char *out, const u64 len)
 } // end namespace core
 } // end namespace irr
 
-extern "C" void c_utf8ToWchar(const char* in, wchar_t* out, const irr::u64 len) {
-#ifdef _WIN32
-	irr::core::PHYSFS_utf8ToUcs2(in, (irr::u16*)out, len);
-#else
-	irr::core::PHYSFS_utf8ToUcs4(in, (irr::u32*)out, len);
-#endif
-}
-
-extern "C" void c_wcharToUtf8(const wchar_t* in, char* out, const irr::u64 len) {
-#ifdef _WIN32
-	irr::core::PHYSFS_utf8FromUcs2((const irr::u16*)in, out, len);
-#else
-	irr::core::PHYSFS_utf8FromUcs4((const irr::u32*)in, out, len);
-#endif
-}
-
