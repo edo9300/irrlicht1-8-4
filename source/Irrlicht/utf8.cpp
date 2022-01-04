@@ -357,6 +357,10 @@ static void PHYSFS_utf8FromUcs2(const u16 *src, char *dst, u64 len)
 
 #undef UTF8FROMTYPE
 
+#ifndef _WIN32
+
+__extension__ typedef unsigned long long	u64_workaround;
+
 void utf8ToWchar(const char *in, wchar_t *out, const unsigned long int len)
 {
 #ifdef _WIN32
@@ -375,7 +379,11 @@ void wcharToUtf8(const wchar_t *in, char *out, const unsigned long int len)
 #endif
 }
 
-__extension__ typedef unsigned long long	u64_workaround;
+#else
+typedef u64 u64_workaround;
+
+#endif
+
 
 
 void utf8ToWchar(const char *in, wchar_t *out, const u64_workaround len)
