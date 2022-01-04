@@ -2,3 +2,7 @@
 *.o
 source/Irrlicht/Android/obj/*
 *.a
+*.DS_Store
+*.xcworkspacedata
+*.xcuserstate
+source/Irrlicht/build/Irrlicht.build/*
