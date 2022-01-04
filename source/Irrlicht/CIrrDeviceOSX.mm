@@ -1366,6 +1366,25 @@ bool CIrrDeviceMacOSX::isWindowMinimized() const
 	return false;
 }
 
+namespace {
+
+bool ShouldIgnoreChar(irr::EKEY_CODE key){
+	switch(key){
+	case KEY_END:
+	case KEY_HOME:
+	case KEY_LEFT:
+	case KEY_RIGHT:
+	case KEY_UP:
+	case KEY_DOWN:
+	case KEY_INSERT:
+	case KEY_DELETE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+}
 
 void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed)
 {
@@ -1420,7 +1439,10 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 		ievent.KeyInput.PressedDown = pressed;
 		ievent.KeyInput.Shift = ([(NSEvent *)event modifierFlags] & NSShiftKeyMask) != 0;
 		ievent.KeyInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
-		ievent.KeyInput.Char = mchar;
+		if(ShouldIgnoreChar(ievent.KeyInput.Key))
+			ievent.KeyInput.Char = 0;
+		else
+			ievent.KeyInput.Char = mchar;
 
 		if (skipCommand)
 			ievent.KeyInput.Control = true;
