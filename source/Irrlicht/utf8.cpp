@@ -357,11 +357,7 @@ static void PHYSFS_utf8FromUcs2(const u16 *src, char *dst, u64 len)
 
 #undef UTF8FROMTYPE
 
-#ifndef _WIN32
-
-__extension__ typedef unsigned long long	u64_workaround;
-
-void utf8ToWchar(const char *in, wchar_t *out, const unsigned long int len)
+void utf8ToWchar(const char *in, wchar_t *out, const u64 len)
 {
 #ifdef _WIN32
 	PHYSFS_utf8ToUcs2(in, (u16 *) out, len);
@@ -370,32 +366,7 @@ void utf8ToWchar(const char *in, wchar_t *out, const unsigned long int len)
 #endif
 }
 
-void wcharToUtf8(const wchar_t *in, char *out, const unsigned long int len)
-{
-#ifdef _WIN32
-	PHYSFS_utf8FromUcs2((const u16 *) in, out, len);
-#else
-	PHYSFS_utf8FromUcs4((const u32 *) in, out, len);
-#endif
-}
-
-#else
-typedef u64 u64_workaround;
-
-#endif
-
-
-
-void utf8ToWchar(const char *in, wchar_t *out, const u64_workaround len)
-{
-#ifdef _WIN32
-	PHYSFS_utf8ToUcs2(in, (u16 *) out, len);
-#else
-	PHYSFS_utf8ToUcs4(in, (u32 *) out, len);
-#endif
-}
-
-void wcharToUtf8(const wchar_t *in, char *out, const u64_workaround len)
+void wcharToUtf8(const wchar_t *in, char *out, const u64 len)
 {
 #ifdef _WIN32
 	PHYSFS_utf8FromUcs2((const u16 *) in, out, len);
