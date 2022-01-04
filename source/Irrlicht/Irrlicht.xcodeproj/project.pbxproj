@@ -3208,6 +3208,7 @@
 					"$(OTHER_CFLAGS)",
 					"-U__STRICT_ANSI__",
 				);
+				SYSTEM_HEADER_SEARCH_PATHS = ./../../include;
 			};
 			name = Debug;
 		};
@@ -3246,6 +3247,7 @@
 					"$(OTHER_CFLAGS)",
 					"-U__STRICT_ANSI__",
 				);
+				SYSTEM_HEADER_SEARCH_PATHS = ./../../include;
 			};
 			name = Release;
 		};
