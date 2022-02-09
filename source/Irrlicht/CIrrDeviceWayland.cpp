@@ -1704,6 +1704,7 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
 bool CIrrDeviceWayland::initWayland()
 {
+#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
     do {
         if(!loadEglCoreFunctions()) {
             os::Printer::log("Couldn't load wayland egl core functions.", ELL_ERROR);
@@ -1728,6 +1729,7 @@ bool CIrrDeviceWayland::initWayland()
         clearWaylandFunctions();
         return false;
     }
+#endif
 
     m_display = pwl_display_connect(nullptr);
     

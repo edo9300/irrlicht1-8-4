@@ -22,6 +22,10 @@
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 #ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
 #include "CWaylandProxyFunctionsWorkaround.h"
+#else
+#include <wayland-client-core.h>
+#include <wayland-client-protocol.h>
+#include <wayland-egl.h>
 #endif
 
 #include <stdlib.h>
