@@ -852,11 +852,13 @@ public:
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
 
-        void* state_p;
         bool fullscreen = false;
-        wl_array_for_each(state_p, states) {
-            if(*(xdg_toplevel_state*)state_p == XDG_TOPLEVEL_STATE_FULLSCREEN) {
-                fullscreen = true;
+        {
+            auto* state = static_cast<xdg_toplevel_state*>(states->data);
+            const auto array_end = state + (states->size / sizeof(xdg_toplevel_state*));
+            for(; state < array_end; state++) {
+                if(*state == XDG_TOPLEVEL_STATE_FULLSCREEN)
+                    fullscreen = true;
             }
         }
         if(width == 0 || height == 0) {
@@ -917,11 +919,13 @@ public:
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
 
-        void* state_p;
         bool fullscreen = false;
-        wl_array_for_each(state_p, states) {
-            if(*(zxdg_toplevel_v6_state*)state_p == ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN) {
-                fullscreen = true;
+        {
+            auto* state = static_cast<zxdg_toplevel_v6_state*>(states->data);
+            const auto array_end = state + (states->size / sizeof(zxdg_toplevel_v6_state*));
+            for(; state < array_end; state++) {
+                if(*state == ZXDG_TOPLEVEL_V6_STATE_FULLSCREEN)
+                    fullscreen = true;
             }
         }
         if(width == 0 || height == 0) {
