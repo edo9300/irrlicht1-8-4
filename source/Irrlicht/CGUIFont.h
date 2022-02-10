@@ -56,6 +56,9 @@ public:
 	//! returns the dimension of a text
 	virtual core::dimension2d<u32> getDimension(const wchar_t* text) const;
 
+	//! returns the dimension of a text
+	virtual core::dimension2d<u32> getDimension(const core::stringw& text) const;
+
 	//! Calculates the index of the character in the text which is on a specific position.
 	virtual s32 getCharacterFromPos(const wchar_t* text, s32 pixel_x) const;
 

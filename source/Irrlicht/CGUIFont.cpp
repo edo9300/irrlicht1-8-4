@@ -479,6 +479,12 @@ core::dimension2d<u32> CGUIFont::getDimension(const wchar_t* text) const
 	return dim;
 }
 
+//! returns the dimension of text
+core::dimension2d<u32> CGUIFont::getDimension(const core::stringw& text) const
+{
+	return getDimension(text.c_str());
+}
+
 //! draws some text and clips it to the specified rectangle if wanted
 void CGUIFont::draw(const core::stringw& text, const core::rect<s32>& position,
 					video::SColor color,
