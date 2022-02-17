@@ -335,298 +335,290 @@ void CIrrDeviceAndroid::handleAndroidCommand(android_app* app, int32_t cmd)
 	}
 }
 
-s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
-{
+s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent) {
 	CIrrDeviceAndroid* device = (CIrrDeviceAndroid*)app->userData;
 
-	switch ( AInputEvent_getType(androidEvent) )
-	{
+	switch(AInputEvent_getType(androidEvent)) {
 		case AINPUT_EVENT_TYPE_MOTION:
-		{
-			SEvent event;
-			event.EventType = EET_TOUCH_INPUT_EVENT;
+			return device->handleMotionEvent(androidEvent);
+		case AINPUT_EVENT_TYPE_KEY:
+			return device->handleKeyEvent(androidEvent);
+		default:
+			return 0;
+	}
+}
 
-			const s32 eventAction = AMotionEvent_getAction(androidEvent);
-			const s32 eventType =  eventAction & AMOTION_EVENT_ACTION_MASK;
-			const int32_t metaState = AMotionEvent_getMetaState(androidEvent);
+s32 CIrrDeviceAndroid::handleMotionEvent(AInputEvent* androidEvent) {
+	const s32 eventAction = AMotionEvent_getAction(androidEvent);
+	const s32 eventType = eventAction & AMOTION_EVENT_ACTION_MASK;
+	const int32_t metaState = AMotionEvent_getMetaState(androidEvent);
 
 #if 0
-			const auto GetEventName = [&](s32 eventType){
-				#define CASE(X) case X: return core::stringc(#X)
-				switch (eventType)
-				{
-					CASE(AMOTION_EVENT_ACTION_DOWN);
-					CASE(AMOTION_EVENT_ACTION_POINTER_DOWN);
-					CASE(AMOTION_EVENT_ACTION_MOVE);
-					CASE(AMOTION_EVENT_ACTION_UP);
-					CASE(AMOTION_EVENT_ACTION_POINTER_UP);
-					CASE(AMOTION_EVENT_ACTION_CANCEL);
-					CASE(AMOTION_EVENT_ACTION_HOVER_MOVE);
-					CASE(AMOTION_EVENT_ACTION_SCROLL);
-					CASE(AMOTION_EVENT_ACTION_HOVER_ENTER);
-					CASE(AMOTION_EVENT_ACTION_HOVER_EXIT);
-					CASE(AMOTION_EVENT_ACTION_BUTTON_PRESS);
-					CASE(AMOTION_EVENT_ACTION_BUTTON_RELEASE);
-				}
-				#undef CASE
-				return core::stringc(eventType);
-			};
-			// Useful for debugging. We might have to pass some of those infos on at some point.
-			// but preferably device independent (so iphone can use same irrlicht flags).
-			int32_t flags = AMotionEvent_getFlags(androidEvent);
-			os::Printer::log("flags: ", core::stringc(flags).c_str(), ELL_DEBUG);
-			os::Printer::log("metaState: ", core::stringc(metaState).c_str(), ELL_DEBUG);
-			int32_t edgeFlags = AMotionEvent_getEdgeFlags(androidEvent);
-			os::Printer::log("edgeFlags: ", core::stringc(edgeFlags).c_str(), ELL_DEBUG);
-			int32_t source = AInputEvent_getSource(androidEvent);
-			os::Printer::log("source: ", core::stringc(source).c_str(), ELL_DEBUG);
-			int32_t buttonState = AMotionEvent_getButtonState(androidEvent);
-			os::Printer::log("buttonState: ", core::stringc(buttonState).c_str(), ELL_DEBUG);
-			os::Printer::log("eventType: ", GetEventName(eventType).c_str(), ELL_DEBUG);
+	const auto GetEventName = [&](s32 eventType) {
+#define CASE(X) case X: return core::stringc(#X)
+		switch(eventType) {
+			CASE(AMOTION_EVENT_ACTION_DOWN);
+			CASE(AMOTION_EVENT_ACTION_POINTER_DOWN);
+			CASE(AMOTION_EVENT_ACTION_MOVE);
+			CASE(AMOTION_EVENT_ACTION_UP);
+			CASE(AMOTION_EVENT_ACTION_POINTER_UP);
+			CASE(AMOTION_EVENT_ACTION_CANCEL);
+			CASE(AMOTION_EVENT_ACTION_HOVER_MOVE);
+			CASE(AMOTION_EVENT_ACTION_SCROLL);
+			CASE(AMOTION_EVENT_ACTION_HOVER_ENTER);
+			CASE(AMOTION_EVENT_ACTION_HOVER_EXIT);
+			CASE(AMOTION_EVENT_ACTION_BUTTON_PRESS);
+			CASE(AMOTION_EVENT_ACTION_BUTTON_RELEASE);
+		}
+#undef CASE
+		return core::stringc(eventType);
+	};
+	// Useful for debugging. We might have to pass some of those infos on at some point.
+	// but preferably device independent (so iphone can use same irrlicht flags).
+	int32_t flags = AMotionEvent_getFlags(androidEvent);
+	os::Printer::log("flags: ", core::stringc(flags).c_str(), ELL_DEBUG);
+	os::Printer::log("metaState: ", core::stringc(metaState).c_str(), ELL_DEBUG);
+	int32_t edgeFlags = AMotionEvent_getEdgeFlags(androidEvent);
+	os::Printer::log("edgeFlags: ", core::stringc(edgeFlags).c_str(), ELL_DEBUG);
+	int32_t source = AInputEvent_getSource(androidEvent);
+	os::Printer::log("source: ", core::stringc(source).c_str(), ELL_DEBUG);
+	int32_t buttonState = AMotionEvent_getButtonState(androidEvent);
+	os::Printer::log("buttonState: ", core::stringc(buttonState).c_str(), ELL_DEBUG);
+	os::Printer::log("eventType: ", GetEventName(eventType).c_str(), ELL_DEBUG);
 #endif
-			const bool isMouse = AInputEvent_getSource(androidEvent) == AINPUT_SOURCE_MOUSE ||
-							eventType == AMOTION_EVENT_ACTION_HOVER_MOVE ||
-							eventType == AMOTION_EVENT_ACTION_SCROLL;
-			
-			if(isMouse) {
-				auto GetMouseButtonEvent = [](u32 amotionButton, bool leftUp){
-					switch(amotionButton){
-						case AMOTION_EVENT_BUTTON_PRIMARY:
-							return (leftUp) ? EMIE_LMOUSE_LEFT_UP : EMIE_LMOUSE_PRESSED_DOWN;
-						case AMOTION_EVENT_BUTTON_SECONDARY:
-							return (leftUp) ? EMIE_RMOUSE_LEFT_UP : EMIE_RMOUSE_PRESSED_DOWN;
-						case AMOTION_EVENT_BUTTON_TERTIARY:
-							return (leftUp) ? EMIE_MMOUSE_LEFT_UP : EMIE_MMOUSE_PRESSED_DOWN;
-					}
-				};
-				const size_t mousePointerIdx = eventAction >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
-				const s32 mousePointerId = AMotionEvent_getPointerId(androidEvent, mousePointerIdx);
-				event.EventType = EET_MOUSE_INPUT_EVENT;
-				event.MouseInput.Shift = (metaState & AMETA_SHIFT_ON) != 0;
-				event.MouseInput.Control = (metaState & AMETA_CTRL_ON) != 0;
-				event.MouseInput.X = AMotionEvent_getX(androidEvent, mousePointerId);
-				event.MouseInput.Y = AMotionEvent_getY(androidEvent, mousePointerId);
-				switch (eventType)
-				{
-				case AMOTION_EVENT_ACTION_DOWN:
-				case AMOTION_EVENT_ACTION_UP: {
-					static constexpr auto validButtons = AMOTION_EVENT_BUTTON_PRIMARY | AMOTION_EVENT_BUTTON_SECONDARY | AMOTION_EVENT_BUTTON_TERTIARY;
-					const u32 newButtonState = AMotionEvent_getButtonState(androidEvent) & validButtons;
-					if(eventType == AMOTION_EVENT_ACTION_DOWN) {
-						u32 newlyPressed = newButtonState & ~device->CurrentMouseButtonState;
-						if(newlyPressed == 0)
-							return 1;
-						event.MouseInput.Event = GetMouseButtonEvent(newlyPressed, false);
-					} else {
-						u32 leftButton = ~newButtonState & device->CurrentMouseButtonState;
-						if(leftButton == 0)
-							return 1;
-						event.MouseInput.Event = GetMouseButtonEvent(leftButton, true);
-					}
-					device->CurrentMouseButtonState = newButtonState;
-					break;
-				}
-				case AMOTION_EVENT_ACTION_MOVE:
-				case AMOTION_EVENT_ACTION_HOVER_MOVE:
-					event.MouseInput.Event = EMIE_MOUSE_MOVED;
-					break;
-				case AMOTION_EVENT_ACTION_SCROLL:
-					event.MouseInput.Event = EMIE_MOUSE_WHEEL;
-					break;
-				default:
-					os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
-					return 0;
-				}
-				event.MouseInput.ButtonStates = device->CurrentMouseButtonState;
-				device->postEventFromUser(event);
-				device->LastMouseCursorPosition.X = event.MouseInput.X;
-				device->LastMouseCursorPosition.Y = event.MouseInput.Y;
-				return 1;
-			}
-			
-			switch (eventType)
-			{
-			case AMOTION_EVENT_ACTION_DOWN:
-			case AMOTION_EVENT_ACTION_POINTER_DOWN:
-				event.TouchInput.Event = ETIE_PRESSED_DOWN;
-				break;
-			case AMOTION_EVENT_ACTION_MOVE:
-				event.TouchInput.Event = ETIE_MOVED;
-				break;
-			case AMOTION_EVENT_ACTION_UP:
-			case AMOTION_EVENT_ACTION_POINTER_UP:
-			case AMOTION_EVENT_ACTION_CANCEL:
-				event.TouchInput.Event = ETIE_LEFT_UP;
-				break;
+	const bool isMouse = (eventType == AMOTION_EVENT_ACTION_HOVER_MOVE) ||
+		(eventType == AMOTION_EVENT_ACTION_SCROLL) ||
+		(AInputEvent_getSource(androidEvent) == AINPUT_SOURCE_MOUSE);
+
+	if(isMouse) {
+		auto GetMouseButtonEvent = [](u32 amotionButton, bool leftUp) {
+			switch(amotionButton) {
+			case AMOTION_EVENT_BUTTON_PRIMARY:
+				return (leftUp) ? EMIE_LMOUSE_LEFT_UP : EMIE_LMOUSE_PRESSED_DOWN;
+			case AMOTION_EVENT_BUTTON_SECONDARY:
+				return (leftUp) ? EMIE_RMOUSE_LEFT_UP : EMIE_RMOUSE_PRESSED_DOWN;
+			case AMOTION_EVENT_BUTTON_TERTIARY:
+				return (leftUp) ? EMIE_MMOUSE_LEFT_UP : EMIE_MMOUSE_PRESSED_DOWN;
 			default:
+				__builtin_unreachable();
+			}
+		};
+		const size_t mousePointerIdx = eventAction >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+		const s32 mousePointerId = AMotionEvent_getPointerId(androidEvent, mousePointerIdx);
+		SEvent event;
+		event.EventType = EET_MOUSE_INPUT_EVENT;
+		event.MouseInput.Shift = (metaState & AMETA_SHIFT_ON) != 0;
+		event.MouseInput.Control = (metaState & AMETA_CTRL_ON) != 0;
+		event.MouseInput.X = AMotionEvent_getX(androidEvent, mousePointerId);
+		event.MouseInput.Y = AMotionEvent_getY(androidEvent, mousePointerId);
+		switch(eventType) {
+			case AMOTION_EVENT_ACTION_DOWN:
+			case AMOTION_EVENT_ACTION_UP: {
+				static constexpr auto validButtons = AMOTION_EVENT_BUTTON_PRIMARY | AMOTION_EVENT_BUTTON_SECONDARY | AMOTION_EVENT_BUTTON_TERTIARY;
+				const u32 newButtonState = AMotionEvent_getButtonState(androidEvent) & validButtons;
+				if(eventType == AMOTION_EVENT_ACTION_DOWN) {
+					u32 newlyPressed = newButtonState & ~CurrentMouseButtonState;
+					if(newlyPressed == 0)
+						return 1;
+					event.MouseInput.Event = GetMouseButtonEvent(newlyPressed, false);
+				} else {
+					u32 leftButton = ~newButtonState & CurrentMouseButtonState;
+					if(leftButton == 0)
+						return 1;
+					event.MouseInput.Event = GetMouseButtonEvent(leftButton, true);
+				}
+				CurrentMouseButtonState = newButtonState;
+				break;
+			}
+			case AMOTION_EVENT_ACTION_MOVE:
+			case AMOTION_EVENT_ACTION_HOVER_MOVE: {
+				event.MouseInput.Event = EMIE_MOUSE_MOVED;
+				break;
+			}
+			case AMOTION_EVENT_ACTION_SCROLL: {
+				event.MouseInput.Event = EMIE_MOUSE_WHEEL;
+				break;
+			}
+			default: {
 				os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
 				return 0;
 			}
-
-			// Process all touches for move action.
-			if (event.TouchInput.Event == ETIE_MOVED)
-			{
-				s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
-
-				for (s32 i = 0; i < pointerCount; ++i)
-				{
-					event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, i);
-					event.TouchInput.X = AMotionEvent_getX(androidEvent, i);
-					event.TouchInput.Y = AMotionEvent_getY(androidEvent, i);
-					event.TouchInput.touchedCount = pointerCount;
-
-					device->postEventFromUser(event);
-				}
-					
-			}
-			else // Process one touch for other actions.
-			{
-				s32 pointerIndex = (eventAction & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
-
-				event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, pointerIndex);
-				event.TouchInput.X = AMotionEvent_getX(androidEvent, pointerIndex);
-				event.TouchInput.Y = AMotionEvent_getY(androidEvent, pointerIndex);
-				event.TouchInput.touchedCount = AMotionEvent_getPointerCount(androidEvent);
-
-				device->postEventFromUser(event);
-			}
-			return 1;
 		}
-		break;
-		case AINPUT_EVENT_TYPE_KEY:
-		{
-			SEvent event;
-			event.EventType = EET_KEY_INPUT_EVENT;
+		event.MouseInput.ButtonStates = CurrentMouseButtonState;
+		postEventFromUser(event);
+		LastMouseCursorPosition.X = event.MouseInput.X;
+		LastMouseCursorPosition.Y = event.MouseInput.Y;
+		return 1;
+	}
+	SEvent event;
+	event.EventType = EET_TOUCH_INPUT_EVENT;
 
-			int32_t keyCode = AKeyEvent_getKeyCode(androidEvent);
-			// os::Printer::log("keyCode: ", core::stringc(keyCode).c_str(), ELL_DEBUG);
-
-			int32_t keyAction = AKeyEvent_getAction(androidEvent);
-			int32_t keyMetaState = AKeyEvent_getMetaState(androidEvent);
-			
-			if(keyCode == AKEYCODE_BACK) {
-				//Android sends right mouse button always as a keycode back with source mouse,
-				//map it to a proper mouse event instead
-				if(AInputEvent_getSource(androidEvent) != AINPUT_SOURCE_MOUSE)
-					break;
-				if(keyAction != AKEY_EVENT_ACTION_DOWN && keyAction != AKEY_EVENT_ACTION_UP)
-					break;
-				if(keyAction == AKEY_EVENT_ACTION_DOWN){
-					if(device->CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY)
-						break;
-					device->CurrentMouseButtonState |= AMOTION_EVENT_BUTTON_SECONDARY;
-				} else
-					device->CurrentMouseButtonState &= ~AMOTION_EVENT_BUTTON_SECONDARY;
-				event.EventType = EET_MOUSE_INPUT_EVENT;
-				event.MouseInput.Shift = (keyMetaState & AMETA_SHIFT_ON) != 0;
-				event.MouseInput.Control = (keyMetaState & AMETA_CTRL_ON) != 0;
-				event.MouseInput.Event = (device->CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY) ? EMIE_RMOUSE_PRESSED_DOWN : EMIE_RMOUSE_LEFT_UP;
-				event.MouseInput.X = device->LastMouseCursorPosition.X;
-				event.MouseInput.Y = device->LastMouseCursorPosition.Y;
-				event.MouseInput.ButtonStates = device->CurrentMouseButtonState;
-				device->postEventFromUser(event);
-				return 1;
-			}
-
-			if ( keyCode >= 0 && (u32)keyCode < device->KeyMap.size() )
-				event.KeyInput.Key = device->KeyMap[keyCode];
-			else
-				event.KeyInput.Key = KEY_UNKNOWN;
-			event.KeyInput.SystemKeyCode = (u32)keyCode;
-			if ( keyAction == AKEY_EVENT_ACTION_DOWN )
-				event.KeyInput.PressedDown = true;
-			else if ( keyAction == AKEY_EVENT_ACTION_UP )
-				event.KeyInput.PressedDown = false;
-			else if ( keyAction == AKEY_EVENT_ACTION_MULTIPLE )
-			{
-				// TODO: Multiple duplicate key events have occurred in a row,
-				// or a complex string is being delivered. The repeat_count
-				// property of the key event contains the number of times the
-				// given key code should be executed.
-				// I guess this might necessary for more complicated i18n key input,
-				// but don't see yet how to handle this correctly.
-			}
-
-			/* no use for meta keys so far.
-			if (   keyMetaState & AMETA_ALT_ON
-				|| keyMetaState & AMETA_ALT_LEFT_ON
-				|| keyMetaState & AMETA_ALT_RIGHT_ON )
-				;
-			// what is a sym?
-			if (   keyMetaState & AMETA_SYM_ON )
-				;
-			*/
-			if (   keyMetaState & AMETA_SHIFT_ON
-				|| keyMetaState & AMETA_SHIFT_LEFT_ON
-				|| keyMetaState & AMETA_SHIFT_RIGHT_ON )
-				event.KeyInput.Shift = true;
-			else
-				event.KeyInput.Shift = false;
-
-			if(keyMetaState & AMETA_CTRL_ON
-			   || keyMetaState & AMETA_CTRL_LEFT_ON
-			   || keyMetaState & AMETA_CTRL_RIGHT_ON)
-				event.KeyInput.Control = true;
-			else
-				event.KeyInput.Control = false;
-
-			// Having memory allocations + going through JNI for each key-press is pretty bad (slow).
-			// So we do it only for those keys which are likely text-characters and avoid it for all other keys.
-			// So it's fast for keys like game controller input and special keys. And text keys are typically
-			// only used or entering text and not for gaming on Android, so speed likely doesn't matter there too much.
-			if ( event.KeyInput.Key > 0 )
-			{
-				// TODO:
-				// Not sure why we have to attach a JNIEnv here, but it won't work when doing that in the constructor or
-				// trying to use the activity->env. My best guess is that the event-handling happens in an own thread.
-				// It means JNIEnvAttachedToVM will never get detached as I don't know a safe way where to do that
-				// (we could attach & detach each time, but that would probably be slow)
-				// Also - it has to be each time as it get's invalid when the application mode changes.
-				if ( device->Initialized && device->Android && device->Android->activity && device->Android->activity->vm )
-				{
-					JavaVMAttachArgs attachArgs;
-					attachArgs.version = JNI_VERSION_1_6;
-					attachArgs.name = 0;
-					attachArgs.group = NULL;
-
-					// Not a big problem calling it each time - it's a no-op when the thread already is attached.
-					// And we have to do that as someone else can have detached the thread in the meantime.
-					jint result = device->Android->activity->vm->AttachCurrentThread(&device->JNIEnvAttachedToVM, &attachArgs);
-					if(result == JNI_ERR)
-					{
-						os::Printer::log("AttachCurrentThread for the JNI environment failed.", ELL_WARNING);
-						device->JNIEnvAttachedToVM = 0;
-					}
-
-					if ( device->JNIEnvAttachedToVM )
-					{
-						jni::CKeyEventWrapper * keyEventWrapper = new jni::CKeyEventWrapper(device->JNIEnvAttachedToVM, keyAction, keyCode);
-						event.KeyInput.Char = keyEventWrapper->getUnicodeChar(keyMetaState);
-						delete keyEventWrapper;
-					}
-				}
-				if ( event.KeyInput.Key == KEY_BACK )
-				{
-					event.KeyInput.Char =  0x08;	// same key-code as on other operating systems. Otherwise we have to handle too much system specific stuff in the editbox.
-				}
-				//os::Printer::log("char-code: ", core::stringc((int)event.KeyInput.Char).c_str(), ELL_DEBUG);
-
-			}
-			else
-			{
-				// os::Printer::log("keyCode: ", core::stringc(keyCode).c_str(), ELL_DEBUG);
-				event.KeyInput.Char = 0;
-			}
-
-			device->postEventFromUser(event);
-			return 1;
+	switch(eventType) {
+		case AMOTION_EVENT_ACTION_DOWN:
+		case AMOTION_EVENT_ACTION_POINTER_DOWN: {
+			event.TouchInput.Event = ETIE_PRESSED_DOWN;
+			break;
 		}
-		break;
-		default:
-		break;
+		case AMOTION_EVENT_ACTION_MOVE: {
+			event.TouchInput.Event = ETIE_MOVED;
+			break;
+		}
+		case AMOTION_EVENT_ACTION_UP:
+		case AMOTION_EVENT_ACTION_POINTER_UP:
+		case AMOTION_EVENT_ACTION_CANCEL: {
+			event.TouchInput.Event = ETIE_LEFT_UP;
+			break;
+		}
+		default: {
+			os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
+			return 0;
+		}
 	}
 
-	return 0;
+	// Process all touches for move action.
+	if(event.TouchInput.Event == ETIE_MOVED) {
+		s32 pointerCount = AMotionEvent_getPointerCount(androidEvent);
+
+		for(s32 i = 0; i < pointerCount; ++i) {
+			event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, i);
+			event.TouchInput.X = AMotionEvent_getX(androidEvent, i);
+			event.TouchInput.Y = AMotionEvent_getY(androidEvent, i);
+			event.TouchInput.touchedCount = pointerCount;
+
+			postEventFromUser(event);
+		}
+
+	} else {// Process only one touch for other actions.
+		s32 pointerIndex = (eventAction & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+
+		event.TouchInput.ID = AMotionEvent_getPointerId(androidEvent, pointerIndex);
+		event.TouchInput.X = AMotionEvent_getX(androidEvent, pointerIndex);
+		event.TouchInput.Y = AMotionEvent_getY(androidEvent, pointerIndex);
+		event.TouchInput.touchedCount = AMotionEvent_getPointerCount(androidEvent);
+
+		postEventFromUser(event);
+	}
+	return 1;
+}
+
+s32 CIrrDeviceAndroid::handleKeyEvent(AInputEvent* androidEvent) {
+	SEvent event;
+	event.EventType = EET_KEY_INPUT_EVENT;
+
+	int32_t keyCode = AKeyEvent_getKeyCode(androidEvent);
+	// os::Printer::log("keyCode: ", core::stringc(keyCode).c_str(), ELL_DEBUG);
+
+	int32_t keyAction = AKeyEvent_getAction(androidEvent);
+	int32_t keyMetaState = AKeyEvent_getMetaState(androidEvent);
+
+	if(keyCode == AKEYCODE_BACK) {
+		//Android sends right mouse button always as a keycode back with source mouse,
+		//map it to a proper mouse event instead
+		if(AInputEvent_getSource(androidEvent) != AINPUT_SOURCE_MOUSE)
+			return 0;
+		if(keyAction != AKEY_EVENT_ACTION_DOWN && keyAction != AKEY_EVENT_ACTION_UP)
+			return 0;
+		if(keyAction == AKEY_EVENT_ACTION_DOWN) {
+			if(CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY)
+				return 0;
+			CurrentMouseButtonState |= AMOTION_EVENT_BUTTON_SECONDARY;
+		} else
+			CurrentMouseButtonState &= ~AMOTION_EVENT_BUTTON_SECONDARY;
+		event.EventType = EET_MOUSE_INPUT_EVENT;
+		event.MouseInput.Shift = (keyMetaState & AMETA_SHIFT_ON) != 0;
+		event.MouseInput.Control = (keyMetaState & AMETA_CTRL_ON) != 0;
+		event.MouseInput.Event = (CurrentMouseButtonState & AMOTION_EVENT_BUTTON_SECONDARY) ? EMIE_RMOUSE_PRESSED_DOWN : EMIE_RMOUSE_LEFT_UP;
+		event.MouseInput.X = LastMouseCursorPosition.X;
+		event.MouseInput.Y = LastMouseCursorPosition.Y;
+		event.MouseInput.ButtonStates = CurrentMouseButtonState;
+		postEventFromUser(event);
+		return 1;
+	}
+
+	if(keyCode >= 0 && (u32)keyCode < KeyMap.size())
+		event.KeyInput.Key = KeyMap[keyCode];
+	else
+		event.KeyInput.Key = KEY_UNKNOWN;
+	event.KeyInput.SystemKeyCode = (u32)keyCode;
+	if(keyAction == AKEY_EVENT_ACTION_DOWN)
+		event.KeyInput.PressedDown = true;
+	else if(keyAction == AKEY_EVENT_ACTION_UP)
+		event.KeyInput.PressedDown = false;
+	else if(keyAction == AKEY_EVENT_ACTION_MULTIPLE) {
+		// TODO: Multiple duplicate key events have occurred in a row,
+		// or a complex string is being delivered. The repeat_count
+		// property of the key event contains the number of times the
+		// given key code should be executed.
+		// I guess this might necessary for more complicated i18n key input,
+		// but don't see yet how to handle this correctly.
+	}
+
+	/* no use for meta keys so far.
+	if (   keyMetaState & AMETA_ALT_ON
+		|| keyMetaState & AMETA_ALT_LEFT_ON
+		|| keyMetaState & AMETA_ALT_RIGHT_ON )
+		;
+	// what is a sym?
+	if (   keyMetaState & AMETA_SYM_ON )
+		;
+	*/
+	if(keyMetaState & AMETA_SHIFT_ON
+	   || keyMetaState & AMETA_SHIFT_LEFT_ON
+	   || keyMetaState & AMETA_SHIFT_RIGHT_ON)
+		event.KeyInput.Shift = true;
+	else
+		event.KeyInput.Shift = false;
+
+	if(keyMetaState & AMETA_CTRL_ON
+	   || keyMetaState & AMETA_CTRL_LEFT_ON
+	   || keyMetaState & AMETA_CTRL_RIGHT_ON)
+		event.KeyInput.Control = true;
+	else
+		event.KeyInput.Control = false;
+
+	// Having memory allocations + going through JNI for each key-press is pretty bad (slow).
+	// So we do it only for those keys which are likely text-characters and avoid it for all other keys.
+	// So it's fast for keys like game controller input and special keys. And text keys are typically
+	// only used or entering text and not for gaming on Android, so speed likely doesn't matter there too much.
+	if(event.KeyInput.Key > 0) {
+		// TODO:
+		// Not sure why we have to attach a JNIEnv here, but it won't work when doing that in the constructor or
+		// trying to use the activity->env. My best guess is that the event-handling happens in an own thread.
+		// It means JNIEnvAttachedToVM will never get detached as I don't know a safe way where to do that
+		// (we could attach & detach each time, but that would probably be slow)
+		// Also - it has to be each time as it get's invalid when the application mode changes.
+		if(Initialized && Android && Android->activity && Android->activity->vm) {
+			JavaVMAttachArgs attachArgs;
+			attachArgs.version = JNI_VERSION_1_6;
+			attachArgs.name = 0;
+			attachArgs.group = NULL;
+
+			// Not a big problem calling it each time - it's a no-op when the thread already is attached.
+			// And we have to do that as someone else can have detached the thread in the meantime.
+			jint result = Android->activity->vm->AttachCurrentThread(&JNIEnvAttachedToVM, &attachArgs);
+			if(result == JNI_ERR) {
+				os::Printer::log("AttachCurrentThread for the JNI environment failed.", ELL_WARNING);
+				JNIEnvAttachedToVM = 0;
+			}
+
+			if(JNIEnvAttachedToVM) {
+				jni::CKeyEventWrapper* keyEventWrapper = new jni::CKeyEventWrapper(JNIEnvAttachedToVM, keyAction, keyCode);
+				event.KeyInput.Char = keyEventWrapper->getUnicodeChar(keyMetaState);
+				delete keyEventWrapper;
+			}
+		}
+		if(event.KeyInput.Key == KEY_BACK) {
+			event.KeyInput.Char = 0x08;	// same key-code as on other operating systems. Otherwise we have to handle too much system specific stuff in the editbox.
+		}
+		//os::Printer::log("char-code: ", core::stringc((int)event.KeyInput.Char).c_str(), ELL_DEBUG);
+
+	} else {
+		// os::Printer::log("keyCode: ", core::stringc(keyCode).c_str(), ELL_DEBUG);
+		event.KeyInput.Char = 0;
+	}
+
+	postEventFromUser(event);
+	return 1;
 }
 
 void CIrrDeviceAndroid::createDriver()

@@ -78,6 +78,10 @@ namespace irr
 
 		static s32 handleInput(android_app* app, AInputEvent* event);
 
+		s32 handleMotionEvent(AInputEvent* event);
+
+		s32 handleKeyEvent(AInputEvent* event);
+
 		void createDriver();
 
 		void createKeyMap();
