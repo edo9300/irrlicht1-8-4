@@ -338,7 +338,6 @@ void CIrrDeviceAndroid::handleAndroidCommand(android_app* app, int32_t cmd)
 s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 {
 	CIrrDeviceAndroid* device = (CIrrDeviceAndroid*)app->userData;
-	s32 status = 0;
 
 	switch ( AInputEvent_getType(androidEvent) )
 	{
@@ -416,12 +415,12 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 					if(eventType == AMOTION_EVENT_ACTION_DOWN) {
 						u32 newlyPressed = newButtonState & ~device->CurrentMouseButtonState;
 						if(newlyPressed == 0)
-							return 0;
+							return 1;
 						event.MouseInput.Event = GetMouseButtonEvent(newlyPressed, false);
 					} else {
 						u32 leftButton = ~newButtonState & device->CurrentMouseButtonState;
 						if(leftButton == 0)
-							return 0;
+							return 1;
 						event.MouseInput.Event = GetMouseButtonEvent(leftButton, true);
 					}
 					device->CurrentMouseButtonState = newButtonState;
@@ -442,7 +441,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 				device->postEventFromUser(event);
 				device->LastMouseCursorPosition.X = event.MouseInput.X;
 				device->LastMouseCursorPosition.Y = event.MouseInput.Y;
-				break;
+				return 1;
 			}
 			
 			switch (eventType)
@@ -461,7 +460,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 				break;
 			default:
 				os::Printer::log("Unhandled amotion event: ", core::stringc(eventType).c_str(), ELL_DEBUG);
-				break;
+				return 0;
 			}
 
 			// Process all touches for move action.
@@ -491,8 +490,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 
 				device->postEventFromUser(event);
 			}
-
-			status = 1;
+			return 1;
 		}
 		break;
 		case AINPUT_EVENT_TYPE_KEY:
@@ -509,7 +507,6 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			if(keyCode == AKEYCODE_BACK) {
 				//Android sends right mouse button always as a keycode back with source mouse,
 				//map it to a proper mouse event instead
-				status=1;
 				if(AInputEvent_getSource(androidEvent) != AINPUT_SOURCE_MOUSE)
 					break;
 				if(keyAction != AKEY_EVENT_ACTION_DOWN && keyAction != AKEY_EVENT_ACTION_UP)
@@ -528,7 +525,7 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 				event.MouseInput.Y = device->LastMouseCursorPosition.Y;
 				event.MouseInput.ButtonStates = device->CurrentMouseButtonState;
 				device->postEventFromUser(event);
-				break;
+				return 1;
 			}
 
 			if ( keyCode >= 0 && (u32)keyCode < device->KeyMap.size() )
@@ -622,13 +619,14 @@ s32 CIrrDeviceAndroid::handleInput(android_app* app, AInputEvent* androidEvent)
 			}
 
 			device->postEventFromUser(event);
+			return 1;
 		}
 		break;
 		default:
 		break;
 	}
 
-	return status;
+	return 0;
 }
 
 void CIrrDeviceAndroid::createDriver()
