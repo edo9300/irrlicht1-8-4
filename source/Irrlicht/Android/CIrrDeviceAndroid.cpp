@@ -618,7 +618,7 @@ s32 CIrrDeviceAndroid::handleKeyEvent(AInputEvent* androidEvent) {
 	}
 
 	postEventFromUser(event);
-	return 1;
+	return 0;
 }
 
 void CIrrDeviceAndroid::createDriver()
