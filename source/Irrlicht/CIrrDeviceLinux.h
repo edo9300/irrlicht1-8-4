@@ -409,6 +409,7 @@ namespace irr
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 		irr::X11Loader libx11;
 #endif
+		core::stringc class_name;
 #endif
 		u32 Width, Height;
 		bool WindowHasFocus;

@@ -1772,6 +1772,8 @@ bool CIrrDeviceWayland::initWayland()
 
     if (CreationParams.DriverType != video::EDT_NULL)
     {
+        if(CreationParams.PrivateData)
+            class_name = static_cast<const char*>(CreationParams.PrivateData);
         if (m_has_xdg_wm_base)
         {
             m_xdg_wm_base = static_cast<xdg_wm_base*>(wl_registry_bind(
@@ -1821,6 +1823,8 @@ bool CIrrDeviceWayland::createWindow()
                                      
         m_xdg_toplevel = xdg_surface_get_toplevel(m_xdg_surface);
 
+        if(class_name.size() > 0)
+            xdg_toplevel_set_app_id(m_xdg_toplevel, class_name.data());
         xdg_toplevel_add_listener(m_xdg_toplevel,
                                   &WaylandCallbacks::toplevel_listener, this);
 
@@ -1849,6 +1853,8 @@ bool CIrrDeviceWayland::createWindow()
                                      
         m_zxdg_toplevel = zxdg_surface_v6_get_toplevel(m_zxdg_surface);
 
+        if(class_name.size() > 0)
+            zxdg_toplevel_v6_set_app_id(m_zxdg_toplevel, class_name.data());
         zxdg_toplevel_v6_add_listener(m_zxdg_toplevel,
                                   &WaylandCallbacks::zxdg_toplevel_listener, this);
 

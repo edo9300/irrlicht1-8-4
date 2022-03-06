@@ -167,6 +167,8 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	// create window
 	if (CreationParams.DriverType != video::EDT_NULL)
 	{
+		if(CreationParams.PrivateData)
+			class_name = static_cast<const char*>(CreationParams.PrivateData);
 		// create the window, only if we do not use the null device
 		if (!createWindow())
 			return;
@@ -537,6 +539,12 @@ bool CIrrDeviceLinux::createWindow()
 		{
 			// Window managers are free to ignore positions above, so give it another shot
 			X11Loader::XMoveWindow(XDisplay,XWindow,x,y);
+		}
+		if(class_name.size() > 0) {
+			XClassHint* hints = X11Loader::XAllocClassHint();
+			hints->res_name = hints->res_class = &class_name[0];
+			X11Loader::XSetClassHint(XDisplay, XWindow, hints);
+			X11Loader::XFree(hints);
 		}
 	}
 	else
@@ -925,12 +933,17 @@ bool CIrrDeviceLinux::createInputContext()
 		return false;
 	}
 
-	XInputMethod = X11Loader::XOpenIM(XDisplay, NULL, NULL, NULL);
-	if ( !XInputMethod )
 	{
-		setlocale(LC_CTYPE, oldLocale.c_str());
-		os::Printer::log("XOpenIM failed to create an input method. Falling back to non-i18n input.", ELL_WARNING);
-		return false;
+		char* _class_name = NULL;
+		if(class_name.size() > 0)
+			_class_name = &class_name[0];
+
+		XInputMethod = X11Loader::XOpenIM(XDisplay, NULL, _class_name, _class_name);
+		if(!XInputMethod) {
+			setlocale(LC_CTYPE, oldLocale.c_str());
+			os::Printer::log("XOpenIM failed to create an input method. Falling back to non-i18n input.", ELL_WARNING);
+			return false;
+		}
 	}
 
 	XIMStyles *im_supported_styles;
