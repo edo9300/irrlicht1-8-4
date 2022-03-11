@@ -1931,7 +1931,13 @@ bool CIrrDeviceWayland::createWindow()
     if (m_shm)
     {
         m_cursor_surface = wl_compositor_create_surface(m_compositor);
-        m_cursor_theme = pwl_cursor_theme_load(nullptr, 32, m_shm);
+        int size = 0;
+        auto xcursor_size = getenv("XCURSOR_SIZE");
+        if (xcursor_size != nullptr)
+            size = atoi(xcursor_size);
+	    if (size <= 0)
+            size = 24;
+        m_cursor_theme = pwl_cursor_theme_load(getenv("XCURSOR_THEME"), size, m_shm);
     }
 
     if (!m_cursor_theme)
