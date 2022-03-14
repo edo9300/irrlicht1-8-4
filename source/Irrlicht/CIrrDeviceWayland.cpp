@@ -48,6 +48,8 @@
 #include <dlfcn.h>
 #endif
 
+#include "DbusLoader.h"
+
 #include "CColorConverter.h"
 #include "COSOperator.h"
 #include "CTimer.h"
@@ -1808,6 +1810,112 @@ bool CIrrDeviceWayland::initWayland()
     return true;
 }
 
+
+// dbus related code to read the theme and size taken from https://gitlab.gnome.org/jadahl/libdecor,
+// licensed under the MIT license
+DBusMessage* get_setting_sync(DBusConnection *const connection, const char *key, const char *value) {
+	DBusError error;
+	uint32_t success;
+	DBusMessage *message;
+	DBusMessage *reply;
+
+	DbusLoader::dbus_error_init(&error);
+
+	message = DbusLoader::dbus_message_new_method_call(
+		"org.freedesktop.portal.Desktop",
+		"/org/freedesktop/portal/desktop",
+		"org.freedesktop.portal.Settings",
+		"Read");
+
+	success = DbusLoader::dbus_message_append_args(message,
+		DBUS_TYPE_STRING, &key,
+		DBUS_TYPE_STRING, &value,
+		DBUS_TYPE_INVALID);
+
+	if (!success)
+		return nullptr;
+
+	reply = DbusLoader::dbus_connection_send_with_reply_and_block(
+			     connection,
+			     message,
+			     DBUS_TIMEOUT_USE_DEFAULT,
+			     &error);
+
+	DbusLoader::dbus_message_unref(message);
+
+	if (DbusLoader::dbus_error_is_set(&error))
+		return nullptr;
+
+	return reply;
+}
+
+bool parse_type(DBusMessage *const reply, const int type, void *value) {
+	DBusMessageIter iter[3];
+
+	DbusLoader::dbus_message_iter_init(reply, &iter[0]);
+	if (DbusLoader::dbus_message_iter_get_arg_type(&iter[0]) != DBUS_TYPE_VARIANT)
+		return false;
+
+	DbusLoader::dbus_message_iter_recurse(&iter[0], &iter[1]);
+	if (DbusLoader::dbus_message_iter_get_arg_type(&iter[1]) != DBUS_TYPE_VARIANT)
+		return false;
+
+	DbusLoader::dbus_message_iter_recurse(&iter[1], &iter[2]);
+	if (DbusLoader::dbus_message_iter_get_arg_type(&iter[2]) != type)
+		return false;
+
+	DbusLoader::dbus_message_iter_get_basic(&iter[2], value);
+
+	return true;
+}
+
+bool libdecor_get_cursor_settings(char*& theme, int& size)  {
+	DbusLoader loader;
+	if(!loader.Init())
+		return false;
+	static constexpr char* name = "org.gnome.desktop.interface";
+	static constexpr char* key_theme = "cursor-theme";
+	static constexpr char* key_size = "cursor-size";
+
+	DBusError error;
+	DBusConnection *connection;
+	DBusMessage *reply;
+	const char* value_theme = nullptr;
+
+	DbusLoader::dbus_error_init(&error);
+
+	connection = DbusLoader::dbus_bus_get(DBUS_BUS_SESSION, &error);
+
+	if (DbusLoader::dbus_error_is_set(&error))
+		return false;
+
+	reply = get_setting_sync(connection, name, key_theme);
+	if (!reply)
+		return false;
+
+	if (!parse_type(reply, DBUS_TYPE_STRING, &value_theme)) {
+		DbusLoader::dbus_message_unref(reply);
+		return false;
+	}
+
+	theme = strdup(value_theme);
+
+	DbusLoader::dbus_message_unref(reply);
+
+	reply = get_setting_sync(connection, name, key_size);
+	if (!reply)
+		return false;
+
+	if (!parse_type(reply, DBUS_TYPE_INT32, &size)) {
+		DbusLoader::dbus_message_unref(reply);
+		return false;
+	}
+
+	DbusLoader::dbus_message_unref(reply);
+
+	return true;
+}
+
 bool CIrrDeviceWayland::createWindow()
 {
     m_surface = wl_compositor_create_surface(m_compositor);
@@ -1932,12 +2040,20 @@ bool CIrrDeviceWayland::createWindow()
     {
         m_cursor_surface = wl_compositor_create_surface(m_compositor);
         int size = 0;
-        auto xcursor_size = getenv("XCURSOR_SIZE");
-        if (xcursor_size != nullptr)
-            size = atoi(xcursor_size);
-	    if (size <= 0)
-            size = 24;
-        m_cursor_theme = pwl_cursor_theme_load(getenv("XCURSOR_THEME"), size, m_shm);
+		char* theme = nullptr;
+		bool free_theme = true;
+		if(!libdecor_get_cursor_settings(theme, size)) {
+			auto xcursor_size = getenv("XCURSOR_SIZE");
+			theme = getenv("XCURSOR_THEME");
+			if (xcursor_size != nullptr)
+				size = atoi(xcursor_size);
+			if (size <= 0)
+				size = 24;
+			free_theme = false;
+		}
+        m_cursor_theme = pwl_cursor_theme_load(theme, size, m_shm);
+		if(free_theme)
+			free(theme);
     }
 
     if (!m_cursor_theme)

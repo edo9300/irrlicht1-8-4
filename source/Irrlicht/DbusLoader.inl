@@ -1,0 +1,11 @@
+DBUS_FUNC(dbus_error_init, void, DBusError* error);
+DBUS_FUNC(dbus_error_is_set, uint32_t, const DBusError* error);
+DBUS_FUNC(dbus_message_unref, void, DBusMessage* message);
+DBUS_FUNC(dbus_message_append_args, uint32_t, DBusMessage* message, int first_arg_type, ...);
+DBUS_FUNC(dbus_message_new_method_call, DBusMessage*, const char* bus_name, const char* path, const char* iface, const char* method);
+DBUS_FUNC(dbus_connection_send_with_reply_and_block, DBusMessage* , DBusConnection* connection, DBusMessage* message, int timeout_milliseconds, DBusError* error);
+DBUS_FUNC(dbus_bus_get, DBusConnection*, DBusBusType type, DBusError* error);
+DBUS_FUNC(dbus_message_iter_init, uint32_t, DBusMessage* message, DBusMessageIter* iter);
+DBUS_FUNC(dbus_message_iter_get_arg_type, int, DBusMessageIter* iter);
+DBUS_FUNC(dbus_message_iter_recurse, void, DBusMessageIter* iter, DBusMessageIter* sub);
+DBUS_FUNC(dbus_message_iter_get_basic, void, DBusMessageIter* iter, void* value);
