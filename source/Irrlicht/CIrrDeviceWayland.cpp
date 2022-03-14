@@ -2223,6 +2223,8 @@ void CIrrDeviceWayland::minimizeWindow()
     if (m_xdg_toplevel)
     {
         xdg_toplevel_set_minimized(m_xdg_toplevel);
+    } else if(m_zxdg_shell) {
+        zxdg_toplevel_v6_set_minimized(m_zxdg_toplevel);
     }
 }
 
@@ -2232,6 +2234,8 @@ void CIrrDeviceWayland::maximizeWindow()
     if (m_xdg_toplevel)
     {
         xdg_toplevel_set_maximized(m_xdg_toplevel);
+    } else if(m_zxdg_shell) {
+        zxdg_toplevel_v6_set_maximized(m_zxdg_toplevel);
     }
 }
 
@@ -2241,6 +2245,8 @@ void CIrrDeviceWayland::restoreWindow()
     if (m_xdg_toplevel)
     {
         xdg_toplevel_unset_maximized(m_xdg_toplevel);
+    } else if(m_zxdg_shell) {
+        zxdg_toplevel_v6_unset_maximized(m_zxdg_toplevel);
     }
 }
 
