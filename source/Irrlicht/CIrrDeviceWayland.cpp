@@ -508,6 +508,9 @@ public:
     static void keyboard_leave(void* data, wl_keyboard* keyboard,
                                uint32_t serial, wl_surface* surface)
     {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+		
+		device->m_repeat_enabled = false;
     }
 
     static void keyboard_key(void* data, wl_keyboard* keyboard, uint32_t serial,
