@@ -1873,9 +1873,9 @@ bool libdecor_get_cursor_settings(char*& theme, int& size)  {
 	DbusLoader loader;
 	if(!loader.Init())
 		return false;
-	static constexpr char* name = "org.gnome.desktop.interface";
-	static constexpr char* key_theme = "cursor-theme";
-	static constexpr char* key_size = "cursor-size";
+	static const char* name = "org.gnome.desktop.interface";
+	static const char* key_theme = "cursor-theme";
+	static const char* key_size = "cursor-size";
 
 	DBusError error;
 	DBusConnection *connection;
