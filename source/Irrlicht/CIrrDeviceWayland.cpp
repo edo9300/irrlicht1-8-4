@@ -250,6 +250,10 @@ public:
     static const wl_data_offer_listener data_offer_listener;
     static const wl_data_source_listener data_source_listener;
     static const wl_callback_listener surface_frame_listener;
+#ifdef IRR_USE_LIBDECOR
+	static struct libdecor_interface libdecor_interface;
+	static struct libdecor_frame_interface libdecor_frame_interface;
+#endif
 
     static void pointer_enter(void* data, wl_pointer* pointer, uint32_t serial,
                               wl_surface* surface, wl_fixed_t sx, wl_fixed_t sy)
@@ -295,6 +299,13 @@ public:
             state == WL_POINTER_BUTTON_STATE_PRESSED &&
             device->m_xkb_alt_pressed)
         {
+#ifdef IRR_USE_LIBDECOR
+            if (device->m_libdecor) {
+                if (device->m_libdecor_surface) {
+                    libdecor_frame_move(device->m_libdecor_surface, device->m_seat, serial);
+                }
+            } else
+#endif
             if (device->m_xdg_toplevel)
             {
                 xdg_toplevel_move(device->m_xdg_toplevel, device->m_seat, serial);
@@ -520,7 +531,7 @@ public:
 
         if (!device->m_xkb_state)
             return;
-
+		
         wchar_t key_char = 0;
 
         if (state == WL_KEYBOARD_KEY_STATE_PRESSED)
@@ -1326,6 +1337,54 @@ public:
             wl_surface_commit(surface);
         }
     }
+#ifdef IRR_USE_LIBDECOR
+	static void libdecor_error(libdecor* context, libdecor_error error, const char* message)
+	{
+		os::Printer::log((core::stringc("libdecor error (")+core::stringc(error)+"): "+message).data(), ELL_ERROR);
+	}
+    static void libdecor_frame_configure(libdecor_frame* frame, libdecor_configuration* configuration, void* data) {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+		libdecor_window_state window_state;
+        bool fullscreen = false;
+		if (libdecor_configuration_get_window_state(configuration, &window_state)) {
+			fullscreen = (window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN) != 0;
+		}
+		int32_t width, height;
+        if(!libdecor_configuration_get_content_size(configuration, frame,
+                                                     &width, &height)) {
+            width = device->m_width;
+            height = device->m_height;
+        }
+
+        if(!fullscreen) {
+
+            /* zxdg_toplevel spec states that this is a suggestion.
+               Ignore if less than or greater than max/min size. */
+
+            if(!device->CreationParams.WindowResizable) {
+                width = device->m_width;
+                height = device->m_height;
+            }
+        }
+		device->m_surface_configured = true;
+        device->m_resizing_state.pending = true;
+        device->m_resizing_state.width = width;
+        device->m_resizing_state.height = height;
+		auto state = libdecor_state_new(width, height);
+		::libdecor_frame_commit(frame, state, configuration);
+		libdecor_state_free(state);
+	}
+    static void libdecor_frame_close(libdecor_frame* frame, void* data) {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+        
+        device->closeDevice();		
+	}
+    static void libdecor_frame_commit(libdecor_frame* frame, void* data) {
+		(void)frame;
+		(void)data;
+		return;
+	}
+#endif
 };
 
 const wl_pointer_listener WaylandCallbacks::pointer_listener =
@@ -1445,6 +1504,18 @@ const struct wl_callback_listener WaylandCallbacks::surface_frame_listener =
 {
     WaylandCallbacks::surface_frame_done
 };
+#ifdef IRR_USE_LIBDECOR
+struct libdecor_interface WaylandCallbacks::libdecor_interface =
+{
+    WaylandCallbacks::libdecor_error
+};
+struct libdecor_frame_interface WaylandCallbacks::libdecor_frame_interface =
+{
+    WaylandCallbacks::libdecor_frame_configure,
+    WaylandCallbacks::libdecor_frame_close,
+    WaylandCallbacks::libdecor_frame_commit
+};
+#endif
 
 
 
@@ -1499,6 +1570,11 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_zxdg_toplevel = nullptr;
     m_has_zxdg_shell = false;
     m_zxdg_shell_name = 0;
+	
+#ifdef IRR_USE_LIBDECOR
+	m_libdecor = nullptr;
+	m_libdecor_surface = nullptr;
+#endif
 	
     m_surface_configured = false;
     
@@ -1645,6 +1721,11 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
     if (m_shell)
         wl_shell_destroy(m_shell);
 
+#ifdef IRR_USE_LIBDECOR	
+	if (m_libdecor)
+		libdecor_unref(m_libdecor);
+#endif
+
     if (m_egl_window)
         pwl_egl_window_destroy(m_egl_window);
     
@@ -1779,6 +1860,18 @@ bool CIrrDeviceWayland::initWayland()
     {
         if(CreationParams.PrivateData)
             class_name = static_cast<const char*>(CreationParams.PrivateData);
+#ifdef IRR_USE_LIBDECOR
+		if(!m_decoration_manager && !m_kwin_server_decoration_manager) {
+			m_libdecor = libdecor_new(m_display, &WaylandCallbacks::libdecor_interface);
+
+			/* If libdecor works, we don't need xdg-shell anymore. */
+			if (m_libdecor) {
+				m_has_xdg_wm_base = false;
+				m_has_zxdg_shell = false;
+				m_has_wl_shell = false;
+			}
+		}
+#endif
         if (m_has_xdg_wm_base)
         {
             m_xdg_wm_base = static_cast<xdg_wm_base*>(wl_registry_bind(
@@ -2004,6 +2097,29 @@ bool CIrrDeviceWayland::createWindow()
             wl_shell_surface_set_toplevel(m_shell_surface);
         }
     }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor != nullptr)
+	{
+        m_libdecor_surface = libdecor_decorate(m_libdecor,
+												m_surface,
+												&WaylandCallbacks::libdecor_frame_interface,
+												this);
+        if (m_libdecor_surface == nullptr) {
+			os::Printer::log("CFailed to create libdecor frame!", ELL_ERROR);
+        } else {
+			if(class_name.size() > 0)
+				libdecor_frame_set_app_id(m_libdecor_surface, class_name.data());
+            libdecor_frame_map(m_libdecor_surface);
+        }
+		                       
+        while (!m_surface_configured)
+        {
+            pwl_display_flush(m_display);
+            pwl_display_dispatch(m_display);
+            usleep(1000);
+        }
+	}
+#endif
     else
     {
         os::Printer::log("Cannot create shell surface.", ELL_ERROR);
@@ -2020,19 +2136,19 @@ bool CIrrDeviceWayland::createWindow()
     {
         zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
                             ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-    }
-        
-    if (m_kwin_server_decoration_manager != nullptr)
-    {
-        m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
-                                    m_kwin_server_decoration_manager, m_surface);
-    }
-		
-                                                       
-    if (m_kwin_server_decoration != nullptr)
-    {
-        org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
-    }
+    } else {
+		if (m_kwin_server_decoration_manager != nullptr)
+		{
+			m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
+										m_kwin_server_decoration_manager, m_surface);
+		}
+			
+														   
+		if (m_kwin_server_decoration != nullptr)
+		{
+			org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
+		}
+	}
 
     wl_region* region = wl_compositor_create_region(m_compositor);
     wl_region_add(region, 0, 0, m_width, m_height);
@@ -2271,6 +2387,12 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
     {
         wl_shell_surface_set_title(m_shell_surface, title);
     }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor)
+	{
+		libdecor_frame_set_title(m_libdecor_surface, title);
+	}
+#endif
 
     pwl_display_flush(m_display);
 
@@ -2345,6 +2467,12 @@ void CIrrDeviceWayland::minimizeWindow()
     } else if(m_zxdg_shell) {
         zxdg_toplevel_v6_set_minimized(m_zxdg_toplevel);
     }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor)
+	{
+		libdecor_frame_set_minimized(m_libdecor_surface);
+	}
+#endif
 }
 
 //! Maximize window
@@ -2356,6 +2484,12 @@ void CIrrDeviceWayland::maximizeWindow()
     } else if(m_zxdg_shell) {
         zxdg_toplevel_v6_set_maximized(m_zxdg_toplevel);
     }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor)
+	{
+		libdecor_frame_set_maximized(m_libdecor_surface);
+	}
+#endif
 }
 
 //! Restore original window size
@@ -2367,6 +2501,12 @@ void CIrrDeviceWayland::restoreWindow()
     } else if(m_zxdg_shell) {
         zxdg_toplevel_v6_unset_maximized(m_zxdg_toplevel);
     }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor)
+	{
+		libdecor_frame_unset_maximized(m_libdecor_surface);
+	}
+#endif
 }
 
 //! Move window to requested position

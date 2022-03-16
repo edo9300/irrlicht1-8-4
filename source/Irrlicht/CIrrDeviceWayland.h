@@ -39,6 +39,9 @@
 #include <wayland-egl.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
+#ifdef IRR_USE_LIBDECOR
+#include <libdecor.h>
+#endif
 
 #include <map>
 #include <irrArray.h>
@@ -347,6 +350,11 @@ namespace irr
         bool m_has_zxdg_shell;
         uint32_t m_zxdg_shell_name;
 		
+#ifdef IRR_USE_LIBDECOR
+		libdecor* m_libdecor;
+		libdecor_frame* m_libdecor_surface;
+#endif
+
         bool m_surface_configured;
         
         zxdg_decoration_manager_v1* m_decoration_manager;
