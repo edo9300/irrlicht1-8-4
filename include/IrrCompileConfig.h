@@ -200,6 +200,15 @@ while it runs and enabling it will slow down the engine. */
 #undef _IRR_WAYLAND_DYNAMIC_LOAD_
 #endif
 
+#define IRR_USE_LIBDECOR
+#ifdef NO_IRR_USE_LIBDECOR
+#undef IRR_USE_LIBDECOR
+#endif
+
+#ifndef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+#undef IRR_USE_LIBDECOR
+#endif
+
 //! Define _IRR_COMPILE_WITH_DIRECT3D_9_ to compile the Irrlicht engine with DIRECT3D9.
 /** If you only want to use the software device or opengl you can disable those defines.
 This switch is mostly disabled because people do not get the g++ compiler compile
