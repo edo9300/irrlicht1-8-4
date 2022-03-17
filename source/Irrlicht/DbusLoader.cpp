@@ -10,7 +10,7 @@ namespace irr
 {
 #define DBUS_FUNC(name, return, ...) decltype(::name)* DbusLoader::name{ nullptr };
 #include "DbusLoader.inl"
-#undef X
+#undef DBUS_FUNC
 
 void* DbusLoader::LibDbus{ nullptr };
 int DbusLoader::amt{ 0 };
@@ -27,7 +27,7 @@ void DbusLoader::Load() {
 		return;\
 	}
 #include "DbusLoader.inl"
-#undef X
+#undef DBUS_FUNC
 	} else {
 		os::Printer::log("Failed to load libdbus-1.so", ELL_WARNING);
 		return;
@@ -39,7 +39,7 @@ void DbusLoader::Unload() {
 		dlclose(LibDbus);
 #define DBUS_FUNC(name, ...) name=nullptr;
 #include "DbusLoader.inl"
-#undef X
+#undef DBUS_FUNC
 		LibDbus = nullptr;
 	}
 }
