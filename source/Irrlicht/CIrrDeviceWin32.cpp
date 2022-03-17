@@ -2066,23 +2066,31 @@ void CIrrDeviceWin32::restoreWindow()
 }
 
 
+
+//gcc on mingw can't convert lambda to __stdcall function
+static BOOL CALLBACK callback(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM pData) {
+	auto monitors = reinterpret_cast<core::array<RECT>*>(pData);
+	monitors->push_back(*lprcMonitor);
+	return TRUE;
+}
+
 //! Restores the window to its original size.
 void CIrrDeviceWin32::toggleFullscreen(bool fullscreen)
 {
 	static constexpr LONG_PTR fullscreenStyle = WS_POPUP | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
 	static const auto monitors = [] {
-		std::vector<RECT> ret;
+		core::array<RECT> ret;
 		EnumDisplayMonitors(0, 0, callback, reinterpret_cast<LPARAM>(&ret));
 		return ret;
 	}();
-	fullscreen = !fullscreen;
 	if(fullscreen) {
 		GetWindowPlacement(HWnd, &nonFullscreenSize);
 		nonFullscreenStyle = GetWindowLongPtr(HWnd, GWL_STYLE);
 		RECT curSize{};
 		GetWindowRect(HWnd, &curSize);
 		const POINT windowCenter = { (curSize.left + (curSize.right - curSize.left) / 2), (curSize.top + (curSize.bottom - curSize.top) / 2) };
-		for(const auto& rect : monitors) {
+		for (u32 i = 0; i < monitors.size(); i++) {
+			const auto& rect = monitors[i];
 			if(PtInRect(&rect, windowCenter)) {
 				curSize = rect;
 				break;
