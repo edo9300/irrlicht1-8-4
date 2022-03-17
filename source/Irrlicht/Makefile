@@ -77,7 +77,7 @@ emscripten: EMSCRIPTEN=1
 
 CXXINCS = -I../../include -Izlib -Ijpeglib -Ilibpng
 CPPFLAGS += $(CXXINCS) -DIRRLICHT_EXPORTS=1
-CXXFLAGS += -Wall -pipe -fno-exceptions -fno-rtti
+CXXFLAGS += -Wall -pipe -fno-exceptions -fno-rtti -Wno-parentheses
 #CXXFLAGS += -std=gnu++11 -U__STRICT_ANSI__
 ifndef NDEBUG
   CXXFLAGS += -g -D_DEBUG
