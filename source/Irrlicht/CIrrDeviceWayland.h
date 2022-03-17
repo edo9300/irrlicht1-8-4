@@ -109,6 +109,9 @@ namespace irr
 
         //! Restores the window size.
         virtual void restoreWindow();
+		
+		//! Toggle the windowed/borderless fullscreen status of the window.
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_;
         
         //! Move window to requested position
         virtual bool moveWindow(int x, int y);

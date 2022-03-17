@@ -51,6 +51,8 @@ namespace irr
 		virtual void maximizeWindow();
 
 		virtual void restoreWindow();
+		
+		virtual void toggleFullscreen(bool fullscreen=true) { };
 
 		virtual core::position2di getWindowPosition();
 

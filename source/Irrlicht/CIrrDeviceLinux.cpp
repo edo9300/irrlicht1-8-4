@@ -123,6 +123,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
 	XInputMethod(0), XInputContext(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
+	wasHorizontalMaximized(false), wasVerticalMaximized(false),
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	libx11(),
 #endif
@@ -1846,6 +1847,72 @@ void CIrrDeviceLinux::restoreWindow()
 #endif
 }
 
+
+//! Restore original window size
+void CIrrDeviceLinux::toggleFullscreen(bool fullscreen)
+{
+#ifdef _IRR_COMPILE_WITH_X11_
+	if (!HasNetWM)
+		return;
+	struct {
+		unsigned long   flags;
+		unsigned long   functions;
+		unsigned long   decorations;
+		long			inputMode;
+		unsigned long   status;
+	} hints{};
+
+	auto checkMaximized = [&]() {
+		const long maxLength = 1024;
+		Atom actualType;
+		int actualFormat;
+		unsigned long numItems, bytesAfter;
+		unsigned char* propertyValue = nullptr;
+		wasVerticalMaximized = false;
+		wasHorizontalMaximized = false;
+		if(X11Loader::XGetWindowProperty(XDisplay, XWindow, X_ATOM_NETWM_STATE,
+							  0l, maxLength, false, XA_ATOM, &actualType,
+							  &actualFormat, &numItems, &bytesAfter,
+							  &propertyValue) == Success) {
+			Atom* atoms = (Atom*)propertyValue;
+			for(unsigned long i = 0; i < numItems; ++i) {
+				if(atoms[i] == X_ATOM_NETWM_MAXIMIZE_VERT) {
+					wasVerticalMaximized = true;
+				} else if(atoms[i] == X_ATOM_NETWM_MAXIMIZE_HORZ) {
+					wasHorizontalMaximized = true;
+				}
+			}
+			X11Loader::XFree(propertyValue);
+		}
+	};
+	if(fullscreen)
+		checkMaximized();
+	if(!wasHorizontalMaximized && !wasVerticalMaximized) {
+		XEvent xev = {};
+		xev.type = ClientMessage;
+		xev.xclient.window = XWindow;
+		xev.xclient.message_type = X_ATOM_NETWM_STATE;
+		xev.xclient.format = 32;
+		xev.xclient.data.l[0] = fullscreen ? 1 : 0;
+		int i = 1;
+		if(!wasHorizontalMaximized)
+			xev.xclient.data.l[i++] = X_ATOM_NETWM_MAXIMIZE_HORZ;
+		if(!wasVerticalMaximized)
+			xev.xclient.data.l[i++] = X_ATOM_NETWM_MAXIMIZE_VERT;
+		if(i == 2)
+			xev.xclient.data.l[i] = 0;
+		X11Loader::XSendEvent(XDisplay, DefaultRootWindow(XDisplay), False, SubstructureNotifyMask, &xev);
+	}
+
+	Atom property = X11Loader::XInternAtom(XDisplay, "_MOTIF_WM_HINTS", true);
+	hints.flags = 2;
+	hints.decorations = fullscreen ? 0 : 1;
+	X11Loader::XChangeProperty(XDisplay, XWindow, property, property, 32, PropModeReplace, (unsigned char*)&hints, 5);
+	X11Loader::XMapWindow(XDisplay, XWindow);
+	X11Loader::XFlush(XDisplay);
+#endif
+}
+
 core::position2di CIrrDeviceLinux::getWindowPosition()
 {
 	int wx = 0, wy = 0;
@@ -2419,9 +2486,9 @@ void CIrrDeviceLinux::initXAtoms()
 	X_ATOM_TARGETS = X11Loader::XInternAtom(XDisplay, "TARGETS", False);
 	X_ATOM_UTF8_STRING = X11Loader::XInternAtom (XDisplay, "UTF8_STRING", False);
 	X_ATOM_TEXT = X11Loader::XInternAtom (XDisplay, "TEXT", False);
-	X_ATOM_NETWM_MAXIMIZE_VERT = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", true);
-	X_ATOM_NETWM_MAXIMIZE_HORZ = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", true);
-	X_ATOM_NETWM_STATE = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE", true);
+	X_ATOM_NETWM_MAXIMIZE_VERT = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+	X_ATOM_NETWM_MAXIMIZE_HORZ = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+	X_ATOM_NETWM_STATE = X11Loader::XInternAtom(XDisplay, "_NET_WM_STATE", False);
 	X_ATOM_XDND_AWARE = X11Loader::XInternAtom(XDisplay, "XdndAware", False);
 	X_ATOM_XDND_ENTER = X11Loader::XInternAtom(XDisplay, "XdndEnter", False);
 	X_ATOM_XDND_LEAVE = X11Loader::XInternAtom(XDisplay, "XdndLeave", False);

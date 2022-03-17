@@ -94,6 +94,9 @@ namespace irr
 
 		//! Restore the window to normal size if possible.
 		virtual void restoreWindow() _IRR_OVERRIDE_;
+		
+		//! Toggle the windowed/borderless fullscreen status of the window.
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_ {};
 
         //! Get the position of this window on screen
         virtual core::position2di getWindowPosition() _IRR_OVERRIDE_;

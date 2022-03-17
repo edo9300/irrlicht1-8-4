@@ -43,6 +43,7 @@ namespace irr
 		virtual void minimizeWindow() _IRR_OVERRIDE_;
 		virtual void maximizeWindow() _IRR_OVERRIDE_;
 		virtual void restoreWindow() _IRR_OVERRIDE_;
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_ {};
 
 		virtual core::position2di getWindowPosition() _IRR_OVERRIDE_;
 

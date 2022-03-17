@@ -2065,6 +2065,44 @@ void CIrrDeviceWin32::restoreWindow()
 	SetWindowPlacement(HWnd, &wndpl);
 }
 
+
+//! Restores the window to its original size.
+void CIrrDeviceWin32::toggleFullscreen(bool fullscreen)
+{
+	static constexpr LONG_PTR fullscreenStyle = WS_POPUP | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+	static const auto monitors = [] {
+		std::vector<RECT> ret;
+		EnumDisplayMonitors(0, 0, callback, reinterpret_cast<LPARAM>(&ret));
+		return ret;
+	}();
+	fullscreen = !fullscreen;
+	if(fullscreen) {
+		GetWindowPlacement(HWnd, &nonFullscreenSize);
+		nonFullscreenStyle = GetWindowLongPtr(HWnd, GWL_STYLE);
+		RECT curSize{};
+		GetWindowRect(HWnd, &curSize);
+		const POINT windowCenter = { (curSize.left + (curSize.right - curSize.left) / 2), (curSize.top + (curSize.bottom - curSize.top) / 2) };
+		for(const auto& rect : monitors) {
+			if(PtInRect(&rect, windowCenter)) {
+				curSize = rect;
+				break;
+			}
+		}
+		if(!SetWindowLongPtr(HWnd, GWL_STYLE, fullscreenStyle))
+			os::Printer::log("Could not change window style.", ELL_ERROR);
+
+		const auto width = curSize.right - curSize.left;
+		const auto height = curSize.bottom - curSize.top;
+
+		SetWindowPos(HWnd, HWND_TOP, curSize.left, curSize.top, width, height, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+	} else {
+		SetWindowPlacement(HWnd, &nonFullscreenSize);
+		SetWindowLongPtr(HWnd, GWL_STYLE, nonFullscreenStyle);
+		SetWindowPos(HWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+	}
+	static_cast<CCursorControl*>(CursorControl)->updateBorderSize(fullscreen, true);
+}
+
 core::position2di CIrrDeviceWin32::getWindowPosition()
 {
 	WINDOWPLACEMENT wndpl;

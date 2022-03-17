@@ -80,6 +80,9 @@ namespace irr
 
 		//! Restores the window size.
 		virtual void restoreWindow() _IRR_OVERRIDE_;
+		
+		//! Toggle the windowed/borderless fullscreen status of the window.
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_ {};
 
 		//! Checks if the Irrlicht window is running in fullscreen mode
 		/** \return True if window is fullscreen. */

@@ -95,6 +95,9 @@ namespace irr
 
 		//! Restores the window size.
 		virtual void restoreWindow() _IRR_OVERRIDE_;
+		
+		//! Toggle the windowed/borderless fullscreen status of the window.
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_;
 
 		//! Get the position of this window on screen
 		virtual core::position2di getWindowPosition() _IRR_OVERRIDE_;
@@ -406,6 +409,8 @@ namespace irr
 		drop_callback_function_t dragAndDropCheck;
 		bool draggingFile;
 		irr::core::vector2di drop_pos;
+		bool wasHorizontalMaximized;
+		bool wasVerticalMaximized;
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 		irr::X11Loader libx11;
 #endif

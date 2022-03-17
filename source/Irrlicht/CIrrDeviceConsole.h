@@ -92,6 +92,9 @@ namespace irr
 		//! Restores the window size.
 		virtual void restoreWindow() _IRR_OVERRIDE_;
 
+		//! Toggle the windowed/borderless fullscreen status of the window.
+		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_ {};
+
 		//! Get the device type
 		virtual E_DEVICE_TYPE getType() const _IRR_OVERRIDE_
 		{

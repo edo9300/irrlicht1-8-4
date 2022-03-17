@@ -13,6 +13,8 @@ LIBDECOR_FUNC(libdecor_state_new, libdecor_state*, int width, int height);
 LIBDECOR_FUNC(libdecor_state_free, void, libdecor_state* state);
 LIBDECOR_FUNC(libdecor_configuration_get_content_size, bool, libdecor_configuration* configuration, libdecor_frame* frame, int* width, int* height);
 LIBDECOR_FUNC(libdecor_configuration_get_window_state, bool, libdecor_configuration* configuration, libdecor_window_state* window_state);
+LIBDECOR_FUNC(libdecor_frame_set_fullscreen, void, libdecor_frame* frame, wl_output* output);
+LIBDECOR_FUNC(libdecor_frame_unset_fullscreen, void, libdecor_frame* frame);
 
 //unused
 // LIBDECOR_FUNC(libdecor_get_fd, int, libdecor* context);
@@ -33,8 +35,6 @@ LIBDECOR_FUNC(libdecor_configuration_get_window_state, bool, libdecor_configurat
 // LIBDECOR_FUNC(libdecor_frame_set_max_content_size, void, libdecor_frame* frame, int content_width, int content_height);
 // LIBDECOR_FUNC(libdecor_frame_set_min_content_size, void, libdecor_frame* frame, int content_width, int content_height);
 // LIBDECOR_FUNC(libdecor_frame_resize, void, libdecor_frame* frame, wl_seat* wl_seat, uint32_t serial, libdecor_resize_edge edge);
-// LIBDECOR_FUNC(libdecor_frame_set_fullscreen, void, libdecor_frame* frame, wl_output* output);
-// LIBDECOR_FUNC(libdecor_frame_unset_fullscreen, void, libdecor_frame* frame);
 // LIBDECOR_FUNC(libdecor_frame_is_floating, bool, libdecor_frame* frame);
 // LIBDECOR_FUNC(libdecor_frame_close, void, libdecor_frame* frame);
 // LIBDECOR_FUNC(libdecor_frame_get_xdg_surface, xdg_surface*, libdecor_frame* frame);

@@ -2515,6 +2515,32 @@ void CIrrDeviceWayland::restoreWindow()
 #endif
 }
 
+//! Restore original window size
+void CIrrDeviceWayland::toggleFullscreen(bool fullscreen)
+{
+    if (m_xdg_toplevel)
+    {
+		if(fullscreen)
+			xdg_toplevel_set_fullscreen(m_xdg_toplevel, nullptr);
+		else
+			xdg_toplevel_unset_fullscreen(m_xdg_toplevel);
+    } else if(m_zxdg_shell) {
+		if(fullscreen)
+			zxdg_toplevel_v6_set_fullscreen(m_zxdg_toplevel, nullptr);
+		else
+			zxdg_toplevel_v6_unset_fullscreen(m_zxdg_toplevel);
+    }
+#ifdef IRR_USE_LIBDECOR
+	else if (m_libdecor)
+	{
+		if(fullscreen)
+			LibdecorLoader::libdecor_frame_set_fullscreen(m_libdecor_surface, nullptr);
+		else
+			LibdecorLoader::libdecor_frame_unset_fullscreen(m_libdecor_surface);
+	}
+#endif
+}
+
 //! Move window to requested position
 bool CIrrDeviceWayland::moveWindow(int x, int y)
 {
