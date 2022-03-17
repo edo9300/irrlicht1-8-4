@@ -205,6 +205,14 @@ while it runs and enabling it will slow down the engine. */
 #undef IRR_USE_LIBDECOR
 #endif
 
+#if defined(_IRR_WAYLAND_DYNAMIC_LOAD_) && defined(IRR_USE_LIBDECOR) && !defined(IRR_LIBDECOR_DYNAMIC_LOAD)
+#define IRR_LIBDECOR_DYNAMIC_LOAD
+#endif
+
+#ifdef NO_IRR_LIBDECOR_DYNAMIC_LOAD
+#undef IRR_LIBDECOR_DYNAMIC_LOAD
+#endif
+
 #ifndef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 #undef IRR_USE_LIBDECOR
 #endif

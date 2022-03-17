@@ -40,7 +40,7 @@
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
 #ifdef IRR_USE_LIBDECOR
-#include <libdecor.h>
+#include "LibdecorLoader.h"
 #endif
 
 #include <map>

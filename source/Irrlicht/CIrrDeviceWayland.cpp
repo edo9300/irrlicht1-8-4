@@ -302,7 +302,7 @@ public:
 #ifdef IRR_USE_LIBDECOR
             if (device->m_libdecor) {
                 if (device->m_libdecor_surface) {
-                    libdecor_frame_move(device->m_libdecor_surface, device->m_seat, serial);
+                    LibdecorLoader::libdecor_frame_move(device->m_libdecor_surface, device->m_seat, serial);
                 }
             } else
 #endif
@@ -1346,11 +1346,11 @@ public:
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
 		libdecor_window_state window_state;
         bool fullscreen = false;
-		if (libdecor_configuration_get_window_state(configuration, &window_state)) {
+		if (LibdecorLoader::libdecor_configuration_get_window_state(configuration, &window_state)) {
 			fullscreen = (window_state & LIBDECOR_WINDOW_STATE_FULLSCREEN) != 0;
 		}
 		int32_t width, height;
-        if(!libdecor_configuration_get_content_size(configuration, frame,
+        if(!LibdecorLoader::libdecor_configuration_get_content_size(configuration, frame,
                                                      &width, &height)) {
             width = device->m_width;
             height = device->m_height;
@@ -1370,9 +1370,9 @@ public:
         device->m_resizing_state.pending = true;
         device->m_resizing_state.width = width;
         device->m_resizing_state.height = height;
-		auto state = libdecor_state_new(width, height);
-		::libdecor_frame_commit(frame, state, configuration);
-		libdecor_state_free(state);
+		auto state = LibdecorLoader::libdecor_state_new(width, height);
+		LibdecorLoader::libdecor_frame_commit(frame, state, configuration);
+		LibdecorLoader::libdecor_state_free(state);
 	}
     static void libdecor_frame_close(libdecor_frame* frame, void* data) {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
@@ -1722,8 +1722,10 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         wl_shell_destroy(m_shell);
 
 #ifdef IRR_USE_LIBDECOR	
-	if (m_libdecor)
-		libdecor_unref(m_libdecor);
+	if (m_libdecor) {
+		LibdecorLoader::libdecor_unref(m_libdecor);
+		LibdecorLoader::Unload();
+	}
 #endif
 
     if (m_egl_window)
@@ -1862,13 +1864,17 @@ bool CIrrDeviceWayland::initWayland()
             class_name = static_cast<const char*>(CreationParams.PrivateData);
 #ifdef IRR_USE_LIBDECOR
 		if(!m_decoration_manager && !m_kwin_server_decoration_manager) {
-			m_libdecor = libdecor_new(m_display, &WaylandCallbacks::libdecor_interface);
+			if(LibdecorLoader::Init()) {
+				m_libdecor = LibdecorLoader::libdecor_new(m_display, &WaylandCallbacks::libdecor_interface);
 
-			/* If libdecor works, we don't need xdg-shell anymore. */
-			if (m_libdecor) {
-				m_has_xdg_wm_base = false;
-				m_has_zxdg_shell = false;
-				m_has_wl_shell = false;
+				/* If libdecor works, we don't need xdg-shell anymore. */
+				if (m_libdecor) {
+					m_has_xdg_wm_base = false;
+					m_has_zxdg_shell = false;
+					m_has_wl_shell = false;
+				} else
+					LibdecorLoader::Unload();
+					os::Printer::log("Failed to create libdecor instance, no window decorations will be provided.", ELL_ERROR);
 			}
 		}
 #endif
@@ -2100,7 +2106,7 @@ bool CIrrDeviceWayland::createWindow()
 #ifdef IRR_USE_LIBDECOR
 	else if (m_libdecor != nullptr)
 	{
-        m_libdecor_surface = libdecor_decorate(m_libdecor,
+        m_libdecor_surface = LibdecorLoader::libdecor_decorate(m_libdecor,
 												m_surface,
 												&WaylandCallbacks::libdecor_frame_interface,
 												this);
@@ -2108,8 +2114,8 @@ bool CIrrDeviceWayland::createWindow()
 			os::Printer::log("CFailed to create libdecor frame!", ELL_ERROR);
         } else {
 			if(class_name.size() > 0)
-				libdecor_frame_set_app_id(m_libdecor_surface, class_name.data());
-            libdecor_frame_map(m_libdecor_surface);
+				LibdecorLoader::libdecor_frame_set_app_id(m_libdecor_surface, class_name.data());
+            LibdecorLoader::libdecor_frame_map(m_libdecor_surface);
         }
 		                       
         while (!m_surface_configured)
@@ -2390,7 +2396,7 @@ void CIrrDeviceWayland::setWindowCaption(const wchar_t* text)
 #ifdef IRR_USE_LIBDECOR
 	else if (m_libdecor)
 	{
-		libdecor_frame_set_title(m_libdecor_surface, title);
+		LibdecorLoader::libdecor_frame_set_title(m_libdecor_surface, title);
 	}
 #endif
 
@@ -2470,7 +2476,7 @@ void CIrrDeviceWayland::minimizeWindow()
 #ifdef IRR_USE_LIBDECOR
 	else if (m_libdecor)
 	{
-		libdecor_frame_set_minimized(m_libdecor_surface);
+		LibdecorLoader::libdecor_frame_set_minimized(m_libdecor_surface);
 	}
 #endif
 }
@@ -2487,7 +2493,7 @@ void CIrrDeviceWayland::maximizeWindow()
 #ifdef IRR_USE_LIBDECOR
 	else if (m_libdecor)
 	{
-		libdecor_frame_set_maximized(m_libdecor_surface);
+		LibdecorLoader::libdecor_frame_set_maximized(m_libdecor_surface);
 	}
 #endif
 }
@@ -2504,7 +2510,7 @@ void CIrrDeviceWayland::restoreWindow()
 #ifdef IRR_USE_LIBDECOR
 	else if (m_libdecor)
 	{
-		libdecor_frame_unset_maximized(m_libdecor_surface);
+		LibdecorLoader::libdecor_frame_unset_maximized(m_libdecor_surface);
 	}
 #endif
 }
