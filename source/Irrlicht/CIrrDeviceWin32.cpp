@@ -1931,15 +1931,17 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		else
 		{
 			auto GetWin10ProductInfo = [&]()->bool {
-				const LPCTSTR path = __TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
+				const auto* path = TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion");
 				TCHAR szReleaseId[80];
-				DWORD UBR;
-				if(GetRegEntry(path, __TEXT("ReleaseId"), REG_SZ, szReleaseId, sizeof(szReleaseId)) &&
-				   GetRegEntry(path, __TEXT("UBR"), REG_DWORD, &UBR, sizeof(UBR))) {
-					sprintf(tmp, "(Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
-					return true;
+				if(!GetRegEntry(path, TEXT("DisplayVersion"), REG_SZ, szReleaseId, sizeof(szReleaseId)) &&
+				   !GetRegEntry(path, TEXT("ReleaseId"), REG_SZ, szReleaseId, sizeof(szReleaseId))) {
+					return false;
 				}
-				return false;
+				DWORD UBR;
+				if(!GetRegEntry(path, TEXT("UBR"), REG_DWORD, &UBR, sizeof(UBR)))
+					return false;
+				sprintf(tmp, "(Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), osvi.dwBuildNumber & 0xFFFF, UBR);
+				return true;
 			};
 			if(osvi.dwMajorVersion < 10 || !GetWin10ProductInfo()) {
 				sprintf(tmp, "%s (Build %ld)", irr::core::stringc(osvi.szCSDVersion).c_str(),
