@@ -1712,6 +1712,9 @@ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 #ifndef SM_SERVERR2
 #define SM_SERVERR2 89
 #endif
+#ifndef PROCESSOR_ARCHITECTURE_ARM64
+#define PROCESSOR_ARCHITECTURE_ARM64 12
+#endif
 
 void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 {
@@ -1945,6 +1948,33 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		}
 
 		out.append(tmp);
+		{
+			using GetNativeSystemInfo_t = VOID(WINAPI*)(LPSYSTEM_INFO);
+			auto pGetNativeSystemInfo = (GetNativeSystemInfo_t)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo");
+			if(pGetNativeSystemInfo) {
+				SYSTEM_INFO info;
+				pGetNativeSystemInfo(&info);
+				switch(info.wProcessorArchitecture) {
+					case PROCESSOR_ARCHITECTURE_AMD64:
+						out.append(" x64");
+						break;
+					case PROCESSOR_ARCHITECTURE_ARM:
+						out.append(" ARM");
+						break;
+					case PROCESSOR_ARCHITECTURE_ARM64:
+						out.append(" ARM64");
+						break;
+					case PROCESSOR_ARCHITECTURE_IA64:
+						out.append(" Itanium");
+						break;
+					case PROCESSOR_ARCHITECTURE_INTEL:
+						out.append(" x86");
+						break;
+					default:
+						break;
+				}
+			}
+		}
 		break;
 
 		case VER_PLATFORM_WIN32_WINDOWS:
