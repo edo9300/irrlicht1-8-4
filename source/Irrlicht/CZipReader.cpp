@@ -220,13 +220,27 @@ bool CZipReader::scanGZipHeader()
 
 		if (header.flags & EGZF_FILE_NAME)
 		{
-			c8 c;
+			u8 c;
+			// the filename consists of ISO 8859 - 1 (LATIN - 1) characters
+			// that nicely map to both an uft16 and utf32 codepoint
+#ifdef _IRR_WCHAR_FILESYSTEM
+			io::path& tmp = ZipFileName;
+#else
+			core::stringw tmp;
+#endif
 			File->read(&c, 1);
 			while (c)
 			{
-				ZipFileName.append(c);
+				tmp.append(c);
 				File->read(&c, 1);
 			}
+#ifndef _IRR_WCHAR_FILESYSTEM
+			const size_t lenOld = (tmp.size() + 1) * sizeof(wchar_t);
+			char* ctext = new char[lenOld];
+			core::wcharToUtf8(tmp.data(), ctext, lenOld);
+			ZipFileName = ctext;
+			delete[] ctext;
+#endif
 		}
 		else
 		{
@@ -287,6 +301,30 @@ bool CZipReader::scanGZipHeader()
 	return false;
 }
 
+static const wchar_t mappings[] = {
+	L'\0',L'\u263A',L'\u263B',L'\u2665',L'\u2666',L'\u2663',L'\u2660',L'\u2022',L'\u25D8',L'\u25CB',L'\u25D9',L'\u2642',L'\u2640',L'\u266A',L'\u266B',L'\u263C',
+	L'\u25BA',L'\u25C4',L'\u2195',L'\u203C',L'\u00B6',L'\u00A7',L'\u25AC',L'\u21A8',L'\u2191',L'\u2193',L'\u2192',L'\u2190',L'\u221F',L'\u2194',L'\u25B2',L'\u25BC',
+	L'\u0020',L'\u0021',L'\u0022',L'\u0023',L'\u0024',L'\u0025',L'\u0026',L'\u0027',L'\u0028',L'\u0029',L'\u002A',L'\u002B',L'\u002C',L'\u002D',L'\u002E',L'\u002F',
+	L'\u0030',L'\u0031',L'\u0032',L'\u0033',L'\u0034',L'\u0035',L'\u0036',L'\u0037',L'\u0038',L'\u0039',L'\u003A',L'\u003B',L'\u003C',L'\u003D',L'\u003E',L'\u003F',
+	L'\u0040',L'\u0041',L'\u0042',L'\u0043',L'\u0044',L'\u0045',L'\u0046',L'\u0047',L'\u0048',L'\u0049',L'\u004A',L'\u004B',L'\u004C',L'\u004D',L'\u004E',L'\u004F',
+	L'\u0050',L'\u0051',L'\u0052',L'\u0053',L'\u0054',L'\u0055',L'\u0056',L'\u0057',L'\u0058',L'\u0059',L'\u005A',L'\u005B',L'\u005C',L'\u005D',L'\u005E',L'\u005F',
+	L'\u0060',L'\u0061',L'\u0062',L'\u0063',L'\u0064',L'\u0065',L'\u0066',L'\u0067',L'\u0068',L'\u0069',L'\u006A',L'\u006B',L'\u006C',L'\u006D',L'\u006E',L'\u006F',
+	L'\u0070',L'\u0071',L'\u0072',L'\u0073',L'\u0074',L'\u0075',L'\u0076',L'\u0077',L'\u0078',L'\u0079',L'\u007A',L'\u007B',L'\u007C',L'\u007D',L'\u007E',L'\u2302',
+	L'\u00C7',L'\u00FC',L'\u00E9',L'\u00E2',L'\u00E4',L'\u00E0',L'\u00E5',L'\u00E7',L'\u00EA',L'\u00EB',L'\u00E8',L'\u00EF',L'\u00EE',L'\u00EC',L'\u00C4',L'\u00C5',
+	L'\u00C9',L'\u00E6',L'\u00C6',L'\u00F4',L'\u00F6',L'\u00F2',L'\u00FB',L'\u00F9',L'\u00FF',L'\u00D6',L'\u00DC',L'\u00A2',L'\u00A3',L'\u00A5',L'\u20A7',L'\u0192',
+	L'\u00E1',L'\u00ED',L'\u00F3',L'\u00FA',L'\u00F1',L'\u00D1',L'\u00AA',L'\u00BA',L'\u00BF',L'\u2310',L'\u00AC',L'\u00BD',L'\u00BC',L'\u00A1',L'\u00AB',L'\u00BB',
+	L'\u2591',L'\u2592',L'\u2593',L'\u2502',L'\u2524',L'\u2561',L'\u2562',L'\u2556',L'\u2555',L'\u2563',L'\u2551',L'\u2557',L'\u255D',L'\u255C',L'\u255B',L'\u2510',
+	L'\u2514',L'\u2534',L'\u252C',L'\u251C',L'\u2500',L'\u253C',L'\u255E',L'\u255F',L'\u255A',L'\u2554',L'\u2569',L'\u2566',L'\u2560',L'\u2550',L'\u256C',L'\u2567',
+	L'\u2568',L'\u2564',L'\u2565',L'\u2559',L'\u2558',L'\u2552',L'\u2553',L'\u256B',L'\u256A',L'\u2518',L'\u250C',L'\u2588',L'\u2584',L'\u258C',L'\u2590',L'\u2580',
+	L'\u03B1',L'\u00DF',L'\u0393',L'\u03C0',L'\u03A3',L'\u03C3',L'\u00B5',L'\u03C4',L'\u03A6',L'\u0398',L'\u03A9',L'\u03B4',L'\u221E',L'\u03C6',L'\u03B5',L'\u2229',
+	L'\u2261',L'\u00B1',L'\u2265',L'\u2264',L'\u2320',L'\u2321',L'\u00F7',L'\u2248',L'\u00B0',L'\u2219',L'\u00B7',L'\u221A',L'\u207F',L'\u00B2',L'\u25A0',L'\u00A0',
+};
+
+static void CodePage437ToWchar(u8* in, core::stringw& out) {
+	while(*in)
+		out.append(mappings[*in++]);
+}
+
 //! scans for a local header, returns false if there is no more local file header.
 bool CZipReader::scanZipHeader(bool ignoreGPBits)
 {
@@ -316,10 +354,46 @@ bool CZipReader::scanZipHeader(bool ignoreGPBits)
 
 	// read filename
 	{
-		c8 *tmp = new c8 [ entry.header.FilenameLength + 2 ];
-		File->read(tmp, entry.header.FilenameLength);
-		tmp[entry.header.FilenameLength] = 0;
-		ZipFileName = tmp;
+		const s16 length = entry.header.FilenameLength;
+		u8 *tmp = new u8[length + 2 ];
+		File->read(tmp, length);
+		tmp[length] = 0;
+		/*  Bit 11: Language encoding flag(EFS).If this bit is set,
+			the filenameand comment fields for this file
+			MUST be encoded using UTF - 8.*/
+		if((entry.header.GeneralBitFlag & ZIP_INFO_EFS)) {
+#ifdef _IRR_WCHAR_FILESYSTEM
+			wchar_t* tmp_wchar = new wchar_t[length + 1];
+			size_t lenUTF8 = entry.header.FilenameLength;
+			core::utf8ToWchar((c8*)tmp, &tmp_wchar[0], (lenUTF8 + 1) * sizeof(wchar_t));
+			tmp_wchar[length] = 0;
+			ZipFileName = tmp_wchar;
+			delete[] tmp_wchar;
+#else
+			ZipFileName = tmp;
+#endif
+		} else {
+			/*  The ZIP format has historically supported only the original IBM PC character
+				encoding set, commonly referred to as IBM Code Page 437.  This limits storing
+				file name characters to only those within the original MS - DOS range of values
+				and does not properly support file names in other character encodings, or
+				languages.To address this limitation, this specification will support the
+				following change.
+
+				If general purpose bit 11 is unset, the file nameand comment SHOULD conform
+				to the original ZIP character encoding.*/
+#ifdef _IRR_WCHAR_FILESYSTEM
+			CodePage437ToWchar(tmp, ZipFileName);
+#else
+			core::stringw tmpw;
+			CodePage437ToWchar(tmp, tmpw);
+			const size_t lenOld = (tmpw.size() + 1) * sizeof(wchar_t);
+			char* ctext = new char[lenOld];
+			core::wcharToUtf8(tmpw.data(), ctext, lenOld);
+			ZipFileName = ctext;
+			delete[] ctext;
+#endif
+		}
 		delete [] tmp;
 	}
 

@@ -25,6 +25,9 @@ namespace io
 	// zero in the local header
 	const s16 ZIP_INFO_IN_DATA_DESCRIPTOR =	0x0008;
 
+	// Language encoding flag
+	const s16 ZIP_INFO_EFS = 0x0800;
+
 // byte-align structures
 #include "irrpack.h"
 
