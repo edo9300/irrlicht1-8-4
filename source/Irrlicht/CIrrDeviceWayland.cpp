@@ -28,6 +28,8 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 #include <time.h>
+#include <cerrno>
+#include <poll.h>
 
 #ifdef __FreeBSD__
 #include <dev/evdev/input.h>
@@ -225,6 +227,36 @@ static char* URIToLocal(char* uri) {
         }
     }
     return file;
+}
+
+enum IOR {
+	READ	= 0x1,
+	WRITE	= 0x2,
+};
+
+static int PipeReady(int fd, IOR flags)
+{
+	static constexpr int PIPE_MS_TIMEOUT = 10;
+    int result;
+
+    /* Note: We don't bother to account for elapsed time if we get EINTR */
+    do
+    {
+        struct pollfd info;
+
+        info.fd = fd;
+        info.events = 0;
+        if (flags & IOR::READ) {
+            info.events |= POLLIN | POLLPRI;
+        }
+        if (flags & IOR::WRITE) {
+            info.events |= POLLOUT;
+        }
+        result = poll(&info, 1, PIPE_MS_TIMEOUT);
+
+    } while (result < 0 && errno == EINTR);
+
+    return result;
 }
 
 namespace irr
@@ -1204,19 +1236,22 @@ public:
 
             wl_data_offer_receive(device->m_drag_data_offer, accept, pipefd[1]);
 
-            close(pipefd[1]);
+			CIrrDeviceWayland::pwl_display_flush(device->m_display);
+			CIrrDeviceWayland::pwl_display_roundtrip(device->m_display);
+			close(pipefd[1]);
 
-            CIrrDeviceWayland::pwl_display_roundtrip(device->m_display);
-
-            while(true) {
-                char buf[1024];
-                ssize_t n = read(pipefd[0], buf, sizeof(buf));
-                if(n <= 0) {
-                    break;
-                }
-                read_text.append(buf, n);
-            }
-            close(pipefd[0]);
+			while(true) {
+				auto ready = PipeReady(pipefd[0], IOR::READ);
+				if (ready <= 0)
+					break;
+				char buf[PIPE_BUF];
+				ssize_t n = read(pipefd[0], buf, sizeof(buf));
+				if(n <= 0)
+					break;
+				read_text.append(buf, n);
+			}
+			
+			close(pipefd[0]);
         }
 
         read_text.append("", 0);
@@ -1290,8 +1325,9 @@ public:
         if(strcmp(mime_type, "text/plain") == 0 ||
            strcmp(mime_type, "text/plain;charset=utf-8") == 0 ||
            strcmp(mime_type, "text/plain;charset=UTF-8") == 0) {
-            write(fd, device->m_clipboard.c_str(), device->m_clipboard.size());
-        }
+				auto& clipboard = device->m_clipboard;
+				write(fd, clipboard.data(), clipboard.size());
+        }	
         close(fd);
     }
 
@@ -2573,7 +2609,7 @@ bool CIrrDeviceWayland::getGammaRamp(f32 &red, f32 &green, f32 &blue,
 //! \return Returns 0 if no string is in there.
 const c8* CIrrDeviceWayland::getTextFromClipboard() const
 {
-    if(!m_clipboard_changed)
+	if(!m_clipboard_changed)
         return m_readclipboard.c_str();
 
     m_readclipboard.clear();
@@ -2581,35 +2617,36 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
     if(!m_clipboard_data_offer)
         return m_readclipboard.c_str();
 
-    if((m_clipboard_mime & (CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT |
+	if((m_clipboard_mime & (CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT |
                            CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8 |
                            CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)) == 0)
         return m_readclipboard.c_str();
 
     int pipefd[2];
     if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) == -1)
-        return m_readclipboard.c_str();
-
-    wl_data_offer_receive(m_clipboard_data_offer,
+       return m_readclipboard.c_str();
+	wl_data_offer_receive(m_clipboard_data_offer,
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8) ? "text/plain;charset=UTF-8" :
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2) ? "text/plain;charset=utf-8" :
                           "text/plain",
                           pipefd[1]);
 
+    pwl_display_flush(m_display);
+    pwl_display_roundtrip(m_display);
     close(pipefd[1]);
 
-    pwl_display_roundtrip(m_display);
-
     while(true) {
-        char buf[1024];
+		auto ready = PipeReady(pipefd[0], IOR::READ);
+		if (ready <= 0)
+			break;
+        char buf[PIPE_BUF];
         ssize_t n = read(pipefd[0], buf, sizeof(buf));
-        if(n <= 0) {
+		if(n <= 0)
             break;
-        }
         m_readclipboard.append(buf, n);
-    }
+	}
     m_readclipboard.append("", 0);
-
+	
     close(pipefd[0]);
     m_clipboard_changed = false;
     return m_readclipboard.c_str();
