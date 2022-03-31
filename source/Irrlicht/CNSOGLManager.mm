@@ -57,9 +57,13 @@ bool CNSOGLManager::generateSurface()
             NSOpenGLPFASampleBuffers, 1,
             NSOpenGLPFASamples, Params.AntiAlias,
             NSOpenGLPFAStencilSize, static_cast<NSOpenGLPixelFormatAttribute>(Params.Stencilbuffer ? 1 : 0),
+            NSOpenGLPFAAllowOfflineRenderers,
             //NSOpenGLPFAFullScreen,
             0
         };
+
+        if(!Params.UseIntegratedGPU)
+            Attribs[15] = 0;
 
         u32 Steps = 6;
         
