@@ -1778,6 +1778,10 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 							out.append("XP ");
 							break;
 						case 2:
+							if(osvi.wProductType == VER_NT_WORKSTATION) {
+								out.append("XP ");
+								break;
+							}
 							out.append("Server 2003 ");
 							if(GetSystemMetrics(SM_SERVERR2))
 								out.append("R2 ");
