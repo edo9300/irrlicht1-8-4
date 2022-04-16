@@ -33,14 +33,7 @@ COpenGLDriver::COpenGLDriver(const SIrrlichtCreationParameters& params, io::IFil
 	: CNullDriver(io, params.WindowSize), COpenGLExtensionHandler(contextManager), CacheHandler(0),
 	CurrentRenderMode(ERM_NONE), ResetRenderStates(true),
 	Transformation3DChanged(true), AntiAlias(params.AntiAlias), ColorFormat(ECF_R8G8B8), FixedPipelineState(EOFPS_ENABLE), Params(params),
-	ContextManager(contextManager),
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
-	DeviceType(EIDT_WIN32)
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	DeviceType(EIDT_X11)
-#else
-	DeviceType(EIDT_OSX)
-#endif
+	ContextManager(contextManager)
 {
 #ifdef _DEBUG
 	setDebugName("COpenGLDriver");

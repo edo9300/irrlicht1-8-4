@@ -535,8 +535,6 @@ namespace video
 		#endif
 
 		IContextManager* ContextManager;
-
-		E_DEVICE_TYPE DeviceType;
 	};
 
 } // end namespace video
