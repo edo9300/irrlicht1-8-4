@@ -108,6 +108,11 @@ struct SExposedVideoData
 		void* Window;
 	};
 
+	struct SOpenGLSDL2
+	{
+		void* Window;
+	};
+
 	union
 	{
 		SD3D9 D3D9;
@@ -118,6 +123,7 @@ struct SExposedVideoData
 		SOpenGLFB OpenGLFB;
 		SOpenGLiOS OpenGLiOS;
 		SOGLESAndroid OGLESAndroid;
+		SOpenGLSDL2 OGLSDL2;
 	};
 };
 
