@@ -136,7 +136,7 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 		break;
 #endif
 #if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
-	case EIDT_SDL:
+	case EIDT_SDL2:
 		SDL_SetClipboardText(ctext);
 		break;
 #endif
