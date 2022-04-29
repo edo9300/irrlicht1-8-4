@@ -24,7 +24,7 @@ namespace video
     {
     public:
         //! Constructor.
-		CSDL2ContextManager();
+		explicit CSDL2ContextManager(const SExposedVideoData& videodata);
 
 		//! Destructor
 		~CSDL2ContextManager();
@@ -62,12 +62,15 @@ namespace video
         // Context dependent getProcAddress or equivalent function
 		virtual void* loadFunction(const char* function_name) _IRR_OVERRIDE_;
 
+        static void SetWindowOGLProperties(const SIrrlichtCreationParameters& CreationParams);
+
     private:
+        static SDL_Window* GetWindow(const SExposedVideoData& data) { return static_cast<SDL_Window*>(data.OGLSDL2.Window); }
+        static SDL_GLContext* GetContext(const SExposedVideoData& data) { return static_cast<SDL_GLContext*>(data.OGLSDL2.Context); }
         SIrrlichtCreationParameters Params;
-        SExposedVideoData ExposedData;
-        void* pglFrontFace;
-        SDL_Window* window;
-        SDL_GLContext Context;
+        SExposedVideoData PrimaryContext;
+        SExposedVideoData CurrentContext;
+        bool GLLibraryLoaded;
 	};
 }
 }

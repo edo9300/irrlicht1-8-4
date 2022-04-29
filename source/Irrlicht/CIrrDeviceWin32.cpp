@@ -50,28 +50,7 @@
 #if defined(_IRR_COMPILE_WITH_OPENGL_)
 #include "CWGLManager.h"
 #endif
-
-namespace irr
-{
-	namespace video
-	{
-#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
-		IVideoDriver* createDirectX9Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, HWND window);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_OPENGL_
-		IVideoDriver* createOpenGLDriver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_OGLES1_
-        IVideoDriver* createOGLES1Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_OGLES2_
-        IVideoDriver* createOGLES2Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-	}
-} // end namespace irr
+#include "CDriverCreationPrototypes.h"
 
 namespace irr
 {

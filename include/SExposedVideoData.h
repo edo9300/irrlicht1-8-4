@@ -110,7 +110,11 @@ struct SExposedVideoData
 
 	struct SOpenGLSDL2
 	{
+		//! The SDL_Window* object.
 		void* Window;
+
+		//! The SDL_GLContext* object.
+		void* Context;
 	};
 
 	union

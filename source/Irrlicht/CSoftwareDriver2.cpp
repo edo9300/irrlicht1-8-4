@@ -894,7 +894,7 @@ const sVec4 CBurningVideoDriver::NDCPlane[6 + 2] =
 */
 #ifdef IRRLICHT_FAST_MATH
 
-REALINLINE size_t CBurningVideoDriver::clipToFrustumTest(const s4DVertex* v) const
+REALINLINE size_t clipToFrustumTest(const s4DVertex* v)
 {
 	size_t flag;
 	f32 test[8];

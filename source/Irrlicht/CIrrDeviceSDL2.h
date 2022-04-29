@@ -19,12 +19,19 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 
+#ifdef _IRR_EMSCRIPTEN_PLATFORM_
+#include <emscripten/html5.h>
+#endif
+
 namespace irr
 {
 
 	class CIrrDeviceSDL2 : public CIrrDeviceStub, video::IImagePresenter
 	{
 	public:
+#ifdef _IRR_EMSCRIPTEN_PLATFORM_
+		friend class EMScriptenCallbacks;
+#endif
 
 		//! constructor
 		CIrrDeviceSDL2(const SIrrlichtCreationParameters& param);
@@ -109,7 +116,9 @@ namespace irr
 		{
 		public:
 
-			CCursorControl(CIrrDeviceSDL2* dev): Device(dev), IsVisible(true){ }
+			CCursorControl(CIrrDeviceSDL2* dev);
+
+			~CCursorControl();
 
 			//! Changes the visible state of the mouse cursor.
 			virtual void setVisible(bool visible) override
@@ -172,10 +181,33 @@ namespace irr
 			{
 			}
 
+
+			//! Sets the active cursor icon
+			virtual void setActiveIcon(gui::ECURSOR_ICON iconId) override;
+
+			//! Gets the currently active icon
+			virtual gui::ECURSOR_ICON getActiveIcon() const override {
+				return CurCursor;
+			}
+
 		private:
 
 			void updateCursorPos()
 			{
+#ifdef _IRR_EMSCRIPTEN_PLATFORM_
+				EmscriptenPointerlockChangeEvent pointerlockStatus; // let's hope that test is not expensive ...
+				if(emscripten_get_pointerlock_status(&pointerlockStatus) == EMSCRIPTEN_RESULT_SUCCESS) {
+					if(pointerlockStatus.isActive) {
+						CursorPos.X += Device->MouseXRel;
+						CursorPos.Y += Device->MouseYRel;
+						Device->MouseXRel = 0;
+						Device->MouseYRel = 0;
+					} else {
+						CursorPos.X = Device->MouseX;
+						CursorPos.Y = Device->MouseY;
+					}
+				}
+#else
 				CursorPos.X = Device->MouseX;
 				CursorPos.Y = Device->MouseY;
 
@@ -187,11 +219,14 @@ namespace irr
 					CursorPos.Y = 0;
 				if (CursorPos.Y > (s32)Device->Height)
 					CursorPos.Y = Device->Height;
+#endif
 			}
 
 			CIrrDeviceSDL2* Device;
 			core::position2d<s32> CursorPos;
 			bool IsVisible;
+			gui::ECURSOR_ICON CurCursor;
+			SDL_Cursor* cursors[gui::ECI_COUNT];
 		};
 
 		void SwapBuffers() {
@@ -209,6 +244,8 @@ namespace irr
 
 		void resizeWindow(u32 x, u32 y);
 
+		void updateScreenTexture(core::dimension2d<u32> size);
+
 		SDL_Window* window;
 		int SDL_Flags;
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
@@ -216,6 +253,7 @@ namespace irr
 #endif
 
 		s32 MouseX, MouseY;
+		s32 MouseXRel, MouseYRel;
 		u32 MouseButtonStates;
 
 		u32 Width, Height;
@@ -243,6 +281,12 @@ namespace irr
 
 		core::array<SKeyMap> KeyMap;
 		SDL_SysWMinfo Info;
+		SDL_Renderer* renderer;
+		SDL_Texture* screen_texture;
+		int screen_texture_pitch;
+		core::dimension2d<u32> screen_texture_size;
+		SDL_PixelFormatEnum screen_texture_color_format;
+		bool is_fullscreen;
 	};
 
 } // end namespace irr

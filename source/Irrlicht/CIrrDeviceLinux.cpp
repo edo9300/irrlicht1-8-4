@@ -64,27 +64,7 @@
 
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
-namespace irr
-{
-	namespace video
-	{
-#ifdef _IRR_COMPILE_WITH_OPENGL_
-		IVideoDriver* createOpenGLDriver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_OGLES1_
-        IVideoDriver* createOGLES1Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_OGLES2_
-        IVideoDriver* createOGLES2Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-
-#ifdef _IRR_COMPILE_WITH_WEBGL1_
-		IVideoDriver* createWebGL1Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-#endif
-	}
-} // end namespace irr
+#include "CDriverCreationPrototypes.h"
 
 namespace
 {

@@ -305,6 +305,7 @@ void CSoftwareTexture2::regenerateMipMapLevels(void* data)
 	}
 
 	//save mipmap chain
+#if 0
 	if (0)
 	{
 		char buf[256];
@@ -327,6 +328,7 @@ void CSoftwareTexture2::regenerateMipMapLevels(void* data)
 			}
 		}
 	}
+#endif
 
 	calcDerivative();
 }

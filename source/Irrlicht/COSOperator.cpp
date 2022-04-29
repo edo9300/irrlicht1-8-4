@@ -28,6 +28,9 @@
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 #import <Cocoa/Cocoa.h>
 #endif
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
+#include <SDL2/SDL_clipboard.h>
+#endif
 
 #include "fast_atof.h"
 
@@ -223,9 +226,10 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		cbuffer = getClipboardOSX();
 		break;
 #endif
-#if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
-	case EIDT_SDL:
-		cbuffer = SDL_GetClipboardText();
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
+	case EIDT_SDL2:
+		if(SDL_HasClipboardText())
+			cbuffer = SDL_GetClipboardText();
 		break;
 #endif
 #if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
@@ -257,6 +261,10 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 	if(hData)
 		closeClipboardWindows(hData);
+#endif
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
+	if(DeviceType == EIDT_SDL2)
+		SDL_free(const_cast<char*>(cbuffer));
 #endif
 	return wstring.c_str();
 }
