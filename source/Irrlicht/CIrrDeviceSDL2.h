@@ -287,6 +287,8 @@ namespace irr
 		core::dimension2d<u32> screen_texture_size;
 		SDL_PixelFormatEnum screen_texture_color_format;
 		bool is_fullscreen;
+		bool is_ctrl_pressed;
+		bool is_shift_pressed;
 	};
 
 } // end namespace irr

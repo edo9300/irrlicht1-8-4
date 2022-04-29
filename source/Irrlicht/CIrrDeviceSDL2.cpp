@@ -33,7 +33,7 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	MouseX(0), MouseY(0), MouseXRel(0), MouseYRel(0), MouseButtonStates(0),
 	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false),
-	renderer(nullptr), screen_texture(nullptr)
+	renderer(nullptr), screen_texture(nullptr), is_ctrl_pressed(false), is_shift_pressed(false)
 {
 	#ifdef _DEBUG
 	setDebugName("CIrrDeviceSDL2");
@@ -398,6 +398,8 @@ bool CIrrDeviceSDL2::run()
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 			irrevent.MouseInput.X = SDL_event.button.x;
 			irrevent.MouseInput.Y = SDL_event.button.y;
+			irrevent.MouseInput.Shift = is_shift_pressed;
+			irrevent.MouseInput.Control = is_ctrl_pressed;
 
 			irrevent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
 
@@ -449,19 +451,12 @@ bool CIrrDeviceSDL2::run()
 			{
 				postEventFromUser(irrevent);
 
-				if ( irrevent.MouseInput.Event >= EMIE_LMOUSE_PRESSED_DOWN && irrevent.MouseInput.Event <= EMIE_MMOUSE_PRESSED_DOWN )
-				{
-					u32 clicks = checkSuccessiveClicks(irrevent.MouseInput.X, irrevent.MouseInput.Y, irrevent.MouseInput.Event);
-					if ( clicks == 2 )
-					{
-						irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_DOUBLE_CLICK + irrevent.MouseInput.Event-EMIE_LMOUSE_PRESSED_DOWN);
-						postEventFromUser(irrevent);
-					}
-					else if ( clicks == 3 )
-					{
-						irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_TRIPLE_CLICK + irrevent.MouseInput.Event-EMIE_LMOUSE_PRESSED_DOWN);
-						postEventFromUser(irrevent);
-					}
+				if(SDL_event.button.clicks == 2) {
+					irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_DOUBLE_CLICK + irrevent.MouseInput.Event - EMIE_LMOUSE_PRESSED_DOWN);
+					postEventFromUser(irrevent);
+				} else if(SDL_event.button.clicks == 3) {
+					irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_TRIPLE_CLICK + irrevent.MouseInput.Event - EMIE_LMOUSE_PRESSED_DOWN);
+					postEventFromUser(irrevent);
 				}
 			}
 			break;
@@ -487,6 +482,9 @@ bool CIrrDeviceSDL2::run()
 					key = (EKEY_CODE)0;
 				else
 					key = (EKEY_CODE)KeyMap[idx].Win32Key;
+
+				is_ctrl_pressed = (SDL_event.key.keysym.mod & KMOD_CTRL) != 0;
+				is_shift_pressed = (SDL_event.key.keysym.mod & KMOD_SHIFT) != 0;
 
 #ifdef _IRR_WINDOWS_API_
 				// handle alt+f4 in Windows, because SDL seems not to
