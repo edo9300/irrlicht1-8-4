@@ -14,6 +14,7 @@
 #include "IEventReceiver.h"
 #include "ISceneManager.h"
 #include "IGUIEnvironment.h"
+#include "IGUIElement.h"
 #include "os.h"
 #include "CTimer.h"
 #include "irrString.h"
@@ -121,7 +122,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
 #ifdef _IRR_COMPILE_WITH_X11_
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
-	XInputMethod(0), XInputContext(0),
+	XInputMethod(0), XInputContext(0), FontSet(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
 	wasHorizontalMaximized(false), wasVerticalMaximized(false),
 #ifdef _IRR_X11_DYNAMIC_LOAD_
@@ -279,6 +280,15 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 }
 #endif
 
+void CIrrDeviceLinux::updateICSpot(short x, short y, short height) {
+	XPoint spot;
+	spot.x = x; spot.y = y;
+	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
+									   XNSpotLocation, &spot,
+									   NULL);
+	X11Loader::XSetICValues(XInputContext, XNPreeditAttributes, preedit_attr, NULL);
+	X11Loader::XFree(preedit_attr);
+}
 
 bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 {
@@ -936,6 +946,11 @@ bool CIrrDeviceLinux::createInputContext()
 		return false;
 	}
 
+	if(X11Loader::XSetLocaleModifiers("") == NULL) {
+		setlocale(LC_CTYPE, oldLocale.c_str());
+		return false;
+	}
+
 	{
 		char* _class_name = NULL;
 		if(class_name.size() > 0)
@@ -974,11 +989,61 @@ bool CIrrDeviceLinux::createInputContext()
 		setlocale(LC_CTYPE, oldLocale.c_str());
 		return false;
 	}
+	bool has_full_ime = [&]()->bool {
+		char** missing_list;
+		int missing_count;
+		char* def_string;
+		FontSet = X11Loader::XCreateFontSet(XDisplay, "-*-*-*-R-Normal--14-130-75-75-*-*", // XXXX magic word...
+								  &missing_list, &missing_count, &def_string);
+		if(FontSet == nullptr)
+			return false;
+		XFontSetExtents* fs_ext = X11Loader::XExtentsOfFontSet(FontSet);
+		if(fs_ext == nullptr) {
+			X11Loader::XFreeFontSet(XDisplay, FontSet);
+			FontSet = nullptr;
+			return false;
+		}
 
-	XInputContext = X11Loader::XCreateIC(XInputMethod,
-							XNInputStyle, bestStyle,
-							XNClientWindow, XWindow,
-							(char*)NULL);
+		XRectangle s_rect;
+		XPoint spot;
+		spot.x = fs_ext->max_logical_extent.width * 0; // XXXX magic word "0", "2".
+		spot.y = fs_ext->max_logical_extent.height * 2;
+		auto* preedit_attr = X11Loader::XVaCreateNestedList(0,
+										   XNSpotLocation, &spot,
+										   XNFontSet, FontSet,
+										   NULL);
+		s_rect.x = fs_ext->max_logical_extent.width * 0;
+		s_rect.y = fs_ext->max_logical_extent.height * 0;
+		s_rect.width = fs_ext->max_logical_extent.width * 3; // XXXX magic word "3", "1".
+		s_rect.height = fs_ext->max_logical_extent.height * 1;
+		auto* status_attr = X11Loader::XVaCreateNestedList(0,
+										  XNArea, &s_rect,
+										  XNFontSet, FontSet,
+										  NULL);
+		XInputContext = X11Loader::XCreateIC(XInputMethod,
+					   XNInputStyle, XIMPreeditPosition | XIMStatusArea,
+					   XNClientWindow, XWindow,
+					   XNPreeditAttributes, preedit_attr,
+					   XNStatusAttributes, status_attr,
+					   NULL);
+		X11Loader::XFree(preedit_attr);
+		X11Loader::XFree(status_attr);
+		if(!XInputContext) {
+			X11Loader::XFreeFontSet(XDisplay, FontSet);
+			FontSet = nullptr;
+			return false;
+		}
+		unsigned long fevent;
+		X11Loader::XGetICValues(XInputContext, XNFilterEvents, &fevent, NULL);
+		return true;
+	}();
+
+	if(!has_full_ime) {
+		XInputContext = X11Loader::XCreateIC(XInputMethod,
+											 XNInputStyle, bestStyle,
+											 XNClientWindow, XWindow,
+											 (char*)NULL);
+	}
 	if (!XInputContext )
 	{
 		os::Printer::log("XInputContext failed to create an input context. Falling back to non-i18n input.", ELL_WARNING);
@@ -1002,6 +1067,10 @@ void CIrrDeviceLinux::destroyInputContext()
 	{
 		X11Loader::XCloseIM(XInputMethod);
 		XInputMethod = 0;
+	}
+	if(FontSet) {
+		X11Loader::XFreeFontSet(XDisplay, FontSet);
+		FontSet = nullptr;
 	}
 }
 
@@ -1054,6 +1123,21 @@ bool CIrrDeviceLinux::run()
 
 	if ((CreationParams.DriverType != video::EDT_NULL) && XDisplay)
 	{
+		{
+			auto* env = getGUIEnvironment();
+			if(env) {
+				irr::gui::IGUIElement* ele = env->getFocus();
+				if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
+					X11Loader::XUnsetICFocus(XInputContext);
+				} else {
+					X11Loader::XSetICFocus(XInputContext);
+					auto abs_pos = ele->getAbsolutePosition();
+					auto pos = abs_pos.UpperLeftCorner;
+					updateICSpot(pos.X, pos.Y, abs_pos.getHeight());
+				}
+			}
+
+		}
 		SEvent irrevent;
 		irrevent.MouseInput.ButtonStates = 0xffffffff;
 
@@ -1236,21 +1320,29 @@ bool CIrrDeviceLinux::run()
 
 			case KeyPress:
 				{
+					irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
+					irrevent.KeyInput.PressedDown = true;
+					irrevent.KeyInput.Control = (event.xkey.state & ControlMask) != 0;
+					irrevent.KeyInput.Shift = (event.xkey.state & ShiftMask) != 0;
+
 					SKeyMap mp;
 					if ( XInputContext )
 					{
-						wchar_t buf[8]={0};
+						wchar_t buf[128];
 						Status status;
 						int strLen = X11Loader::XwcLookupString(XInputContext, &event.xkey, buf, sizeof(buf), &mp.X11Key, &status);
 						if ( status == XBufferOverflow )
 						{
 							os::Printer::log("XwcLookupString needs a larger buffer", ELL_INFORMATION);
 						}
-						if ( strLen > 0 && (status == XLookupChars || status == XLookupBoth) )
+						if (strLen > 0 && status == XLookupChars || status == XLookupBoth)
 						{
-							if ( strLen > 1 )
-								os::Printer::log("Additional returned characters dropped", ELL_INFORMATION);
-							irrevent.KeyInput.Char = buf[0];
+							irrevent.KeyInput.Key = getKeyCode(event);
+							for(int i = 0; i < strLen; i++) {
+								irrevent.KeyInput.Char = buf[i];
+								postEventFromUser(irrevent);
+							}
+							break;
 						}
 						else
 						{
@@ -1269,7 +1361,7 @@ bool CIrrDeviceLinux::run()
 							irrevent.KeyInput.Char = 0;
 						}
 					}
-					else	// Old version without InputContext. Does not support i18n, but good to have as fallback.
+					// Old version without InputContext. Does not support i18n, but good to have as fallback.
 					{
 						union
 						{
@@ -1278,15 +1370,11 @@ bool CIrrDeviceLinux::run()
 						} tmp = {{0}};
 						X11Loader::XLookupString(&event.xkey, tmp.buf, sizeof(tmp.buf), &mp.X11Key, NULL);
 						irrevent.KeyInput.Char = tmp.wbuf[0];
+
+						irrevent.KeyInput.Key = getKeyCode(event);
+
+						postEventFromUser(irrevent);
 					}
-
-					irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
-					irrevent.KeyInput.PressedDown = true;
-					irrevent.KeyInput.Control = (event.xkey.state & ControlMask) != 0;
-					irrevent.KeyInput.Shift = (event.xkey.state & ShiftMask) != 0;
-					irrevent.KeyInput.Key = getKeyCode(event);
-
-					postEventFromUser(irrevent);
 				}
 				break;
 
