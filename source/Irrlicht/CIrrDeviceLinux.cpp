@@ -178,6 +178,8 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 
 	// create cursor control
 	CursorControl = new CCursorControl(this, CreationParams.DriverType == video::EDT_NULL);
+	
+	CursorControl->setActiveIcon(gui::ECI_NORMAL);
 
 	// create driver
 	createDriver();
