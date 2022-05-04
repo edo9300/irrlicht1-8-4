@@ -412,7 +412,10 @@ namespace irr
 		irr::core::vector2di drop_pos;
 		bool wasHorizontalMaximized;
 		bool wasVerticalMaximized;
-		void updateICSpot(short x, short y, short height);
+		void updateICFocusElementRect();
+		irr::gui::IGUIElement* lastFocusedElement;
+		bool isEditingText;
+		bool hasIMEInput;
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 		irr::X11Loader libx11;
 #endif

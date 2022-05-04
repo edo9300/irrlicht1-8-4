@@ -124,7 +124,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
 	XInputMethod(0), XInputContext(0), FontSet(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
-	wasHorizontalMaximized(false), wasVerticalMaximized(false),
+	wasHorizontalMaximized(false), wasVerticalMaximized(false), lastFocusedElement(nullptr), isEditingText(false), hasIMEInput(false),
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	libx11(),
 #endif
@@ -179,7 +179,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 
 	// create cursor control
 	CursorControl = new CCursorControl(this, CreationParams.DriverType == video::EDT_NULL);
-	
+
 	CursorControl->setActiveIcon(gui::ECI_NORMAL);
 
 	// create driver
@@ -280,9 +280,12 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 }
 #endif
 
-void CIrrDeviceLinux::updateICSpot(short x, short y, short height) {
+void CIrrDeviceLinux::updateICFocusElementRect() {
+	auto abs_pos = lastFocusedElement->getAbsolutePosition();
+	auto& pos = abs_pos.UpperLeftCorner;
 	XPoint spot;
-	spot.x = x; spot.y = y;
+	spot.x = pos.X;
+	spot.y = pos.Y;
 	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
 									   XNSpotLocation, &spot,
 									   NULL);
@@ -989,7 +992,7 @@ bool CIrrDeviceLinux::createInputContext()
 		setlocale(LC_CTYPE, oldLocale.c_str());
 		return false;
 	}
-	bool has_full_ime = [&]()->bool {
+	hasIMEInput = [&]()->bool {
 		char** missing_list;
 		int missing_count;
 		char* def_string;
@@ -1038,7 +1041,7 @@ bool CIrrDeviceLinux::createInputContext()
 		return true;
 	}();
 
-	if(!has_full_ime) {
+	if(!hasIMEInput) {
 		XInputContext = X11Loader::XCreateIC(XInputMethod,
 											 XNInputStyle, bestStyle,
 											 XNClientWindow, XWindow,
@@ -1123,21 +1126,39 @@ bool CIrrDeviceLinux::run()
 
 	if ((CreationParams.DriverType != video::EDT_NULL) && XDisplay)
 	{
-		{
+		[&]{
+			if(!hasIMEInput)
+				return;
 			auto* env = getGUIEnvironment();
-			if(env) {
-				irr::gui::IGUIElement* ele = env->getFocus();
-				if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
+			if(!env) {
+				lastFocusedElement = nullptr;
+				if(isEditingText) {
+					isEditingText = false;
 					X11Loader::XUnsetICFocus(XInputContext);
-				} else {
-					X11Loader::XSetICFocus(XInputContext);
-					auto abs_pos = ele->getAbsolutePosition();
-					auto pos = abs_pos.UpperLeftCorner;
-					updateICSpot(pos.X, pos.Y, abs_pos.getHeight());
 				}
+				return;
 			}
-
-		}
+			irr::gui::IGUIElement* ele = env->getFocus();
+			if(lastFocusedElement == ele) {
+				// if we don't do this each run text input doesn't seem to work anymore
+				if(WindowHasFocus && lastFocusedElement) {
+					X11Loader::XSetICFocus(XInputContext);
+					updateICFocusElementRect();
+				}
+				return;
+			}
+			isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+			lastFocusedElement = ele;
+			if(WindowHasFocus)
+				X11Loader::XUnsetICFocus(XInputContext);
+			if(!isEditingText)
+				return;
+			// we set the input context focus when the window becomes focused again
+			if(WindowHasFocus) {
+				X11Loader::XSetICFocus(XInputContext);
+				updateICFocusElementRect();
+			}
+		}();
 		SEvent irrevent;
 		irrevent.MouseInput.ButtonStates = 0xffffffff;
 
@@ -1188,10 +1209,16 @@ bool CIrrDeviceLinux::run()
 
 			case FocusIn:
 				WindowHasFocus=true;
+				if(isEditingText) {
+					X11Loader::XSetICFocus(XInputContext);
+					updateICFocusElementRect();
+				}
 				break;
 
 			case FocusOut:
 				WindowHasFocus=false;
+				if(isEditingText)
+					X11Loader::XUnsetICFocus(XInputContext);
 				break;
 
 			case MotionNotify:
