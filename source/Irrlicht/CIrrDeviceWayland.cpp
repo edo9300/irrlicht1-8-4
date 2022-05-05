@@ -58,6 +58,7 @@
 #include "CVideoModeList.h"
 #include "IEventReceiver.h"
 #include "IGUIEnvironment.h"
+#include "IGUIElement.h"
 #include "IGUISpriteBank.h"
 #include "irrString.h"
 #include "ISceneManager.h"
@@ -278,6 +279,7 @@ public:
     static const zxdg_shell_v6_listener zxdg_shell_listener;
     static const zxdg_surface_v6_listener zxdg_surface_listener;
     static const zxdg_toplevel_v6_listener zxdg_toplevel_listener;
+    static const zwp_text_input_v3_listener text_input_v3_listener;
     static const wl_data_device_listener data_device_listener;
     static const wl_data_offer_listener data_offer_listener;
     static const wl_data_source_listener data_source_listener;
@@ -994,6 +996,63 @@ public:
         device->m_resizing_state.width = width;
         device->m_resizing_state.height = height;
     }
+
+    static void text_input_v3_enter(void* data,
+                         struct zwp_text_input_v3* zwp_text_input_v3,
+                         struct wl_surface* surface) {
+        /* No-op */
+    }
+
+    static void text_input_v3_leave(void* data,
+                         struct zwp_text_input_v3* zwp_text_input_v3,
+                         struct wl_surface* surface) {
+        /* No-op */
+    }
+
+    static void text_input_v3_preedit_string(void* data,
+                                  struct zwp_text_input_v3* zwp_text_input_v3,
+                                  const char* text,
+                                  int32_t cursor_begin,
+                                  int32_t cursor_end) {
+        /* No-op */
+    }
+
+    static void text_input_v3_commit_string(void* data,
+                                 struct zwp_text_input_v3* zwp_text_input_v3,
+                                 const char* text) {
+        CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+        if(text && *text) {
+            SEvent event;
+            event.EventType = irr::EET_KEY_INPUT_EVENT;
+            event.KeyInput.PressedDown = true;
+            event.KeyInput.Key = irr::KEY_ACCEPT;
+            event.KeyInput.Shift = 0;
+            event.KeyInput.Control = 0;
+            size_t lenOld = strlen(text);
+            wchar_t* ws = new wchar_t[lenOld + 1];
+            core::utf8ToWchar(text, ws, (lenOld + 1) * sizeof(wchar_t));
+            wchar_t* cur = ws;
+            while(*cur) {
+                event.KeyInput.Char = *cur;
+                cur++;
+                device->postEventFromUser(event);
+            }
+            delete[] ws;
+        }
+    }
+
+    static void text_input_v3_delete_surrounding_text(void* data,
+                                           struct zwp_text_input_v3* zwp_text_input_v3,
+                                           uint32_t before_length,
+                                           uint32_t after_length) {
+        /* No-op */
+    }
+
+    static void text_input_v3_done(void* data,
+                        struct zwp_text_input_v3* zwp_text_input_v3,
+                        uint32_t serial) {
+        /* No-op */
+    }
     
     static void zxdg_toplevel_close(void* data, zxdg_toplevel_v6* zxdg_toplevel_v6)
     {
@@ -1033,6 +1092,11 @@ public:
 
                 wl_data_device_add_listener(device->m_data_device, &data_device_listener, data);
             }
+            if(!device->m_input_v3 && device->m_input_manager_v3) {
+                device->m_input_v3 = zwp_text_input_manager_v3_get_text_input(device->m_input_manager_v3, device->m_seat);
+
+                zwp_text_input_v3_add_listener(device->m_input_v3, &text_input_v3_listener, device);
+            }
         }
         else if (strcmp(interface, wl_data_device_manager_interface.name) == 0)
         {
@@ -1070,6 +1134,18 @@ public:
                                     static_cast<org_kde_kwin_server_decoration_manager*>(
                                     wl_registry_bind(registry, name, 
                                     &org_kde_kwin_server_decoration_manager_interface, 1));
+        }
+        else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0)
+        {
+            device->m_input_manager_v3 =
+                                    static_cast<zwp_text_input_manager_v3*>(
+                                    wl_registry_bind(registry, name, 
+                                    &zwp_text_input_manager_v3_interface, 1));
+            if(!device->m_input_v3 && device->m_seat) {
+                device->m_input_v3 = zwp_text_input_manager_v3_get_text_input(device->m_input_manager_v3, device->m_seat);
+
+                zwp_text_input_v3_add_listener(device->m_input_v3, &text_input_v3_listener, device);
+            }
         }
         else if (strcmp(interface, xdg_wm_base_interface.name) == 0)
         {
@@ -1510,6 +1586,16 @@ const zxdg_toplevel_v6_listener WaylandCallbacks::zxdg_toplevel_listener =
     WaylandCallbacks::zxdg_toplevel_close
 };
 
+const zwp_text_input_v3_listener WaylandCallbacks::text_input_v3_listener =
+{
+    WaylandCallbacks::text_input_v3_enter,
+    WaylandCallbacks::text_input_v3_leave,
+    WaylandCallbacks::text_input_v3_preedit_string,
+    WaylandCallbacks::text_input_v3_commit_string,
+    WaylandCallbacks::text_input_v3_delete_surrounding_text,
+    WaylandCallbacks::text_input_v3_done
+};
+
 const wl_data_device_listener WaylandCallbacks::data_device_listener =
 {
     WaylandCallbacks::data_device_handle_data_offer,
@@ -1620,6 +1706,13 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_kwin_server_decoration_manager = nullptr;
     m_kwin_server_decoration = nullptr;
 
+    m_input_manager_v3 = nullptr;
+    m_input_v3 = nullptr;
+
+    lastFocusedElement = nullptr;
+    isEditingText = false;
+    hasIMEInput = false;
+
     m_xkb_context = nullptr;
     m_xkb_compose_table = nullptr;
     m_xkb_compose_state = nullptr;
@@ -1717,6 +1810,12 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 	
     if (m_kwin_server_decoration)
         org_kde_kwin_server_decoration_release(m_kwin_server_decoration);
+
+    if(m_input_v3)
+        zwp_text_input_v3_destroy(m_input_v3);
+
+    if(m_input_manager_v3)
+        zwp_text_input_manager_v3_destroy(m_input_manager_v3);
         
     if (m_kwin_server_decoration_manager)
         org_kde_kwin_server_decoration_manager_destroy(m_kwin_server_decoration_manager);
@@ -1828,6 +1927,46 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         }
     }
 #endif
+}
+
+void CIrrDeviceWayland::checkAndUpdateIMEState() {
+    if(!m_input_v3)
+        return;
+    auto* env = getGUIEnvironment();
+    if(!env) {
+        lastFocusedElement = nullptr;
+        if(isEditingText) {
+            isEditingText = false;
+            zwp_text_input_v3_disable(m_input_v3);
+            zwp_text_input_v3_commit(m_input_v3);
+        }
+    }
+    irr::gui::IGUIElement* ele = env->getFocus();
+    if(lastFocusedElement == ele)
+        return;
+    isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+    lastFocusedElement = ele;
+
+    zwp_text_input_v3_disable(m_input_v3);
+    zwp_text_input_v3_commit(m_input_v3);
+
+    if(!isEditingText)
+        return;
+    zwp_text_input_v3_enable(m_input_v3);
+    zwp_text_input_v3_commit(m_input_v3);
+    zwp_text_input_v3_enable(m_input_v3);
+    zwp_text_input_v3_commit(m_input_v3);
+
+    zwp_text_input_v3_set_content_type(m_input_v3,
+                                       ZWP_TEXT_INPUT_V3_CONTENT_HINT_NONE,
+                                       ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_NORMAL);
+
+    auto abs_pos = lastFocusedElement->getAbsolutePosition();
+    auto& pos = abs_pos.UpperLeftCorner;
+
+    zwp_text_input_v3_set_cursor_rectangle(m_input_v3, pos.X, pos.Y, abs_pos.getWidth(), abs_pos.getHeight());
+
+    zwp_text_input_v3_commit(m_input_v3);
 }
 
 bool CIrrDeviceWayland::initWayland()
@@ -2348,6 +2487,8 @@ bool CIrrDeviceWayland::run()
     if(!VideoDriver)
         return false;
     os::Timer::tick();
+
+    checkAndUpdateIMEState();
 
     if (pwl_display_dispatch_pending(m_display) == -1)
     {

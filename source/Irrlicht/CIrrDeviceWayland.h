@@ -33,6 +33,7 @@
 #include "xdg_shell_client_protocol.h"
 #include "org_kde_kwin_server_decoration_manager_client_protocol.h"
 #include "zxdg_shell_unstable_v6_client_protocol.h"
+#include "ztext_input_unstable_v3_client_protocol.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -365,6 +366,15 @@ namespace irr
         
         org_kde_kwin_server_decoration_manager* m_kwin_server_decoration_manager;
         org_kde_kwin_server_decoration* m_kwin_server_decoration;
+
+        zwp_text_input_manager_v3* m_input_manager_v3;
+        zwp_text_input_v3* m_input_v3;
+
+        irr::gui::IGUIElement* lastFocusedElement;
+        bool isEditingText;
+        bool hasIMEInput;
+
+        void checkAndUpdateIMEState();
 
         xkb_context* m_xkb_context;
         xkb_compose_table* m_xkb_compose_table;
