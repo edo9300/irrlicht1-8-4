@@ -122,9 +122,9 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
 #ifdef _IRR_COMPILE_WITH_X11_
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
-	XInputMethod(0), XInputContext(0), FontSet(0),
+	XInputMethod(0), XInputContext(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
-	wasHorizontalMaximized(false), wasVerticalMaximized(false), lastFocusedElement(nullptr), isEditingText(false), hasIMEInput(false),
+	wasHorizontalMaximized(false), wasVerticalMaximized(false), lastFocusedElement(nullptr), isEditingText(false),
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	libx11(),
 #endif
@@ -282,10 +282,9 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 
 void CIrrDeviceLinux::updateICFocusElementRect() {
 	auto abs_pos = lastFocusedElement->getAbsolutePosition();
-	auto& pos = abs_pos.UpperLeftCorner;
 	XPoint spot;
-	spot.x = pos.X;
-	spot.y = pos.Y;
+	spot.x = abs_pos.UpperLeftCorner.X;
+	spot.y = abs_pos.getCenter().Y;
 	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
 									   XNSpotLocation, &spot,
 									   NULL);
@@ -949,6 +948,7 @@ bool CIrrDeviceLinux::createInputContext()
 		return false;
 	}
 
+	core::stringc oldmodifiers = X11Loader::XSetLocaleModifiers(nullptr);
 	if(X11Loader::XSetLocaleModifiers("") == NULL) {
 		setlocale(LC_CTYPE, oldLocale.c_str());
 		return false;
@@ -962,6 +962,7 @@ bool CIrrDeviceLinux::createInputContext()
 		XInputMethod = X11Loader::XOpenIM(XDisplay, NULL, _class_name, _class_name);
 		if(!XInputMethod) {
 			setlocale(LC_CTYPE, oldLocale.c_str());
+			X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 			os::Printer::log("XOpenIM failed to create an input method. Falling back to non-i18n input.", ELL_WARNING);
 			return false;
 		}
@@ -985,76 +986,28 @@ bool CIrrDeviceLinux::createInputContext()
 
 	if ( !bestStyle )
 	{
-		X11Loader::XDestroyIC(XInputContext);
-		XInputContext = 0;
-
 		os::Printer::log("XInputMethod has no input style we can use. Falling back to non-i18n input.", ELL_WARNING);
 		setlocale(LC_CTYPE, oldLocale.c_str());
+		X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 		return false;
 	}
-	hasIMEInput = [&]()->bool {
-		char** missing_list;
-		int missing_count;
-		char* def_string;
-		FontSet = X11Loader::XCreateFontSet(XDisplay, "-*-*-*-R-Normal--14-130-75-75-*-*", // XXXX magic word...
-								  &missing_list, &missing_count, &def_string);
-		if(FontSet == nullptr)
-			return false;
-		XFontSetExtents* fs_ext = X11Loader::XExtentsOfFontSet(FontSet);
-		if(fs_ext == nullptr) {
-			X11Loader::XFreeFontSet(XDisplay, FontSet);
-			FontSet = nullptr;
-			return false;
-		}
 
-		XRectangle s_rect;
-		XPoint spot;
-		spot.x = fs_ext->max_logical_extent.width * 0; // XXXX magic word "0", "2".
-		spot.y = fs_ext->max_logical_extent.height * 2;
-		auto* preedit_attr = X11Loader::XVaCreateNestedList(0,
-										   XNSpotLocation, &spot,
-										   XNFontSet, FontSet,
-										   NULL);
-		s_rect.x = fs_ext->max_logical_extent.width * 0;
-		s_rect.y = fs_ext->max_logical_extent.height * 0;
-		s_rect.width = fs_ext->max_logical_extent.width * 3; // XXXX magic word "3", "1".
-		s_rect.height = fs_ext->max_logical_extent.height * 1;
-		auto* status_attr = X11Loader::XVaCreateNestedList(0,
-										  XNArea, &s_rect,
-										  XNFontSet, FontSet,
-										  NULL);
-		XInputContext = X11Loader::XCreateIC(XInputMethod,
-					   XNInputStyle, XIMPreeditPosition | XIMStatusArea,
-					   XNClientWindow, XWindow,
-					   XNPreeditAttributes, preedit_attr,
-					   XNStatusAttributes, status_attr,
-					   NULL);
-		X11Loader::XFree(preedit_attr);
-		X11Loader::XFree(status_attr);
-		if(!XInputContext) {
-			X11Loader::XFreeFontSet(XDisplay, FontSet);
-			FontSet = nullptr;
-			return false;
-		}
-		unsigned long fevent;
-		X11Loader::XGetICValues(XInputContext, XNFilterEvents, &fevent, NULL);
-		return true;
-	}();
+	XInputContext = X11Loader::XCreateIC(XInputMethod,
+										 XNInputStyle, bestStyle,
+										 XNClientWindow, XWindow,
+										 (char*)NULL);
 
-	if(!hasIMEInput) {
-		XInputContext = X11Loader::XCreateIC(XInputMethod,
-											 XNInputStyle, bestStyle,
-											 XNClientWindow, XWindow,
-											 (char*)NULL);
-	}
 	if (!XInputContext )
 	{
 		os::Printer::log("XInputContext failed to create an input context. Falling back to non-i18n input.", ELL_WARNING);
 		setlocale(LC_CTYPE, oldLocale.c_str());
+		X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 		return false;
 	}
+
 	X11Loader::XSetICFocus(XInputContext);
 	setlocale(LC_CTYPE, oldLocale.c_str());
+	X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 	return true;
 }
 
@@ -1070,10 +1023,6 @@ void CIrrDeviceLinux::destroyInputContext()
 	{
 		X11Loader::XCloseIM(XInputMethod);
 		XInputMethod = 0;
-	}
-	if(FontSet) {
-		X11Loader::XFreeFontSet(XDisplay, FontSet);
-		FontSet = nullptr;
 	}
 }
 
@@ -1127,21 +1076,12 @@ bool CIrrDeviceLinux::run()
 	if ((CreationParams.DriverType != video::EDT_NULL) && XDisplay)
 	{
 		[&]{
-			if(!hasIMEInput)
+			if(!XInputContext)
 				return;
 			auto* env = getGUIEnvironment();
-			if(!env) {
-				lastFocusedElement = nullptr;
-				if(isEditingText) {
-					isEditingText = false;
-					X11Loader::XUnsetICFocus(XInputContext);
-				}
-				return;
-			}
 			irr::gui::IGUIElement* ele = env->getFocus();
-			if(lastFocusedElement == ele) {
-				// if we don't do this each run text input doesn't seem to work anymore
-				if(WindowHasFocus && lastFocusedElement) {
+			if(ele == lastFocusedElement) {
+				if(lastFocusedElement) {
 					X11Loader::XSetICFocus(XInputContext);
 					updateICFocusElementRect();
 				}
@@ -1149,15 +1089,13 @@ bool CIrrDeviceLinux::run()
 			}
 			isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
 			lastFocusedElement = ele;
-			if(WindowHasFocus)
-				X11Loader::XUnsetICFocus(XInputContext);
-			if(!isEditingText)
+			X11Loader::XUnsetICFocus(XInputContext);
+			if(!isEditingText) {
 				return;
-			// we set the input context focus when the window becomes focused again
-			if(WindowHasFocus) {
-				X11Loader::XSetICFocus(XInputContext);
-				updateICFocusElementRect();
 			}
+			// we set the input context focus when the window becomes focused again
+			X11Loader::XSetICFocus(XInputContext);
+			updateICFocusElementRect();
 		}();
 		SEvent irrevent;
 		irrevent.MouseInput.ButtonStates = 0xffffffff;
@@ -1362,7 +1300,7 @@ bool CIrrDeviceLinux::run()
 						{
 							os::Printer::log("XwcLookupString needs a larger buffer", ELL_INFORMATION);
 						}
-						if (strLen > 0 && status == XLookupChars || status == XLookupBoth)
+						if ( strLen > 0 && (status == XLookupChars || status == XLookupBoth) )
 						{
 							irrevent.KeyInput.Key = getKeyCode(event);
 							for(int i = 0; i < strLen; i++) {

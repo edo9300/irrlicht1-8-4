@@ -396,7 +396,6 @@ namespace irr
 		XImage* SoftwareImage;
 		XIM XInputMethod;
 		XIC XInputContext;
-		XFontSet FontSet;
 		bool HasNetWM;
 		mutable core::stringc Clipboard;
 		#ifdef _IRR_LINUX_X11_VIDMODE_
@@ -415,7 +414,6 @@ namespace irr
 		void updateICFocusElementRect();
 		irr::gui::IGUIElement* lastFocusedElement;
 		bool isEditingText;
-		bool hasIMEInput;
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 		irr::X11Loader libx11;
 #endif
