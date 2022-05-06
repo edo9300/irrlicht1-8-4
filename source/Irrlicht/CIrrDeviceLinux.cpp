@@ -287,8 +287,8 @@ void CIrrDeviceLinux::updateICFocusElementRect() {
 	spot.y = abs_pos.getCenter().Y;
 	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
 									   XNSpotLocation, &spot,
-									   NULL);
-	X11Loader::XSetICValues(XInputContext, XNPreeditAttributes, preedit_attr, NULL);
+									   nullptr);
+	X11Loader::XSetICValues(XInputContext, XNPreeditAttributes, preedit_attr, nullptr);
 	X11Loader::XFree(preedit_attr);
 }
 
@@ -969,7 +969,7 @@ bool CIrrDeviceLinux::createInputContext()
 	}
 
 	XIMStyles *im_supported_styles;
-	X11Loader::XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, (char*)NULL);
+	X11Loader::XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, nullptr);
 	XIMStyle bestStyle = 0;
 	// TODO: If we want to support languages like chinese or japanese as well we probably have to work with callbacks here.
 	XIMStyle supportedStyle = XIMPreeditNothing | XIMStatusNothing;
@@ -995,7 +995,7 @@ bool CIrrDeviceLinux::createInputContext()
 	XInputContext = X11Loader::XCreateIC(XInputMethod,
 										 XNInputStyle, bestStyle,
 										 XNClientWindow, XWindow,
-										 (char*)NULL);
+										 nullptr);
 
 	if (!XInputContext )
 	{
