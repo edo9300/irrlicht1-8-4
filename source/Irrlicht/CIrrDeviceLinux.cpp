@@ -1081,7 +1081,7 @@ bool CIrrDeviceLinux::run()
 			auto* env = getGUIEnvironment();
 			irr::gui::IGUIElement* ele = env->getFocus();
 			if(ele == lastFocusedElement) {
-				if(lastFocusedElement) {
+				if(lastFocusedElement && isEditingText) {
 					X11Loader::XSetICFocus(XInputContext);
 					updateICFocusElementRect();
 				}
