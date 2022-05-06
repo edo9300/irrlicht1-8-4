@@ -1873,6 +1873,8 @@ void CIrrDeviceWayland::checkAndUpdateIMEState() {
 
     irr::gui::IGUIElement* ele = env->getFocus();
     if(lastFocusedElement == ele) {
+        if(!ele || !isEditingText)
+            return;
         auto abs_pos = lastFocusedElement->getAbsolutePosition();
         if(abs_pos == lastFocusedElementPosition)
             return;
