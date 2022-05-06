@@ -1028,10 +1028,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		HIMC hIMC = ImmGetContext(hWnd);
 		ImmSetCompositionWindow(hIMC, &CompForm);
 		ImmReleaseContext(hWnd, hIMC);
+		break;
 	}
-	break;
+
+	case WM_IME_COMPOSITION:
+	{
+		if(lParam & GCS_RESULTSTR) {
+			HIMC hIMC = ImmGetContext(hWnd);
+			LONG nSize = ImmGetCompositionString(hIMC, GCS_RESULTSTR, nullptr, 0);
+			if(nSize) {
+				// ImmGetCompositionString returns the size in bytes without the null terminator
+				const auto wchar_size = (nSize / sizeof(wchar_t));
+				wchar_t* psz = new wchar_t[wchar_size + sizeof(wchar_t)];
+				ImmGetCompositionString(hIMC, GCS_RESULTSTR, psz, nSize);
+				psz[wchar_size] = 0;
+				event.EventType = irr::EET_KEY_INPUT_EVENT;
+				event.KeyInput.PressedDown = true;
+				event.KeyInput.Key = irr::KEY_ACCEPT;
+				event.KeyInput.Shift = 0;
+				event.KeyInput.Control = 0;
+				for(auto* cur = psz; *cur; cur++) {
+					event.KeyInput.Char = *cur;
+					dev->postEventFromUser(event);
+				}
+				delete[] psz;
+			}
+			ImmReleaseContext(hWnd, hIMC);
+		}
+		return 0;
+	}
 
 	case WM_IME_CHAR:
+		// shouldn't be called because the composition is handled above
+		// but we never know
 		event.EventType = irr::EET_KEY_INPUT_EVENT;
 		event.KeyInput.PressedDown = true;
 #ifdef _UNICODE
