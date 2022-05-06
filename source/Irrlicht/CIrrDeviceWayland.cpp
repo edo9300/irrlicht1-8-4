@@ -1967,9 +1967,10 @@ bool CIrrDeviceWayland::initWayland()
 					m_has_xdg_wm_base = false;
 					m_has_zxdg_shell = false;
 					m_has_wl_shell = false;
-				} else
+				} else {
 					LibdecorLoader::Unload();
 					os::Printer::log("Failed to create libdecor instance, no window decorations will be provided.", ELL_ERROR);
+				}
 			}
 		}
 #endif
@@ -2670,7 +2671,7 @@ bool CIrrDeviceWayland::getGammaRamp(f32 &red, f32 &green, f32 &blue,
 //! \return Returns 0 if no string is in there.
 const c8* CIrrDeviceWayland::getTextFromClipboard() const
 {
-	if(!m_clipboard_changed)
+    if(!m_clipboard_changed)
         return m_readclipboard.c_str();
 
     m_readclipboard.clear();
@@ -2678,14 +2679,14 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
     if(!m_clipboard_data_offer)
         return m_readclipboard.c_str();
 
-	if((m_clipboard_mime & (CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT |
+    if((m_clipboard_mime & (CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT |
                            CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8 |
                            CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2)) == 0)
         return m_readclipboard.c_str();
 
     int pipefd[2];
     if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) == -1)
-       return m_readclipboard.c_str();
+        return m_readclipboard.c_str();
 	wl_data_offer_receive(m_clipboard_data_offer,
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8) ? "text/plain;charset=UTF-8" :
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2) ? "text/plain;charset=utf-8" :
