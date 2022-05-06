@@ -1081,14 +1081,15 @@ bool CIrrDeviceLinux::run()
 			auto* env = getGUIEnvironment();
 			irr::gui::IGUIElement* ele = env->getFocus();
 			if(ele == lastFocusedElement) {
-				if(lastFocusedElement && isEditingText) {
-					X11Loader::XSetICFocus(XInputContext);
+				if(lastFocusedElement && isEditingText && WindowHasFocus) {
 					updateICFocusElementRect();
 				}
 				return;
 			}
 			isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
 			lastFocusedElement = ele;
+			if(!WindowHasFocus)
+				return;
 			X11Loader::XUnsetICFocus(XInputContext);
 			if(!isEditingText) {
 				return;
@@ -1104,7 +1105,7 @@ bool CIrrDeviceLinux::run()
 		{
 			XEvent event;
 			X11Loader::XNextEvent(XDisplay, &event);
-			if(X11Loader::XFilterEvent(&event, XWindow))
+			if(X11Loader::XFilterEvent(&event, None))
 				continue;
 
 			switch (event.type)
