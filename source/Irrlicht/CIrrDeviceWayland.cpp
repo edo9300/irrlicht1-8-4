@@ -2687,7 +2687,7 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
     int pipefd[2];
     if(pipe2(pipefd, O_CLOEXEC | O_NONBLOCK) == -1)
         return m_readclipboard.c_str();
-	wl_data_offer_receive(m_clipboard_data_offer,
+    wl_data_offer_receive(m_clipboard_data_offer,
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8) ? "text/plain;charset=UTF-8" :
                           (m_clipboard_mime & CIrrDeviceWayland::DATA_MIME::PLAIN_TEXT_UTF8_2) ? "text/plain;charset=utf-8" :
                           "text/plain",
