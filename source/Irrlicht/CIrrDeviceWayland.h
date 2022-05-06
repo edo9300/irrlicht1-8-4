@@ -1,3 +1,8 @@
+// Copyright (c) 2021-2022 Edoardo Lolletti <edoardo762@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Refer to the COPYING file included.
+// 
+//  Original license
 //
 //  SuperTuxKart - a fun racing game with go-kart
 //  Copyright (C) 2016-2017 Dawid Gan
