@@ -376,6 +376,7 @@ namespace irr
         zwp_text_input_v3* m_input_v3;
 
         irr::gui::IGUIElement* lastFocusedElement;
+        core::rect<s32> lastFocusedElementPosition;
         bool isEditingText;
         bool hasIMEInput;
 

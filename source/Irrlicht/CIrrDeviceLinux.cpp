@@ -280,11 +280,16 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 }
 #endif
 
-void CIrrDeviceLinux::updateICFocusElementRect() {
+void CIrrDeviceLinux::updateICFocusElementRect(bool check_resize) {
 	auto abs_pos = lastFocusedElement->getAbsolutePosition();
 	XPoint spot;
 	spot.x = abs_pos.UpperLeftCorner.X;
 	spot.y = abs_pos.getCenter().Y;
+	if(check_resize) {
+		if(lastFocusedElementPosition.x == spot.x && lastFocusedElementPosition.y == spot.y)
+			return;
+	}
+	lastFocusedElementPosition = spot;
 	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
 									   XNSpotLocation, &spot,
 									   nullptr);
@@ -1082,7 +1087,7 @@ bool CIrrDeviceLinux::run()
 			irr::gui::IGUIElement* ele = env->getFocus();
 			if(ele == lastFocusedElement) {
 				if(lastFocusedElement && isEditingText && WindowHasFocus) {
-					updateICFocusElementRect();
+					updateICFocusElementRect(true);
 				}
 				return;
 			}

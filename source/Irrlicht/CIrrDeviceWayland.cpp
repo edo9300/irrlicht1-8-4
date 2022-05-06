@@ -1861,9 +1861,24 @@ void CIrrDeviceWayland::checkAndUpdateIMEState() {
             zwp_text_input_v3_commit(m_input_v3);
         }
     }
+
+    auto updateRectPosition = [&] {
+        lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+        auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+
+        zwp_text_input_v3_set_cursor_rectangle(m_input_v3, pos.X, pos.Y, lastFocusedElementPosition.getWidth(), lastFocusedElementPosition.getHeight());
+
+        zwp_text_input_v3_commit(m_input_v3);
+    };
+
     irr::gui::IGUIElement* ele = env->getFocus();
-    if(lastFocusedElement == ele)
+    if(lastFocusedElement == ele) {
+        auto abs_pos = lastFocusedElement->getAbsolutePosition();
+        if(abs_pos == lastFocusedElementPosition)
+            return;
+        updateRectPosition();
         return;
+    }
     isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
     lastFocusedElement = ele;
 
@@ -1881,12 +1896,7 @@ void CIrrDeviceWayland::checkAndUpdateIMEState() {
                                        ZWP_TEXT_INPUT_V3_CONTENT_HINT_NONE,
                                        ZWP_TEXT_INPUT_V3_CONTENT_PURPOSE_NORMAL);
 
-    auto abs_pos = lastFocusedElement->getAbsolutePosition();
-    auto& pos = abs_pos.UpperLeftCorner;
-
-    zwp_text_input_v3_set_cursor_rectangle(m_input_v3, pos.X, pos.Y, abs_pos.getWidth(), abs_pos.getHeight());
-
-    zwp_text_input_v3_commit(m_input_v3);
+    updateRectPosition();
 }
 
 bool CIrrDeviceWayland::initWayland()
@@ -1967,10 +1977,10 @@ bool CIrrDeviceWayland::initWayland()
 					m_has_xdg_wm_base = false;
 					m_has_zxdg_shell = false;
 					m_has_wl_shell = false;
-				} else {
-					LibdecorLoader::Unload();
-					os::Printer::log("Failed to create libdecor instance, no window decorations will be provided.", ELL_ERROR);
-				}
+                } else {
+                    LibdecorLoader::Unload();
+                    os::Printer::log("Failed to create libdecor instance, no window decorations will be provided.", ELL_ERROR);
+                }
 			}
 		}
 #endif
