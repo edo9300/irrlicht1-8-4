@@ -1054,8 +1054,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				delete[] psz;
 			}
 			ImmReleaseContext(hWnd, hIMC);
+			return 0;
 		}
-		return 0;
+		break;
 	}
 
 	case WM_IME_CHAR:
