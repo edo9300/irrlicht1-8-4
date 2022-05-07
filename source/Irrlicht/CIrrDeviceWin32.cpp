@@ -720,7 +720,7 @@ irr::CIrrDeviceWin32* getDeviceFromHWnd(HWND hWnd)
 }
 
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	#ifndef WM_MOUSEWHEEL
 	#define WM_MOUSEWHEEL 0x020A

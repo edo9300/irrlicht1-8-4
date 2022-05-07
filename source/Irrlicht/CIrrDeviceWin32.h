@@ -432,6 +432,8 @@ namespace irr
 		//! create the driver
 		void createDriver();
 
+		static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 		//! Process system events
 		void handleSystemMessages();
 
