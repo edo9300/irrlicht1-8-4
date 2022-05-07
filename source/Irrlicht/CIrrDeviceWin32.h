@@ -462,6 +462,12 @@ namespace irr
 		WINDOWPLACEMENT nonFullscreenSize;
 		LONG_PTR nonFullscreenStyle;
 
+		irr::gui::IGUIElement* lastFocusedElement;
+		core::rect<s32> lastFocusedElementPosition;
+		bool isEditingText;
+
+		void checkAndUpdateIMEState();
+
 		static bool is_vista_or_greater;
 	};
 

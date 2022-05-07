@@ -837,21 +837,8 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		return 0;
 	}
 
-	{
-		if(dev && dev->getGUIEnvironment()) {
-			irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
-			if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
-				HIMC hIMC = ImmGetContext(hWnd);
-				if(hIMC) {
-					ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
-					ImmReleaseContext(hWnd, hIMC);
-				}
-				ImmAssociateContextEx(hWnd, NULL, 0);
-			} else
-				ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
-		}
-
-	}
+	if(dev)
+		dev->checkAndUpdateIMEState();
 
 	switch (message)
 	{
@@ -1018,19 +1005,6 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );
 		return 0;
 
-	case WM_IME_STARTCOMPOSITION:
-	{
-		irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
-		if(!ele)
-			break;
-		irr::core::position2di pos = ele->getAbsolutePosition().UpperLeftCorner;
-		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + ele->getAbsolutePosition().getHeight() } };
-		HIMC hIMC = ImmGetContext(hWnd);
-		ImmSetCompositionWindow(hIMC, &CompForm);
-		ImmReleaseContext(hWnd, hIMC);
-		break;
-	}
-
 	case WM_IME_COMPOSITION:
 	{
 		if(lParam & GCS_RESULTSTR) {
@@ -1108,7 +1082,8 @@ bool CIrrDeviceWin32::is_vista_or_greater = false;
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
 	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr),
-	has_charevent(false), key_event{}
+	has_charevent(false), key_event{},
+	lastFocusedElement(nullptr), isEditingText(false)
 {
 	key_event.EventType = EGUIET_FORCE_32_BIT;
 	#ifdef _DEBUG
@@ -1414,6 +1389,60 @@ void CIrrDeviceWin32::createDriver()
 		os::Printer::log("Unable to create video driver of unknown type.", ELL_ERROR);
 		break;
 	}
+}
+
+void CIrrDeviceWin32::checkAndUpdateIMEState() {
+	auto env = getGUIEnvironment();
+
+	auto disableContext = [&] {
+		if(isEditingText) {
+			isEditingText = false;
+			HIMC hIMC = ImmGetContext(HWnd);
+			if(hIMC) {
+				ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+				ImmNotifyIME(hIMC, NI_CLOSECANDIDATE, 0, 0);
+				ImmReleaseContext(HWnd, hIMC);
+			}
+			ImmAssociateContext(HWnd, nullptr);
+		}
+	};
+
+	if(!env) {
+		lastFocusedElement = nullptr;
+		disableContext();
+		return;
+	}
+
+	auto updateRectPosition = [&] {
+		lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + lastFocusedElementPosition.getHeight() } };
+		HIMC hIMC = ImmGetContext(HWnd);
+		ImmSetCompositionWindow(hIMC, &CompForm);
+		ImmReleaseContext(HWnd, hIMC);
+	};
+
+	irr::gui::IGUIElement* ele = env->getFocus();
+	if(ele == lastFocusedElement) {
+		if(!ele || !isEditingText)
+			return;
+		auto abs_pos = lastFocusedElement->getAbsolutePosition();
+		if(abs_pos == lastFocusedElementPosition)
+			return;
+		updateRectPosition();
+		return;
+	}
+
+	disableContext();
+
+	lastFocusedElement = ele;
+	isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+
+	if(!isEditingText)
+		return;
+
+	ImmAssociateContextEx(HWnd, nullptr, IACE_DEFAULT);
+	updateRectPosition();
 }
 
 
