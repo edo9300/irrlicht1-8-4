@@ -1597,12 +1597,7 @@ bool CIrrDeviceWin32::isWindowFocused() const
 //! returns if window is minimized
 bool CIrrDeviceWin32::isWindowMinimized() const
 {
-	WINDOWPLACEMENT plc;
-	plc.length=sizeof(WINDOWPLACEMENT);
-	bool ret=false;
-	if (GetWindowPlacement(HWnd,&plc))
-		ret = plc.showCmd == SW_SHOWMINIMIZED;
-	return ret;
+	return IsIconic(HWnd);
 }
 
 
