@@ -461,7 +461,7 @@ bool CIrrDeviceLinux::createWindow()
 
 	switchToFullscreen();
 
-#if defined(_IRR_COMPILE_WITH_OPENGL_)
+#if defined(_IRR_COMPILE_WITH_OPENGL_) || defined(_IRR_COMPILE_WITH_OGLES1_) || defined(_IRR_COMPILE_WITH_OGLES2_)
 	// don't use the XVisual with OpenGL, because it ignores all requested
 	// properties of the CreationParams
 	if (CreationParams.DriverType == video::EDT_OPENGL)
@@ -470,6 +470,24 @@ bool CIrrDeviceLinux::createWindow()
 		data.OpenGLLinux.X11Display = XDisplay;
 		ContextManager = new video::CGLXManager(CreationParams, data, Screennr);
 		VisualInfo = ((video::CGLXManager*)ContextManager)->getVisual();
+		if(!VisualInfo) {
+			os::Printer::log("Fatal error, could not get visual.", ELL_ERROR);
+			X11Loader::XCloseDisplay(XDisplay);
+			XDisplay = 0;
+			return false;
+		}
+	} else if(CreationParams.DriverType == video::EDT_OGLES1 || CreationParams.DriverType == video::EDT_OGLES2) {
+		video::SExposedVideoData data;
+		data.OpenGLLinux.X11Display = XDisplay;
+		auto* eglmanager = new video::CEGLManager(CreationParams, data);
+		VisualInfo = (XVisualInfo*)eglmanager->getVisual();
+		ContextManager = eglmanager;
+		if(!VisualInfo) {
+			os::Printer::log("Fatal error, could not get visual.", ELL_ERROR);
+			X11Loader::XCloseDisplay(XDisplay);
+			XDisplay = 0;
+			return false;
+		}
 	}
 #endif
 
@@ -677,7 +695,6 @@ void CIrrDeviceLinux::createDriver()
 			data.OpenGLLinux.X11Window = XWindow;
 			data.OpenGLLinux.X11Display = XDisplay;
 
-			ContextManager = new video::CEGLManager();
 			ContextManager->initialize(CreationParams, data);
 
 			VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
@@ -693,7 +710,6 @@ void CIrrDeviceLinux::createDriver()
 			data.OpenGLLinux.X11Window = XWindow;
 			data.OpenGLLinux.X11Display = XDisplay;
 
-			ContextManager = new video::CEGLManager();
 			ContextManager->initialize(CreationParams, data);
 
 			VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);

@@ -34,6 +34,10 @@ namespace video
 		CEGLManager(CIrrDeviceWayland* wayland_device);
 #endif
 
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+		CEGLManager(const SIrrlichtCreationParameters& params, const SExposedVideoData& data);
+#endif
+
 		//! Destructor.
 		virtual ~CEGLManager();
 
@@ -112,6 +116,8 @@ namespace video
 
 		bool LoadEGL();
 
+		void GenerateConfig();
+
 		NativeWindowType EglWindow;
 		EGLDisplay EglDisplay;
 		EGLSurface EglSurface;
@@ -135,6 +141,12 @@ namespace video
 #undef EGL_FUNC
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 		CIrrDeviceWayland* WaylandDevice;
+#endif
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+		bool Initialized;
+		void* VisualInfo;
+	public:
+		void* getVisual() const { return VisualInfo; } // return XVisualInfo
 #endif
 	};
 }
