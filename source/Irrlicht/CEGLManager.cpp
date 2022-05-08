@@ -417,7 +417,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 #endif
 	EGLint attribSurfaceType = 0;
 	peglGetConfigAttrib( EglDisplay, config, EGL_SURFACE_TYPE, &attribSurfaceType);
-	if ( attribSurfaceType != EGL_WINDOW_BIT )
+	if ( !(attribSurfaceType & EGL_WINDOW_BIT) )
 	{
 		if ( log )
 			os::Printer::log("EGL_SURFACE_TYPE != EGL_WINDOW_BIT");
