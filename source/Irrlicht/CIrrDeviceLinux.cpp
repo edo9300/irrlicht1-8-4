@@ -461,7 +461,7 @@ bool CIrrDeviceLinux::createWindow()
 
 	switchToFullscreen();
 
-#if defined(_IRR_COMPILE_WITH_OPENGL_) || defined(_IRR_COMPILE_WITH_OGLES1_) || defined(_IRR_COMPILE_WITH_OGLES2_)
+#if defined(_IRR_COMPILE_WITH_OPENGL_)
 	// don't use the XVisual with OpenGL, because it ignores all requested
 	// properties of the CreationParams
 	if (CreationParams.DriverType == video::EDT_OPENGL)
@@ -476,7 +476,10 @@ bool CIrrDeviceLinux::createWindow()
 			XDisplay = 0;
 			return false;
 		}
-	} else if(CreationParams.DriverType == video::EDT_OGLES1 || CreationParams.DriverType == video::EDT_OGLES2) {
+	}
+#endif
+#if defined(_IRR_COMPILE_WITH_OGLES1_) || defined(_IRR_COMPILE_WITH_OGLES2_)
+	if(CreationParams.DriverType == video::EDT_OGLES1 || CreationParams.DriverType == video::EDT_OGLES2) {
 		video::SExposedVideoData data;
 		data.OpenGLLinux.X11Display = XDisplay;
 		auto* eglmanager = new video::CEGLManager(CreationParams, data);
