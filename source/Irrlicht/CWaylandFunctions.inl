@@ -47,6 +47,10 @@ WAYLAND_FUNC(wl_proxy_marshal, void, struct wl_proxy* p, uint32_t opcode, ...)
 WAYLAND_FUNC(wl_proxy_marshal_constructor, struct wl_proxy*, struct wl_proxy* proxy, uint32_t opcode, const struct wl_interface* interface, ...)
 WAYLAND_FUNC(wl_proxy_marshal_constructor_versioned, struct wl_proxy*, struct wl_proxy* proxy, uint32_t opcode, const struct wl_interface* interface, uint32_t version, ...)
 WAYLAND_FUNC(wl_proxy_set_user_data, void, struct wl_proxy* proxy, void* user_data)
+#if WAYLAND_VERSION_MINOR >= 20
+WAYLAND_FUNC(wl_proxy_marshal_flags, struct wl_proxy*, struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interfac, uint32_t version, uint32_t flags, ...)
+WAYLAND_FUNC(wl_proxy_marshal_array_flags, struct wl_proxy*, struct wl_proxy *proxy, uint32_t opcode, const struct wl_interface *interface, uint32_t version,  uint32_t flags, union wl_argument *args)
+#endif
 WAYLAND_INTERFACE(wl_seat_interface)
 WAYLAND_INTERFACE(wl_surface_interface)
 WAYLAND_INTERFACE(wl_shm_pool_interface)
