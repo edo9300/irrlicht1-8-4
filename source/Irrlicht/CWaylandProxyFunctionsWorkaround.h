@@ -6,6 +6,7 @@ struct wl_event_queue;
 struct wl_display;
 struct wl_surface;
 struct wl_shm;
+union wl_argument;
 #include <stdint.h>
 #include <wayland-version.h>
 #ifdef __cplusplus

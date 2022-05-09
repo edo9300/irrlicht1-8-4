@@ -18,7 +18,7 @@ namespace video
 {
 
 	COGLES1ExtensionHandler::COGLES1ExtensionHandler(IContextManager* contextManager) : COGLESCoreExtensionHandler(this),
-		COGLES1BaseFunctionsHandler(contextManager), ContextManager(contextManager), MaxUserClipPlanes(0), MaxLights(0)
+		COGLES1BaseFunctionsHandler(contextManager), MaxUserClipPlanes(0), MaxLights(0), ContextManager(contextManager)
 #if defined(_IRR_OGLES1_USE_EXTPOINTER_)
 		, pGlBlendEquationOES(0), pGlBlendFuncSeparateOES(0),
 		pGlBindFramebufferOES(0), pGlDeleteFramebuffersOES(0),

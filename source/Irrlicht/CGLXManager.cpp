@@ -45,8 +45,8 @@ CGLXManager::CGLXManager(const SIrrlichtCreationParameters& params, const SExpos
 #endif // _IRR_OPENGL_USE_EXTPOINTER_
 	,pglXGetProcAddress(0)
 #ifdef _IRR_X11_DYNAMIC_LOAD_
-	,LibGLX(0)
 	,LibGL(0)
+	,LibGLX(0)
 #endif
 {
 	#ifdef _DEBUG
