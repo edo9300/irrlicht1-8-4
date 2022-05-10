@@ -1086,6 +1086,7 @@ CIrrDeviceSDL2::CCursorControl::CCursorControl(CIrrDeviceSDL2* dev) : Device(dev
 	cursors[gui::ECI_SIZENS] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
 	cursors[gui::ECI_SIZEWE] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
 	cursors[gui::ECI_UP] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+	SDL_SetCursor(cursors[iconId]);
 }
 
 CIrrDeviceSDL2::CCursorControl::~CCursorControl()
