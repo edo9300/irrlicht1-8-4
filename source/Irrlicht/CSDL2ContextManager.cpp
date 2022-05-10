@@ -6,7 +6,7 @@
 
 #ifdef _IRR_COMPILE_WITH_SDL2_DEVICE_
 
-#include <SDL2/sdl.h>
+#include <SDL2/SDL.h>
 #include "os.h"
 
 namespace irr

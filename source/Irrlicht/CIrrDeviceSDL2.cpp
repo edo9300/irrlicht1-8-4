@@ -691,7 +691,7 @@ bool CIrrDeviceSDL2::activateJoysticks(core::array<SJoystickInfo> & joystickInfo
 		info.Joystick = joystick;
 		info.Axes = SDL_JoystickNumAxes(Joysticks[joystick]);
 		info.Buttons = SDL_JoystickNumButtons(Joysticks[joystick]);
-		info.Name = SDL_JoystickName(joystick);
+		info.Name = SDL_JoystickName(Joysticks[joystick]);
 		info.PovHat = (SDL_JoystickNumHats(Joysticks[joystick]) > 0)
 						? SJoystickInfo::POV_HAT_PRESENT : SJoystickInfo::POV_HAT_ABSENT;
 
@@ -867,7 +867,6 @@ bool CIrrDeviceSDL2::getGammaRamp( f32 &red, f32 &green, f32 &blue, f32 &brightn
 {
 	u16 ramp[3][256];
 
-	HDC dc = GetDC(0);
 	if(SDL_GetWindowGammaRamp(window, ramp[0], ramp[1], ramp[2]) != 0)
 		return false;
 
