@@ -67,8 +67,8 @@ namespace irr
 		EIDT_WAYLAND,
 
 		//! A device which uses Simple DirectMedia Layer
-		/** The SDL device works under all platforms supported by SDL but first must be compiled
-		in by defining the _IRR_COMPILE_WITH_SDL_DEVICE_ macro in IrrCompileConfig.h */
+		/** The SDL device works under all platforms supported by SDL2 but first must be compiled
+		in by defining the _IRR_COMPILE_WITH_SDL2_DEVICE_ macro in IrrCompileConfig.h */
 		EIDT_SDL2,
 	};
 

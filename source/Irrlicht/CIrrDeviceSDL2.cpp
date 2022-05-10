@@ -42,6 +42,7 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	setDebugName("CIrrDeviceSDL2");
 	#endif
 
+	SDL_SetMainReady();
 	// Initialize SDL... Timer for sleep, video for the obvious, and
 	// noparachute prevents SDL from catching fatal errors.
 	if (SDL_Init( SDL_INIT_TIMER|SDL_INIT_VIDEO|
@@ -1161,7 +1162,7 @@ CIrrDeviceSDL2::CCursorControl::CCursorControl(CIrrDeviceSDL2* dev) : Device(dev
 	cursors[gui::ECI_SIZENS] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
 	cursors[gui::ECI_SIZEWE] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
 	cursors[gui::ECI_UP] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-	SDL_SetCursor(cursors[iconId]);
+	SDL_SetCursor(cursors[CurCursor]);
 }
 
 CIrrDeviceSDL2::CCursorControl::~CCursorControl()
