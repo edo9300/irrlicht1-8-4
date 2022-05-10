@@ -209,6 +209,14 @@ while it runs and enabling it will slow down the engine. */
 #define IRR_LIBDECOR_DYNAMIC_LOAD
 #endif
 
+#if defined(_IRR_WAYLAND_DYNAMIC_LOAD_) && !defined(IRR_DBUS_DYNAMIC_LOAD)
+#define IRR_DBUS_DYNAMIC_LOAD
+#endif
+
+#ifdef NO_IRR_DBUS_DYNAMIC_LOAD
+#undef IRR_DBUS_DYNAMIC_LOAD
+#endif
+
 #ifdef NO_IRR_LIBDECOR_DYNAMIC_LOAD
 #undef IRR_LIBDECOR_DYNAMIC_LOAD
 #endif
