@@ -19,6 +19,8 @@
 #include "SIrrCreationParameters.h"
 #include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_video.h>
+#include "IGUIEnvironment.h"
+#include "IGUIElement.h"
 #include "CSDL2ContextManager.h"
 #include "CDriverCreationPrototypes.h"
 
@@ -33,6 +35,7 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	MouseX(0), MouseY(0), MouseXRel(0), MouseYRel(0), MouseButtonStates(0),
 	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false),
+	lastFocusedElement(nullptr), isEditingText(false),
 	renderer(nullptr), screen_texture(nullptr), is_ctrl_pressed(false), is_shift_pressed(false)
 {
 	#ifdef _DEBUG
@@ -59,7 +62,9 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	}
 
 	SDL_VERSION(&Info.version);
-	SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
+	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
+	SDL_SetHintWithPriority(SDL_HINT_IME_SHOW_UI, "1", SDL_HINT_OVERRIDE);
+	SDL_SetHintWithPriority(SDL_HINT_IME_INTERNAL_EDITING, "1", SDL_HINT_OVERRIDE);
 	SDL_GetWindowWMInfo(window, &Info);
 	core::stringc sdlversion = "SDL Version ";
 	sdlversion += Info.version.major;
@@ -368,10 +373,57 @@ static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
 }
 
 
+void CIrrDeviceSDL2::checkAndUpdateIMEState() {
+    auto* env = getGUIEnvironment();
+    if(!env) {
+        lastFocusedElement = nullptr;
+        if(isEditingText) {
+            isEditingText = false;
+			SDL_StopTextInput();
+        }
+    }
+
+    auto updateRectPosition = [&] {
+        lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+        auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+		
+		SDL_Rect rect;
+		rect.x = pos.X;
+		rect.y = pos.Y;
+		rect.w = lastFocusedElementPosition.getWidth();
+		rect.h = lastFocusedElementPosition.getHeight();
+		SDL_SetTextInputRect(&rect);
+    };
+
+    irr::gui::IGUIElement* ele = env->getFocus();
+    if(lastFocusedElement == ele) {
+        if(!ele || !isEditingText)
+            return;
+        auto abs_pos = lastFocusedElement->getAbsolutePosition();
+        if(abs_pos == lastFocusedElementPosition)
+            return;
+        updateRectPosition();
+        return;
+    }
+    isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+    lastFocusedElement = ele;
+
+    SDL_StopTextInput();
+
+    if(!isEditingText)
+        return;
+	
+    updateRectPosition();
+    SDL_StartTextInput();
+}
+
+
 //! runs the device. Returns false if device wants to be deleted
 bool CIrrDeviceSDL2::run()
 {
 	os::Timer::tick();
+
+	checkAndUpdateIMEState();
 
 	SEvent irrevent;
 	SDL_Event SDL_event;
@@ -495,7 +547,7 @@ bool CIrrDeviceSDL2::run()
 				}
 #endif
 				irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
-				irrevent.KeyInput.Char = SDL_event.key.keysym.sym;
+				irrevent.KeyInput.Char = (isEditingText && key != 8) ? 0 : SDL_event.key.keysym.sym;
 				irrevent.KeyInput.Key = key;
 				irrevent.KeyInput.PressedDown = (SDL_event.type == SDL_KEYDOWN);
 				irrevent.KeyInput.Shift = (SDL_event.key.keysym.mod & KMOD_SHIFT) != 0;
@@ -503,6 +555,29 @@ bool CIrrDeviceSDL2::run()
 				postEventFromUser(irrevent);
 			}
 			break;
+
+		case SDL_TEXTINPUT: {
+			auto text = SDL_event.text.text;
+			if(text && *text) {
+				SEvent event;
+				event.EventType = irr::EET_KEY_INPUT_EVENT;
+				event.KeyInput.PressedDown = true;
+				event.KeyInput.Key = irr::KEY_ACCEPT;
+				event.KeyInput.Shift = 0;
+				event.KeyInput.Control = 0;
+				size_t lenOld = strlen(text);
+				wchar_t* ws = new wchar_t[lenOld + 1];
+				core::utf8ToWchar(text, ws, (lenOld + 1) * sizeof(wchar_t));
+				wchar_t* cur = ws;
+				while(*cur) {
+					event.KeyInput.Char = *cur;
+					cur++;
+					postEventFromUser(event);
+				}
+				delete[] ws;
+			}
+			break;
+		}
 
 		case SDL_QUIT:
 			Close = true;

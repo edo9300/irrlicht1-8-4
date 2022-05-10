@@ -246,6 +246,8 @@ namespace irr
 
 		void updateScreenTexture(core::dimension2d<u32> size);
 
+		void checkAndUpdateIMEState();
+
 		SDL_Window* window;
 		int SDL_Flags;
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
@@ -261,6 +263,10 @@ namespace irr
 		bool Resizable;
 		bool WindowHasFocus;
 		bool WindowMinimized;
+
+		irr::gui::IGUIElement* lastFocusedElement;
+		core::rect<s32> lastFocusedElementPosition;
+		bool isEditingText;
 
 		struct SKeyMap
 		{
