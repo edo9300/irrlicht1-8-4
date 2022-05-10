@@ -42,7 +42,7 @@
 	#include <SDL/SDL_video.h>
 	#include <SDL/SDL_opengl.h>
 	#include "glext.h"
-#elif defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
+#elif defined(_IRR_COMPILE_WITH_SDL2_DEVICE_) && !defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 	#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
 		#define GL_GLEXT_LEGACY 1
 		#define GLX_GLXEXT_LEGACY 1
