@@ -14,6 +14,7 @@
 #include "IEventReceiver.h"
 #include "ISceneManager.h"
 #include "IGUIEnvironment.h"
+#include "IGUIElement.h"
 #include "os.h"
 #include "CTimer.h"
 #include "irrString.h"
@@ -103,7 +104,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	XDisplay(0), VisualInfo(0), Screennr(0), XWindow(0), xdnd_source(0), StdHints(0), SoftwareImage(0),
 	XInputMethod(0), XInputContext(0),
 	HasNetWM(false), ClipboardWaiting(false), dragAndDropCheck(nullptr), draggingFile(false),
-	wasHorizontalMaximized(false), wasVerticalMaximized(false),
+	wasHorizontalMaximized(false), wasVerticalMaximized(false), lastFocusedElement(nullptr), isEditingText(false),
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	libx11(),
 #endif
@@ -158,6 +159,8 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 
 	// create cursor control
 	CursorControl = new CCursorControl(this, CreationParams.DriverType == video::EDT_NULL);
+
+	CursorControl->setActiveIcon(gui::ECI_NORMAL);
 
 	// create driver
 	createDriver();
@@ -257,6 +260,22 @@ int IrrPrintXError(Display *display, XErrorEvent *event)
 }
 #endif
 
+void CIrrDeviceLinux::updateICFocusElementRect(bool check_resize) {
+	auto abs_pos = lastFocusedElement->getAbsolutePosition();
+	XPoint spot;
+	spot.x = abs_pos.UpperLeftCorner.X;
+	spot.y = abs_pos.getCenter().Y;
+	if(check_resize) {
+		if(lastFocusedElementPosition.x == spot.x && lastFocusedElementPosition.y == spot.y)
+			return;
+	}
+	lastFocusedElementPosition = spot;
+	XVaNestedList preedit_attr = X11Loader::XVaCreateNestedList(0,
+									   XNSpotLocation, &spot,
+									   nullptr);
+	X11Loader::XSetICValues(XInputContext, XNPreeditAttributes, preedit_attr, nullptr);
+	X11Loader::XFree(preedit_attr);
+}
 
 bool CIrrDeviceLinux::switchToFullscreen(bool reset)
 {
@@ -431,6 +450,27 @@ bool CIrrDeviceLinux::createWindow()
 		data.OpenGLLinux.X11Display = XDisplay;
 		ContextManager = new video::CGLXManager(CreationParams, data, Screennr);
 		VisualInfo = ((video::CGLXManager*)ContextManager)->getVisual();
+		if(!VisualInfo) {
+			os::Printer::log("Fatal error, could not get visual.", ELL_ERROR);
+			X11Loader::XCloseDisplay(XDisplay);
+			XDisplay = 0;
+			return false;
+		}
+	}
+#endif
+#if defined(_IRR_COMPILE_WITH_OGLES1_) || defined(_IRR_COMPILE_WITH_OGLES2_)
+	if(CreationParams.DriverType == video::EDT_OGLES1 || CreationParams.DriverType == video::EDT_OGLES2) {
+		video::SExposedVideoData data;
+		data.OpenGLLinux.X11Display = XDisplay;
+		auto* eglmanager = new video::CEGLManager(CreationParams, data);
+		VisualInfo = (XVisualInfo*)eglmanager->getVisual();
+		ContextManager = eglmanager;
+		if(!VisualInfo) {
+			os::Printer::log("Fatal error, could not get visual.", ELL_ERROR);
+			X11Loader::XCloseDisplay(XDisplay);
+			XDisplay = 0;
+			return false;
+		}
 	}
 #endif
 
@@ -638,7 +678,6 @@ void CIrrDeviceLinux::createDriver()
 			data.OpenGLLinux.X11Window = XWindow;
 			data.OpenGLLinux.X11Display = XDisplay;
 
-			ContextManager = new video::CEGLManager();
 			ContextManager->initialize(CreationParams, data);
 
 			VideoDriver = video::createOGLES1Driver(CreationParams, FileSystem, ContextManager);
@@ -654,7 +693,6 @@ void CIrrDeviceLinux::createDriver()
 			data.OpenGLLinux.X11Window = XWindow;
 			data.OpenGLLinux.X11Display = XDisplay;
 
-			ContextManager = new video::CEGLManager();
 			ContextManager->initialize(CreationParams, data);
 
 			VideoDriver = video::createOGLES2Driver(CreationParams, FileSystem, ContextManager);
@@ -914,6 +952,12 @@ bool CIrrDeviceLinux::createInputContext()
 		return false;
 	}
 
+	core::stringc oldmodifiers = X11Loader::XSetLocaleModifiers(nullptr);
+	if(X11Loader::XSetLocaleModifiers("") == NULL) {
+		setlocale(LC_CTYPE, oldLocale.c_str());
+		return false;
+	}
+
 	{
 		char* _class_name = NULL;
 		if(class_name.size() > 0)
@@ -922,13 +966,14 @@ bool CIrrDeviceLinux::createInputContext()
 		XInputMethod = X11Loader::XOpenIM(XDisplay, NULL, _class_name, _class_name);
 		if(!XInputMethod) {
 			setlocale(LC_CTYPE, oldLocale.c_str());
+			X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 			os::Printer::log("XOpenIM failed to create an input method. Falling back to non-i18n input.", ELL_WARNING);
 			return false;
 		}
 	}
 
 	XIMStyles *im_supported_styles;
-	X11Loader::XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, (char*)NULL);
+	X11Loader::XGetIMValues(XInputMethod, XNQueryInputStyle, &im_supported_styles, nullptr);
 	XIMStyle bestStyle = 0;
 	// TODO: If we want to support languages like chinese or japanese as well we probably have to work with callbacks here.
 	XIMStyle supportedStyle = XIMPreeditNothing | XIMStatusNothing;
@@ -945,26 +990,28 @@ bool CIrrDeviceLinux::createInputContext()
 
 	if ( !bestStyle )
 	{
-		X11Loader::XDestroyIC(XInputContext);
-		XInputContext = 0;
-
 		os::Printer::log("XInputMethod has no input style we can use. Falling back to non-i18n input.", ELL_WARNING);
 		setlocale(LC_CTYPE, oldLocale.c_str());
+		X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 		return false;
 	}
 
 	XInputContext = X11Loader::XCreateIC(XInputMethod,
-							XNInputStyle, bestStyle,
-							XNClientWindow, XWindow,
-							(char*)NULL);
+										 XNInputStyle, bestStyle,
+										 XNClientWindow, XWindow,
+										 nullptr);
+
 	if (!XInputContext )
 	{
 		os::Printer::log("XInputContext failed to create an input context. Falling back to non-i18n input.", ELL_WARNING);
 		setlocale(LC_CTYPE, oldLocale.c_str());
+		X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 		return false;
 	}
+
 	X11Loader::XSetICFocus(XInputContext);
 	setlocale(LC_CTYPE, oldLocale.c_str());
+	X11Loader::XSetLocaleModifiers(oldmodifiers.c_str());
 	return true;
 }
 
@@ -1032,6 +1079,29 @@ bool CIrrDeviceLinux::run()
 
 	if ((CreationParams.DriverType != video::EDT_NULL) && XDisplay)
 	{
+		[&]{
+			if(!XInputContext)
+				return;
+			auto* env = getGUIEnvironment();
+			irr::gui::IGUIElement* ele = env->getFocus();
+			if(ele == lastFocusedElement) {
+				if(lastFocusedElement && isEditingText && WindowHasFocus) {
+					updateICFocusElementRect(true);
+				}
+				return;
+			}
+			isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+			lastFocusedElement = ele;
+			if(!WindowHasFocus)
+				return;
+			X11Loader::XUnsetICFocus(XInputContext);
+			if(!isEditingText) {
+				return;
+			}
+			// we set the input context focus when the window becomes focused again
+			X11Loader::XSetICFocus(XInputContext);
+			updateICFocusElementRect();
+		}();
 		SEvent irrevent;
 		irrevent.MouseInput.ButtonStates = 0xffffffff;
 
@@ -1039,7 +1109,7 @@ bool CIrrDeviceLinux::run()
 		{
 			XEvent event;
 			X11Loader::XNextEvent(XDisplay, &event);
-			if(X11Loader::XFilterEvent(&event, XWindow))
+			if(X11Loader::XFilterEvent(&event, None))
 				continue;
 
 			switch (event.type)
@@ -1082,10 +1152,16 @@ bool CIrrDeviceLinux::run()
 
 			case FocusIn:
 				WindowHasFocus=true;
+				if(isEditingText) {
+					X11Loader::XSetICFocus(XInputContext);
+					updateICFocusElementRect();
+				}
 				break;
 
 			case FocusOut:
 				WindowHasFocus=false;
+				if(isEditingText)
+					X11Loader::XUnsetICFocus(XInputContext);
 				break;
 
 			case MotionNotify:
@@ -1214,10 +1290,15 @@ bool CIrrDeviceLinux::run()
 
 			case KeyPress:
 				{
+					irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
+					irrevent.KeyInput.PressedDown = true;
+					irrevent.KeyInput.Control = (event.xkey.state & ControlMask) != 0;
+					irrevent.KeyInput.Shift = (event.xkey.state & ShiftMask) != 0;
+
 					SKeyMap mp;
 					if ( XInputContext )
 					{
-						wchar_t buf[8]={0};
+						wchar_t buf[128];
 						Status status;
 						int strLen = X11Loader::XwcLookupString(XInputContext, &event.xkey, buf, sizeof(buf), &mp.X11Key, &status);
 						if ( status == XBufferOverflow )
@@ -1226,9 +1307,12 @@ bool CIrrDeviceLinux::run()
 						}
 						if ( strLen > 0 && (status == XLookupChars || status == XLookupBoth) )
 						{
-							if ( strLen > 1 )
-								os::Printer::log("Additional returned characters dropped", ELL_INFORMATION);
-							irrevent.KeyInput.Char = buf[0];
+							irrevent.KeyInput.Key = getKeyCode(event);
+							for(int i = 0; i < strLen; i++) {
+								irrevent.KeyInput.Char = buf[i];
+								postEventFromUser(irrevent);
+							}
+							break;
 						}
 						else
 						{
@@ -1247,7 +1331,7 @@ bool CIrrDeviceLinux::run()
 							irrevent.KeyInput.Char = 0;
 						}
 					}
-					else	// Old version without InputContext. Does not support i18n, but good to have as fallback.
+					// Old version without InputContext. Does not support i18n, but good to have as fallback.
 					{
 						union
 						{
@@ -1256,15 +1340,11 @@ bool CIrrDeviceLinux::run()
 						} tmp = {{0}};
 						X11Loader::XLookupString(&event.xkey, tmp.buf, sizeof(tmp.buf), &mp.X11Key, NULL);
 						irrevent.KeyInput.Char = tmp.wbuf[0];
+
+						irrevent.KeyInput.Key = getKeyCode(event);
+
+						postEventFromUser(irrevent);
 					}
-
-					irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
-					irrevent.KeyInput.PressedDown = true;
-					irrevent.KeyInput.Control = (event.xkey.state & ControlMask) != 0;
-					irrevent.KeyInput.Shift = (event.xkey.state & ShiftMask) != 0;
-					irrevent.KeyInput.Key = getKeyCode(event);
-
-					postEventFromUser(irrevent);
 				}
 				break;
 

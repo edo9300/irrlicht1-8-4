@@ -454,7 +454,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 						newMarkBegin = CursorPos;
 
 					newMarkEnd = pos + 1;
-					if(!newMarkEnd || newMarkEnd > Text.size()) {
+					if(!newMarkEnd || newMarkEnd > static_cast<s32>(Text.size())) {
 						newMarkEnd = Text.size();
 					}
 				}
@@ -463,7 +463,7 @@ bool CGUIEditBox::processKey(const SEvent& event)
 				newMarkEnd = 0;
 			}
 
-			if(Text.size() > pos) CursorPos = pos + 1;
+			if(static_cast<s32>(Text.size()) > pos) CursorPos = pos + 1;
 			else CursorPos = Text.size();
 			BlinkStartTime = os::Timer::getTime();
 			break;

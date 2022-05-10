@@ -1,6 +1,6 @@
 #include "IrrCompileConfig.h"
 
-#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_) && defined(_IRR_WAYLAND_DYNAMIC_LOAD_)
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_) && defined(IRR_DBUS_DYNAMIC_LOAD)
 
 #include <dlfcn.h>
 #include "DbusLoader.h"

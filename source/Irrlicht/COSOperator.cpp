@@ -193,8 +193,7 @@ static void closeClipboardWindows(void* hData) {
 #endif
 
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-static const char* getClipboardOSX() {
-	NSString* str = nil;
+static const char* getClipboardOSX(NSString*& str) {
 	NSPasteboard* board = nil;
 	board = [NSPasteboard generalPasteboard];
 	str = [board stringForType : NSStringPboardType];
@@ -215,6 +214,9 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	void* hData = nullptr;
 	(void)wbuffer;
 	(void)hData;
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+	NSString* str = nil;
+#endif
 	switch(DeviceType) {
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 	case EIDT_WIN32:
@@ -223,7 +225,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 #endif
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 	case EIDT_OSX:
-		cbuffer = getClipboardOSX();
+		cbuffer = getClipboardOSX(str);
 		break;
 #endif
 #if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)

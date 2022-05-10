@@ -67,7 +67,7 @@ struct DBusError {
 namespace irr
 {
 
-#ifdef _IRR_WAYLAND_DYNAMIC_LOAD_
+#ifdef IRR_DBUS_DYNAMIC_LOAD
 	struct DbusLoader {
 #define DBUS_FUNC(name, ret_type, ...) static ret_type(*name)(__VA_ARGS__);
 #include "DbusLoader.inl"
@@ -90,7 +90,7 @@ namespace irr
 		DbusLoader()=default;
 		~DbusLoader()=default;
 	};
-#endif 	//_IRR_WAYLAND_DYNAMIC_LOAD_
+#endif 	//IRR_DBUS_DYNAMIC_LOAD
 } // end namespace irr
 
 #endif //DBUS_LOADER_H

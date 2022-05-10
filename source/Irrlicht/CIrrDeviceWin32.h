@@ -432,6 +432,8 @@ namespace irr
 		//! create the driver
 		void createDriver();
 
+		static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 		//! Process system events
 		void handleSystemMessages();
 
@@ -459,6 +461,12 @@ namespace irr
 		
 		WINDOWPLACEMENT nonFullscreenSize;
 		LONG_PTR nonFullscreenStyle;
+
+		irr::gui::IGUIElement* lastFocusedElement;
+		core::rect<s32> lastFocusedElementPosition;
+		bool isEditingText;
+
+		void checkAndUpdateIMEState();
 
 		static bool is_vista_or_greater;
 	};

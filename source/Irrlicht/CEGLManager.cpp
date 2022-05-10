@@ -23,6 +23,10 @@
 #include <android/native_activity.h>
 #endif
 
+#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+#include "LibX11Loader.h"
+#endif
+
 namespace irr
 {
 namespace video
@@ -40,6 +44,9 @@ CEGLManager::CEGLManager() : IContextManager(), EglWindow(0), EglDisplay(EGL_NO_
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 	, WaylandDevice(nullptr)
 #endif
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+	, Initialized(true)
+#endif
 {
 	#ifdef _DEBUG
 	setDebugName("CEGLManager");
@@ -49,6 +56,29 @@ CEGLManager::CEGLManager() : IContextManager(), EglWindow(0), EglDisplay(EGL_NO_
 #ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
 CEGLManager::CEGLManager(CIrrDeviceWayland* wayland_device) : CEGLManager() {
 	WaylandDevice = wayland_device;
+}
+#endif
+
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+CEGLManager::CEGLManager(const SIrrlichtCreationParameters& params, const SExposedVideoData& data) : CEGLManager() {
+	Initialized = initialize(params, data);
+	if(!Initialized)
+		return;
+	GenerateConfig();
+	Initialized = EglConfig != 0;
+	if(!Initialized)
+		return;
+	EGLint vid;
+	Initialized = peglGetConfigAttrib(EglDisplay, EglConfig, EGL_NATIVE_VISUAL_ID, &vid);
+	if(!Initialized)
+		return;
+	XVisualInfo vis_tmpl;
+	int num_visuals;
+	vis_tmpl.visualid = vid;
+	VisualInfo = X11Loader::XGetVisualInfo((Display*)data.OpenGLLinux.X11Display, VisualIDMask, &vis_tmpl, &num_visuals);
+	Initialized = VisualInfo != nullptr;
+	if(!Initialized)
+		return;
 }
 #endif
 
@@ -74,6 +104,12 @@ CEGLManager::~CEGLManager()
 
 bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data)
 {
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+	if(!Initialized) {
+		terminate();
+		return false;
+	}
+#endif
 	// store new data
 	Params=params;
 	Data=data;
@@ -83,7 +119,7 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 	if(!LoadEGL())
 		return false;
 
-	// Window is depend on platform.
+	// Window depends on the platform.
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
 	EglWindow = (NativeWindowType)Data.OpenGLWin32.HWnd;
 	Data.OpenGLWin32.HDc = GetDC((HWND)EglWindow);
@@ -91,12 +127,34 @@ bool CEGLManager::initialize(const SIrrlichtCreationParameters& params, const SE
 #elif defined(_IRR_EMSCRIPTEN_PLATFORM_)
 	EglWindow = 0;
 	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
-#elif defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-	EglWindow = (NativeWindowType)Data.OpenGLWayland.EGLWindow;
-	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLWayland.EGLDisplay);
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	EglWindow = (NativeWindowType)Data.OpenGLLinux.X11Window;
-	EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLLinux.X11Display);
+#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
+	if(WaylandDevice != nullptr) {
+		if(setenv("EGL_PLATFORM", "wayland", 1) != 0) {
+			os::Printer::log("Could not set \"EGL_PLATFORM\" environment variable to \"wayland\".");
+			return false;
+		}
+		EglWindow = (NativeWindowType)Data.OpenGLWayland.EGLWindow;
+		EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLWayland.EGLDisplay);
+	}
+#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	else
+#endif
+#endif
+#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	{
+		if(EglDisplay != EGL_NO_DISPLAY) {
+			EglWindow = (NativeWindowType)Data.OpenGLLinux.X11Window;
+			return false;
+		}
+		if(setenv("EGL_PLATFORM", "x11", 1) != 0) {
+			os::Printer::log("Could not set \"EGL_PLATFORM\" environment variable to \"x11\".");
+			return false;
+		}
+		EglWindow = (NativeWindowType)Data.OpenGLLinux.X11Window;
+		EglDisplay = peglGetDisplay((NativeDisplayType)Data.OpenGLLinux.X11Display);
+	}
+#endif
 #elif defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
 	EglWindow =	(ANativeWindow*)Data.OGLESAndroid.Window;
 	EglDisplay = peglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -162,28 +220,20 @@ void CEGLManager::terminate()
 
 bool CEGLManager::generateSurface()
 {
-    if (EglDisplay == EGL_NO_DISPLAY)
-        return false;
+	if(EglDisplay == EGL_NO_DISPLAY)
+		return false;
 
-    if (EglSurface != EGL_NO_SURFACE)
-        return true;
+	if(EglSurface != EGL_NO_SURFACE)
+		return true;
 
 	// We should assign new WindowID on platforms, where WindowID may change at runtime,
 	// at this time only Android support this feature.
 	// this needs an update method instead!
 
+	GenerateConfig();
+
 #if defined(_IRR_COMPILE_WITH_ANDROID_DEVICE_)
 	EglWindow = (ANativeWindow*)Data.OGLESAndroid.Window;
-#endif
-
-#if defined(_IRR_EMSCRIPTEN_PLATFORM_) || (defined(__linux__) && !defined(__ANDROID__))
-	// eglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
-	// But the other solution would also be fine as it also only generates a single context so there is not much to choose from.
-	// We also need to manually choose the config under wayland devices, as some compositors might ignore the opacity hints, thus
-	// we need to be 100% sure the selected configuration doesn't have an alpha channel if not wanted
-	EglConfig = chooseConfig(ECS_IRR_CHOOSE);
-#else
-	EglConfig = chooseConfig(ECS_EGL_CHOOSE_FIRST_LOWER_EXPECTATIONS);
 #endif
 
 	if ( EglConfig == 0 )
@@ -417,7 +467,7 @@ irr::s32 CEGLManager::rateConfig(EGLConfig config, EGLint eglOpenGLBIT, bool log
 #endif
 	EGLint attribSurfaceType = 0;
 	peglGetConfigAttrib( EglDisplay, config, EGL_SURFACE_TYPE, &attribSurfaceType);
-	if ( attribSurfaceType != EGL_WINDOW_BIT )
+	if ( !(attribSurfaceType & EGL_WINDOW_BIT) )
 	{
 		if ( log )
 			os::Printer::log("EGL_SURFACE_TYPE != EGL_WINDOW_BIT");
@@ -766,6 +816,8 @@ static const fschar_t* GetGLLibName(E_DRIVER_TYPE driverType) {
 #endif
 
 bool CEGLManager::LoadEGL() {
+	if(LibEGL)
+		return true;
 #if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
 #ifdef _WIN32
 #define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
@@ -824,6 +876,18 @@ bool CEGLManager::LoadEGL() {
 	return false;
 #else
 	return true;
+#endif
+}
+
+void CEGLManager::GenerateConfig() {
+#if defined(_IRR_EMSCRIPTEN_PLATFORM_) || (defined(__linux__) && !defined(__ANDROID__))
+	// eglChooseConfig is currently only implemented as stub in emscripten (version 1.37.22 at point of writing)
+	// But the other solution would also be fine as it also only generates a single context so there is not much to choose from.
+	// We also need to manually choose the config under wayland devices, as some compositors might ignore the opacity hints, thus
+	// we need to be 100% sure the selected configuration doesn't have an alpha channel if not wanted
+	EglConfig = chooseConfig(ECS_IRR_CHOOSE);
+#else
+	EglConfig = chooseConfig(ECS_EGL_CHOOSE_FIRST_LOWER_EXPECTATIONS);
 #endif
 }
 

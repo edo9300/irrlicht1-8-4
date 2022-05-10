@@ -699,7 +699,7 @@ irr::CIrrDeviceWin32* getDeviceFromHWnd(HWND hWnd)
 }
 
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	#ifndef WM_MOUSEWHEEL
 	#define WM_MOUSEWHEEL 0x020A
@@ -816,21 +816,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 0;
 	}
 
-	{
-		if(dev && dev->getGUIEnvironment()) {
-			irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
-			if(!ele || (ele->getType() != irr::gui::EGUIET_EDIT_BOX) || !ele->isEnabled()) {
-				HIMC hIMC = ImmGetContext(hWnd);
-				if(hIMC) {
-					ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
-					ImmReleaseContext(hWnd, hIMC);
-				}
-				ImmAssociateContextEx(hWnd, NULL, 0);
-			} else
-				ImmAssociateContextEx(hWnd, NULL, IACE_DEFAULT);
-		}
-
-	}
+	if(dev)
+		dev->checkAndUpdateIMEState();
 
 	switch (message)
 	{
@@ -997,20 +984,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		KEYBOARD_INPUT_CODEPAGE = LocaleIdToCodepage( LOWORD(KEYBOARD_INPUT_HKL) );
 		return 0;
 
-	case WM_IME_STARTCOMPOSITION:
+	case WM_IME_COMPOSITION:
 	{
-		irr::gui::IGUIElement* ele = dev->getGUIEnvironment()->getFocus();
-		if(!ele)
-			break;
-		irr::core::position2di pos = ele->getAbsolutePosition().UpperLeftCorner;
-		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + ele->getAbsolutePosition().getHeight() } };
-		HIMC hIMC = ImmGetContext(hWnd);
-		ImmSetCompositionWindow(hIMC, &CompForm);
-		ImmReleaseContext(hWnd, hIMC);
+		if(lParam & GCS_RESULTSTR) {
+			HIMC hIMC = ImmGetContext(hWnd);
+			LONG nSize = ImmGetCompositionString(hIMC, GCS_RESULTSTR, nullptr, 0);
+			if(nSize) {
+				// ImmGetCompositionString returns the size in bytes without the null terminator
+				const auto wchar_size = (nSize / sizeof(wchar_t));
+				wchar_t* psz = new wchar_t[wchar_size + sizeof(wchar_t)];
+				ImmGetCompositionString(hIMC, GCS_RESULTSTR, psz, nSize);
+				psz[wchar_size] = 0;
+				event.EventType = irr::EET_KEY_INPUT_EVENT;
+				event.KeyInput.PressedDown = true;
+				event.KeyInput.Key = irr::KEY_ACCEPT;
+				event.KeyInput.Shift = 0;
+				event.KeyInput.Control = 0;
+				for(auto* cur = psz; *cur; cur++) {
+					event.KeyInput.Char = *cur;
+					dev->postEventFromUser(event);
+				}
+				delete[] psz;
+			}
+			ImmReleaseContext(hWnd, hIMC);
+			return 0;
+		}
+		break;
 	}
-	break;
 
 	case WM_IME_CHAR:
+		// shouldn't be called because the composition is handled above
+		// but we never know
 		event.EventType = irr::EET_KEY_INPUT_EVENT;
 		event.KeyInput.PressedDown = true;
 #ifdef _UNICODE
@@ -1057,7 +1061,8 @@ bool CIrrDeviceWin32::is_vista_or_greater = false;
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
 	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr),
-	has_charevent(false), key_event{}
+	has_charevent(false), key_event{},
+	lastFocusedElement(nullptr), isEditingText(false)
 {
 	key_event.EventType = EGUIET_FORCE_32_BIT;
 	#ifdef _DEBUG
@@ -1365,6 +1370,60 @@ void CIrrDeviceWin32::createDriver()
 	}
 }
 
+void CIrrDeviceWin32::checkAndUpdateIMEState() {
+	auto env = getGUIEnvironment();
+
+	auto disableContext = [&] {
+		if(isEditingText) {
+			isEditingText = false;
+			HIMC hIMC = ImmGetContext(HWnd);
+			if(hIMC) {
+				ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+				ImmNotifyIME(hIMC, NI_CLOSECANDIDATE, 0, 0);
+				ImmReleaseContext(HWnd, hIMC);
+			}
+			ImmAssociateContext(HWnd, nullptr);
+		}
+	};
+
+	if(!env) {
+		lastFocusedElement = nullptr;
+		disableContext();
+		return;
+	}
+
+	auto updateRectPosition = [&] {
+		lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + lastFocusedElementPosition.getHeight() } };
+		HIMC hIMC = ImmGetContext(HWnd);
+		ImmSetCompositionWindow(hIMC, &CompForm);
+		ImmReleaseContext(HWnd, hIMC);
+	};
+
+	irr::gui::IGUIElement* ele = env->getFocus();
+	if(ele == lastFocusedElement) {
+		if(!ele || !isEditingText)
+			return;
+		auto abs_pos = lastFocusedElement->getAbsolutePosition();
+		if(abs_pos == lastFocusedElementPosition)
+			return;
+		updateRectPosition();
+		return;
+	}
+
+	disableContext();
+
+	lastFocusedElement = ele;
+	isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+
+	if(!isEditingText)
+		return;
+
+	ImmAssociateContextEx(HWnd, nullptr, IACE_DEFAULT);
+	updateRectPosition();
+}
+
 
 //! runs the device. Returns false if device wants to be deleted
 bool CIrrDeviceWin32::run()
@@ -1546,12 +1605,7 @@ bool CIrrDeviceWin32::isWindowFocused() const
 //! returns if window is minimized
 bool CIrrDeviceWin32::isWindowMinimized() const
 {
-	WINDOWPLACEMENT plc;
-	plc.length=sizeof(WINDOWPLACEMENT);
-	bool ret=false;
-	if (GetWindowPlacement(HWnd,&plc))
-		ret = plc.showCmd == SW_SHOWMINIMIZED;
-	return ret;
+	return IsIconic(HWnd);
 }
 
 

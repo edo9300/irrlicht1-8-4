@@ -6,7 +6,9 @@ struct wl_event_queue;
 struct wl_display;
 struct wl_surface;
 struct wl_shm;
+union wl_argument;
 #include <stdint.h>
+#include <wayland-version.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -48,6 +50,10 @@ extern "C" {
 #define wl_data_device_manager_interface (*irr__internal__p__wl_data_device_manager_interface)
 #define wl_callback_interface (*irr__internal__p__wl_callback_interface)
 #define wl_touch_interface (*irr__internal__p__wl_touch_interface)
+#if WAYLAND_VERSION_MINOR >= 20
+#define wl_proxy_marshal_flags (*irr__internal__p__wl_proxy_marshal_flags)
+#define wl_proxy_marshal_array_flags (*irr__internal__p__wl_proxy_marshal_array_flags)
+#endif
 
 #include <wayland-client-protocol.h>
 #include <wayland-egl.h>
