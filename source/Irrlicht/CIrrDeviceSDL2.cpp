@@ -691,7 +691,7 @@ bool CIrrDeviceSDL2::activateJoysticks(core::array<SJoystickInfo> & joystickInfo
 		info.Joystick = joystick;
 		info.Axes = SDL_JoystickNumAxes(Joysticks[joystick]);
 		info.Buttons = SDL_JoystickNumButtons(Joysticks[joystick]);
-		info.Name = SDL_JoystickName(Joysticks[joystick]);
+		info.Name = SDL_JoystickNameForIndex(joystick);
 		info.PovHat = (SDL_JoystickNumHats(Joysticks[joystick]) > 0)
 						? SJoystickInfo::POV_HAT_PRESENT : SJoystickInfo::POV_HAT_ABSENT;
 
