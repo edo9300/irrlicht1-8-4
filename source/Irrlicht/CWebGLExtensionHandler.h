@@ -10,6 +10,9 @@
 #if defined(_IRR_COMPILE_WITH_WEBGL1_)	// Note: should also work with WebGL2 once we add that to Irrlicht
 
 #include "COpenGLCoreFeature.h"
+#include "COGLES2BaseFunctionsHandler.h"
+
+#include "COGLESCoreExtensionHandler.h"
 
 namespace irr
 {
@@ -70,7 +73,8 @@ namespace video
 			IRR_WEBGL_Feature_Count
 		};
 
-		CWebGLExtensionHandler()
+		CWebGLExtensionHandler(COGLES2BaseFunctionsHandler* handler) :
+			BaseFunctionsHandler(handler)
 		{
 			for (u32 i = 0; i < IRR_WEBGL_Feature_Count; ++i)
 				FeatureAvailable[i] = false;
@@ -91,7 +95,7 @@ namespace video
 
 		void getGLExtensions()
 		{
-			core::stringc extensions = glGetString(GL_EXTENSIONS);
+			core::stringc extensions = BaseFunctionsHandler->pglGetString(GL_EXTENSIONS);
 			os::Printer::log(extensions.c_str());
 
 			const u32 size = extensions.size() + 1;
@@ -174,6 +178,7 @@ namespace video
 		}
 
 		bool FeatureAvailable[IRR_WEBGL_Feature_Count];
+		COGLES2BaseFunctionsHandler* BaseFunctionsHandler;
 	};
 }
 }

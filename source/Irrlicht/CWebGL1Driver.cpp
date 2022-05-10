@@ -18,7 +18,7 @@ namespace video
 
 CWebGL1Driver::CWebGL1Driver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager) :
 	COGLES2Driver(params, io, contextManager)
-	, MBTriangleFanSize4(0), MBLinesSize2(0), MBPointsSize1(0)
+	, WebGLExtensions(this), MBTriangleFanSize4(0), MBLinesSize2(0), MBPointsSize1(0)
 {
 #ifdef _DEBUG
 	setDebugName("CWebGL1Driver");
@@ -264,8 +264,8 @@ void CWebGL1Driver::draw2DImage(const video::ITexture* texture, const core::rect
 	if (clipRect && clipRect->isValid())
 	{
 		useScissorTest = true;
-		glEnable(GL_SCISSOR_TEST);
-		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
+		pglEnable(GL_SCISSOR_TEST);
+		pglScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
 			clipRect->getWidth(), clipRect->getHeight());
 	}
 
@@ -283,7 +283,7 @@ void CWebGL1Driver::draw2DImage(const video::ITexture* texture, const core::rect
 	drawMeshBuffer(MBTriangleFanSize4);
 
 	if (useScissorTest)
-		glDisable(GL_SCISSOR_TEST);
+		pglDisable(GL_SCISSOR_TEST);
 
 	unlockRenderStateMode();
 
@@ -349,8 +349,8 @@ void CWebGL1Driver::draw2DImageBatch(const video::ITexture* texture,
 	if (clipRect && clipRect->isValid())
 	{
 		useScissorTest = true;
-		glEnable(GL_SCISSOR_TEST);
-		glScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
+		pglEnable(GL_SCISSOR_TEST);
+		pglScissor(clipRect->UpperLeftCorner.X, renderTargetSize.Height - clipRect->LowerRightCorner.Y,
 				clipRect->getWidth(), clipRect->getHeight());
 	}
 
@@ -392,7 +392,7 @@ void CWebGL1Driver::draw2DImageBatch(const video::ITexture* texture,
 	}
 
 	if (useScissorTest)
-		glDisable(GL_SCISSOR_TEST);
+		pglDisable(GL_SCISSOR_TEST);
 
 	unlockRenderStateMode();
 
@@ -701,9 +701,9 @@ void CWebGL1Driver::drawStencilShadow(bool clearStencilBuffer,
 	CacheHandler->setBlend(true);
 	CacheHandler->setBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glEnable(GL_STENCIL_TEST);
-	glStencilFunc(GL_NOTEQUAL, 0, ~0);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	pglEnable(GL_STENCIL_TEST);
+	pglStencilFunc(GL_NOTEQUAL, 0, ~0);
+	pglStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
 	MBTriangleFanSize4->Vertices[0] = S3DVertex(-1.f, 1.f, 0.9f, 0, 0, 1, leftDownEdge, 0, 0);
 	MBTriangleFanSize4->Vertices[1] = S3DVertex(1.f, 1.f, 0.9f, 0, 0, 1, leftUpEdge, 0, 0);
@@ -716,9 +716,9 @@ void CWebGL1Driver::drawStencilShadow(bool clearStencilBuffer,
 	unlockRenderStateMode();
 
 	if (clearStencilBuffer)
-		glClear(GL_STENCIL_BUFFER_BIT);
+		pglClear(GL_STENCIL_BUFFER_BIT);
 
-	glDisable(GL_STENCIL_TEST);
+	pglDisable(GL_STENCIL_TEST);
 }
 
 GLenum CWebGL1Driver::getZBufferBits() const
@@ -999,11 +999,14 @@ scene::SMeshBuffer* CWebGL1Driver::createSimpleMeshBuffer(irr::u32 numVertices, 
 
 bool CWebGL1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, bool stencilBuffer)
 {
-	Name = glGetString(GL_VERSION);
+	if(!initBaseFunctions())
+		return false;
+
+	Name = pglGetString(GL_VERSION);
 	printVersion();
 
 	// print renderer information
-	VendorName = glGetString(GL_VENDOR);
+	VendorName = pglGetString(GL_VENDOR);
 	os::Printer::log(VendorName.c_str(), ELL_INFORMATION);
 
 	// load extensions
@@ -1024,7 +1027,7 @@ bool CWebGL1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, 
 	DriverAttributes->setAttribute("Version", Version);
 	DriverAttributes->setAttribute("AntiAlias", AntiAlias);
 
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
 
 	UserClipPlane.reallocate(0);
 
@@ -1032,10 +1035,10 @@ bool CWebGL1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, 
 		setTransform(static_cast<E_TRANSFORMATION_STATE>(i), core::IdentityMatrix);
 
 	setAmbientLight(SColorf(0.0f, 0.0f, 0.0f, 0.0f));
-	glClearDepthf(1.0f);
+	pglClearDepthf(1.0f);
 
-	glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
-	glFrontFace(GL_CW);
+	pglHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
+	pglFrontFace(GL_CW);
 
 	// create material renderers
 	createMaterialRenderers();
@@ -1069,13 +1072,13 @@ void CWebGL1Driver::initWebGLExtensions()
 
 	// TODO: basically copied ES2 implementation, so not certain if 100% correct for WebGL
 	GLint val=0;
-	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &val);
+	pglGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &val);
 	Feature.MaxTextureUnits = static_cast<u8>(val);
 
 #ifdef GL_EXT_texture_filter_anisotropic
 	if ( WebGLExtensions.queryWebGLFeature(CWebGLExtensionHandler::IRR_EXT_texture_filter_anisotropic) )
 	{
-		glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &val);
+		pglGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &val);
 		MaxAnisotropy = static_cast<u8>(val);
 	}
 #endif
@@ -1085,17 +1088,17 @@ void CWebGL1Driver::initWebGLExtensions()
 		MaxIndices=0xffffffff;
 	}
 
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &val);
+	pglGetIntegerv(GL_MAX_TEXTURE_SIZE, &val);
 	MaxTextureSize=static_cast<u32>(val);
 
 #ifdef GL_MAX_TEXTURE_LOD_BIAS_EXT
 	// TODO: Found no info about this anywhere. It's no extension in WebGL
 	//       and GL_MAX_TEXTURE_LOD_BIAS_EXT doesn't seem to be part of gl2ext.h in emscripten
-	glGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
+	pglGetFloatv(GL_MAX_TEXTURE_LOD_BIAS_EXT, &MaxTextureLODBias);
 #endif
 
-	glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
-	glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
+	pglGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, DimAliasedLine);
+	pglGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, DimAliasedPoint);
 	Feature.MaxTextureUnits = core::min_(Feature.MaxTextureUnits, static_cast<u8>(MATERIAL_MAX_TEXTURES));
 	Feature.MaxTextureUnits = core::min_(Feature.MaxTextureUnits, static_cast<u8>(MATERIAL_MAX_TEXTURES_USED));
 

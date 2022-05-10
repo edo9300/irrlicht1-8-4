@@ -71,20 +71,7 @@
 #include "os.h"
 #include "SIrrCreationParameters.h"
 #include "CEGLManager.h"
-
-namespace irr
-{
-    namespace video
-    {
-        extern bool useCoreContext;
-        IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
-                io::IFileSystem* io, IContextManager* device);
-        IVideoDriver* createOGLES2Driver(const SIrrlichtCreationParameters& params,
-                io::IFileSystem* io, IContextManager* device);
-        IVideoDriver* createOGLES1Driver(const SIrrlichtCreationParameters& params,
-                io::IFileSystem* io, IContextManager* device);
-    }
-}
+#include "CDriverCreationPrototypes.h"
 
 
 
