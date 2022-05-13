@@ -64,6 +64,9 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 
 	SDL_VERSION(&Info.version);
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
+#ifndef SDL_HINT_IME_SHOW_UI
+#define SDL_HINT_IME_SHOW_UI "SDL_IME_SHOW_UI"
+#endif
 	SDL_SetHintWithPriority(SDL_HINT_IME_SHOW_UI, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_IME_INTERNAL_EDITING, "1", SDL_HINT_OVERRIDE);
 	SDL_GetWindowWMInfo(window, &Info);
