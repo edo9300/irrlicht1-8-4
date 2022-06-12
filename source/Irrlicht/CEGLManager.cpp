@@ -816,9 +816,9 @@ static const fschar_t* GetGLLibName(E_DRIVER_TYPE driverType) {
 #endif
 
 bool CEGLManager::LoadEGL() {
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
 	if(LibEGL)
 		return true;
-#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
 #ifdef _WIN32
 #define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
 	HMODULE EGLLib = LoadLibrary(TEXT("libEGL.dll"));
