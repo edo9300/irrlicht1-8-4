@@ -145,8 +145,8 @@ bool CGUIScrollBar::OnEvent(const SEvent& event)
 					// thanks to a bug report by REAPER
 					// thanks to tommi by tommi for another bugfix
 					// everybody needs a little thanking. hallo niko!;-)
-					setPos(	getPos() +
-							( (event.MouseInput.Wheel < 0 ? -1 : 1) * SmallStep * (Horizontal ? 1 : -1 ) )
+					setPos(	getPos() -
+							( (event.MouseInput.Wheel < 0 ? -1 : 1) * SmallStep )
 							);
 
 					SEvent newEvent;
