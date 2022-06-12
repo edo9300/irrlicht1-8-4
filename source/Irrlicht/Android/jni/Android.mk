@@ -262,7 +262,8 @@ LOCAL_SRC_FILES := \
 					IBurningShader.cpp \
 					Irrlicht.cpp \
 					irrXML.cpp \
-					os.cpp	 \
+					os.cpp \
+					utf8.cpp \
 					bzip2/blocksort.c \
 					bzip2/bzcompress.c \
 					bzip2/bzlib.c \
