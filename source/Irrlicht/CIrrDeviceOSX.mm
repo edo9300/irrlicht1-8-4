@@ -484,7 +484,6 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
 
 - (void)resetCursorRects
 {
-	[super resetCursorRects];
 	[self addCursorRect:[self bounds] cursor:device->getCurrentNSCursor()];
 }
 
