@@ -1082,7 +1082,11 @@ void CIrrDeviceMacOSX::createDriver()
                 
 				if (Window) 
 				{
-					[[Window contentView] setWantsBestResolutionOpenGLSurface:NO];
+					@try {
+						[[Window contentView] setWantsBestResolutionOpenGLSurface:NO];
+					} 
+					@catch(NSException* exception){
+					}
 					[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context setView:[Window contentView]];
 				}
 				else 
@@ -1347,7 +1351,12 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 
 bool CIrrDeviceMacOSX::isWindowActive() const
 {
-	return IsActive && Window != NULL && [Window occlusionState] & NSWindowOcclusionStateVisible;
+	@try {
+		return IsActive && Window != NULL && [Window occlusionState] & NSWindowOcclusionStateVisible;
+	} 
+	@catch(NSException* exception){
+		return IsActive;
+	}
 }
 
 
@@ -1769,7 +1778,11 @@ core::position2di CIrrDeviceMacOSX::getWindowPosition()
 void CIrrDeviceMacOSX::presentSoftwareImage(NSRect dirtyRect) {
 	NSImage *nsimage = [[[NSImage alloc] init] autorelease];
 	[nsimage addRepresentation:SoftwareDriverTarget];
-	[nsimage drawInRect:dirtyRect];
+	@try {
+		[nsimage drawInRect:dirtyRect];
+	} @catch(NSException* exception) {
+		[SoftwareDriverTarget drawInRect:dirtyRect];
+	}
 }
 
 NSCursor* CIrrDeviceMacOSX::getCurrentNSCursor() {
