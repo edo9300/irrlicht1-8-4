@@ -1345,7 +1345,7 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 		postEventFromUser(ievent);
 
 		if(ievent.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && ievent.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN) {
-			irr::u32 clicks = device->checkSuccessiveClicks(ievent.MouseInput.X, ievent.MouseInput.Y, ievent.MouseInput.Event);
+			irr::u32 clicks = checkSuccessiveClicks(ievent.MouseInput.X, ievent.MouseInput.Y, ievent.MouseInput.Event);
 			if(clicks == 2) {
 				ievent.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + ievent.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
 				postEventFromUser(ievent);
