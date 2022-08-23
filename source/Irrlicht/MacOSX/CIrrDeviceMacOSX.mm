@@ -1341,7 +1341,20 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 	ievent.MouseInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
 
 	if (post)
+	{
 		postEventFromUser(ievent);
+
+		if(ievent.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && ievent.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN) {
+			irr::u32 clicks = device->checkSuccessiveClicks(ievent.MouseInput.X, ievent.MouseInput.Y, ievent.MouseInput.Event);
+			if(clicks == 2) {
+				ievent.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + ievent.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
+				postEventFromUser(ievent);
+			} else if(clicks == 3) {
+				ievent.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_TRIPLE_CLICK + ievent.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
+				postEventFromUser(ievent);
+			}
+		}
+	}
 
 	[NSApp sendEvent:(NSEvent *)event];
 }
