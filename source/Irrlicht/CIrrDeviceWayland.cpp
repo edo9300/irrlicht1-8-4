@@ -413,31 +413,8 @@ public:
         irrevent.MouseInput.ButtonStates = device->m_mouse_button_states;
 
         device->signalEvent(irrevent);
-
-        if (irrevent.MouseInput.Event >= EMIE_LMOUSE_PRESSED_DOWN &&
-            irrevent.MouseInput.Event <= EMIE_MMOUSE_PRESSED_DOWN)
-        {
-            u32 clicks = device->checkSuccessiveClicks(
-                                                irrevent.MouseInput.X,
-                                                irrevent.MouseInput.Y,
-                                                irrevent.MouseInput.Event);
-            if (clicks == 2)
-            {
-                irrevent.MouseInput.Event =
-                        (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_DOUBLE_CLICK +
-                        irrevent.MouseInput.Event-EMIE_LMOUSE_PRESSED_DOWN);
-
-                device->signalEvent(irrevent);
-            }
-            else if (clicks == 3)
-            {
-                irrevent.MouseInput.Event =
-                        (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_TRIPLE_CLICK +
-                        irrevent.MouseInput.Event-EMIE_LMOUSE_PRESSED_DOWN);
-
-                device->signalEvent(irrevent);
-            }
-        }
+        if(device->transformToMultiClickEvent(irrevent))
+            device->signalEvent(irrevent);
         device->setSelectionSerial(serial);
     }
 

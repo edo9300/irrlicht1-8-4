@@ -17,17 +17,7 @@
 #include "IGUIEnvironment.h"
 #include "CEGLManager.h"
 
-namespace irr
-{
-	namespace video
-	{
-		IVideoDriver* createOGLES1Driver(const SIrrlichtCreationParameters& params,
-			io::IFileSystem* io, video::IContextManager* contextManager);
-
-		IVideoDriver* createOGLES2Driver(const SIrrlichtCreationParameters& params,
-			io::IFileSystem* io, video::IContextManager* contextManager);
-	}
-}
+#include "CDriverCreationPrototypes.h"
 
 namespace irr
 {
@@ -446,6 +436,8 @@ s32 CIrrDeviceAndroid::handleMotionEvent(AInputEvent* androidEvent) {
 		}
 		event.MouseInput.ButtonStates = CurrentMouseButtonState;
 		postEventFromUser(event);
+		if(transformToMultiClickEvent(event))
+			postEventFromUser(event);
 		LastMouseCursorPosition.X = event.MouseInput.X;
 		LastMouseCursorPosition.Y = event.MouseInput.Y;
 		return 1;

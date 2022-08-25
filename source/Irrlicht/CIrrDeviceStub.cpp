@@ -220,6 +220,22 @@ u32 CIrrDeviceStub::checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_E
 	return MouseMultiClicks.CountSuccessiveClicks;
 }
 
+bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event) {
+	if(event.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && event.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN) {
+		irr::u32 clicks = checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event);
+		if(clicks == 2) {
+			event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + event.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
+			postEventFromUser(event);
+			return true;
+		} else if(clicks == 3) {
+			event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_TRIPLE_CLICK + event.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
+			postEventFromUser(event);
+			return true;
+		}
+	}
+	return false;
+}
+
 
 //! send the event to the right receiver
 bool CIrrDeviceStub::postEventFromUser(const SEvent& event)

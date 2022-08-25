@@ -194,6 +194,8 @@ namespace irr
 		*/
 		virtual u32 checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_EVENT inputEvent);
 
+		bool transformToMultiClickEvent(irr::SEvent& event);
+
 		void calculateGammaRamp ( u16 *ramp, f32 gamma, f32 relativebrightness, f32 relativecontrast );
 		void calculateGammaFromRamp ( f32 &gamma, const u16 *ramp );
 

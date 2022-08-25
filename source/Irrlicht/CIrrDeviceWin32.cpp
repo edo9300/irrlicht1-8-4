@@ -797,21 +797,8 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		if (dev)
 		{
 			dev->postEventFromUser(event);
-
-			if ( event.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && event.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN )
-			{
-				irr::u32 clicks = dev->checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event);
-				if ( clicks == 2 )
-				{
-					event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + event.MouseInput.Event-irr::EMIE_LMOUSE_PRESSED_DOWN);
-					dev->postEventFromUser(event);
-				}
-				else if ( clicks == 3 )
-				{
-					event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_TRIPLE_CLICK + event.MouseInput.Event-irr::EMIE_LMOUSE_PRESSED_DOWN);
-					dev->postEventFromUser(event);
-				}
-			}
+			if(dev->transformToMultiClickEvent(event))
+				dev->postEventFromUser(event);
 		}
 		return 0;
 	}
