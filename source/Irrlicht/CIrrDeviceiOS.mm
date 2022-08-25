@@ -247,8 +247,8 @@ namespace irr
         Scale = ([self respondsToSelector:@selector(setContentScaleFactor:)]) ? [[UIScreen mainScreen] scale] : 1.f;
     }
 	
-    Gestures =
-        [[ClientGestures alloc] initWithView:self device:Device];
+	
+    Gestures = [[ClientGestures alloc] initWithView:self device:Device];
     
     return self;
 }
@@ -391,7 +391,7 @@ namespace irr
         
         DataStorage = new SIrrDeviceiOSDataStorage();
 
-        FileSystem->changeWorkingDirectoryTo([[[NSBundle mainBundle] resourcePath] UTF8String]);
+        //FileSystem->changeWorkingDirectoryTo([[[NSBundle mainBundle] resourcePath] UTF8String]);
 
 		createWindow();
         createViewAndDriver();
