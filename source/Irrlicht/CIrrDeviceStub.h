@@ -173,13 +173,16 @@ namespace irr
 		virtual u32 getDoubleClickTime() const _IRR_OVERRIDE_;
 
 		//! Remove all messages pending in the system message loop
-		virtual void clearSystemMessages() _IRR_OVERRIDE_;
+		virtual void clearSystemMessages() _IRR_OVERRIDE_ {}
 
 		//! enable text and files drag and drop
-		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_;
+		virtual void enableDragDrop(bool enable, drop_callback_function_t dragCheck = nullptr) _IRR_OVERRIDE_ {}
 
 		//! Resize the render window.
 		virtual void setWindowSize(const irr::core::dimension2d<u32>& size) _IRR_OVERRIDE_ {}
+
+		//! Enable or disable the translation of touch events to mouse input events
+		virtual void toggleTouchEventMouseTranslation(bool enable, int doubleClickMaxOffset = 0) _IRR_OVERRIDE_;
 
 	protected:
 
@@ -192,9 +195,11 @@ namespace irr
 		/** Needed for win32 device event handling
 		\return Returns only 1,2 or 3. A 4th click will start with 1 again.
 		*/
-		virtual u32 checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_EVENT inputEvent);
+		virtual u32 checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_EVENT inputEvent, s32 maxMouseOffset = 3);
 
-		bool transformToMultiClickEvent(irr::SEvent& event);
+		bool transformToMultiClickEvent(irr::SEvent& event, s32 maxMouseOffset = 3);
+
+		bool SendTransformedTouchEvent(const SEvent& event);
 
 		void calculateGammaRamp ( u16 *ramp, f32 gamma, f32 relativebrightness, f32 relativecontrast );
 		void calculateGammaFromRamp ( f32 &gamma, const u16 *ramp );
@@ -224,6 +229,9 @@ namespace irr
 			EMOUSE_INPUT_EVENT LastMouseInputEvent;
 		};
 		SMouseMultiClicks MouseMultiClicks;
+		bool ShouldTransformTouchEvents;
+		u32 TouchEmulatedDoubleClickMaxOffset;
+		core::position2di LastTouchPosition;
 		video::CVideoModeList* VideoModeList;
 		video::IContextManager* ContextManager;
 		SIrrlichtCreationParameters CreationParams;

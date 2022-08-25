@@ -21,7 +21,8 @@ CIrrDeviceStub::CIrrDeviceStub(const SIrrlichtCreationParameters& params)
 : IrrlichtDevice(), VideoDriver(0), GUIEnvironment(0), SceneManager(0),
 	Timer(0), CursorControl(0), UserReceiver(params.EventReceiver),
 	Logger(0), Operator(0), Randomizer(0), FileSystem(0),
-	InputReceivingSceneManager(0), VideoModeList(0), ContextManager(0),
+	InputReceivingSceneManager(0), ShouldTransformTouchEvents(false), TouchEmulatedDoubleClickMaxOffset(0),
+	VideoModeList(0), ContextManager(0),
 	CreationParams(params), Close(false)
 {
 	Timer = new CTimer(params.UsePerformanceTimer);
@@ -192,15 +193,13 @@ bool CIrrDeviceStub::checkVersion(const char* version)
 
 
 //! Compares to the last call of this function to return double and triple clicks.
-u32 CIrrDeviceStub::checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_EVENT inputEvent )
+u32 CIrrDeviceStub::checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_EVENT inputEvent, s32 maxMouseOffset)
 {
-	const s32 MAX_MOUSEMOVE = 3;
-
 	irr::u32 clickTime = getTimer()->getRealTime();
 
 	if ( (clickTime-MouseMultiClicks.LastClickTime) < MouseMultiClicks.DoubleClickTime
-		&& core::abs_(MouseMultiClicks.LastClick.X - mouseX ) <= MAX_MOUSEMOVE
-		&& core::abs_(MouseMultiClicks.LastClick.Y - mouseY ) <= MAX_MOUSEMOVE
+		&& core::abs_(MouseMultiClicks.LastClick.X - mouseX ) <= maxMouseOffset
+		&& core::abs_(MouseMultiClicks.LastClick.Y - mouseY ) <= maxMouseOffset
 		&& MouseMultiClicks.CountSuccessiveClicks < 3
 		&& MouseMultiClicks.LastMouseInputEvent == inputEvent
 	   )
@@ -220,7 +219,7 @@ u32 CIrrDeviceStub::checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_E
 	return MouseMultiClicks.CountSuccessiveClicks;
 }
 
-bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event) {
+bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event, s32 maxMouseOffset) {
 	if(event.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && event.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN) {
 		irr::u32 clicks = checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event);
 		if(clicks == 2) {
@@ -232,6 +231,73 @@ bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event) {
 		}
 	}
 	return false;
+}
+
+bool CIrrDeviceStub::SendTransformedTouchEvent(const SEvent& event) {
+	if(event.EventType != irr::EET_TOUCH_INPUT_EVENT)
+		return false;
+	irr::SEvent translated;
+	memset(&translated, 0, sizeof(irr::SEvent));
+	translated.EventType = irr::EET_MOUSE_INPUT_EVENT;
+
+	translated.MouseInput.X = event.TouchInput.X;
+	translated.MouseInput.Y = event.TouchInput.Y;
+
+	switch(event.TouchInput.touchedCount) {
+	case 1: {
+		switch(event.TouchInput.Event) {
+		case irr::ETIE_PRESSED_DOWN: {
+			LastTouchPosition = core::position2di(event.TouchInput.X, event.TouchInput.Y);
+			translated.MouseInput.Event = irr::EMIE_LMOUSE_PRESSED_DOWN;
+			translated.MouseInput.ButtonStates = irr::EMBSM_LEFT;
+			irr::SEvent hoverEvent = translated;
+			hoverEvent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
+			hoverEvent.MouseInput.ButtonStates = 0;
+			postEventFromUser(hoverEvent);
+			break;
+		}
+		case irr::ETIE_MOVED:
+			LastTouchPosition = core::position2di(event.TouchInput.X, event.TouchInput.Y);
+			translated.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
+			translated.MouseInput.ButtonStates = irr::EMBSM_LEFT;
+			break;
+		case irr::ETIE_LEFT_UP:
+			translated.MouseInput.Event = irr::EMIE_LMOUSE_LEFT_UP;
+			translated.MouseInput.ButtonStates = 0;
+			// we don't have a valid pointer element use last
+			// known pointer pos
+			translated.MouseInput.X = LastTouchPosition.X;
+			translated.MouseInput.Y = LastTouchPosition.Y;
+			LastTouchPosition = core::position2di(0, 0);
+			break;
+		default:
+			return true;
+		}
+
+		bool retval = postEventFromUser(translated);
+		if(transformToMultiClickEvent(translated, TouchEmulatedDoubleClickMaxOffset))
+			postEventFromUser(translated);
+		return retval;
+	}
+	case 2: {
+		if(event.TouchInput.Event != irr::ETIE_PRESSED_DOWN)
+			return false;
+		translated.MouseInput.Event = irr::EMIE_RMOUSE_PRESSED_DOWN;
+		translated.MouseInput.ButtonStates = irr::EMBSM_LEFT | irr::EMBSM_RIGHT;
+		translated.MouseInput.X = LastTouchPosition.X;
+		translated.MouseInput.Y = LastTouchPosition.Y;
+		postEventFromUser(translated);
+
+		translated.MouseInput.Event = irr::EMIE_RMOUSE_LEFT_UP;
+		translated.MouseInput.ButtonStates = irr::EMBSM_LEFT;
+
+		postEventFromUser(translated);
+		break;
+	}
+	default:
+		return false;
+	}
+	return true;
 }
 
 
@@ -252,6 +318,9 @@ bool CIrrDeviceStub::postEventFromUser(const SEvent& event)
 
 	if (!absorbed && inputReceiver)
 		absorbed = inputReceiver->postEventFromUser(event);
+
+	if(ShouldTransformTouchEvents)
+		absorbed = SendTransformedTouchEvent(event);
 
 	return absorbed;
 }
@@ -512,12 +581,10 @@ u32 CIrrDeviceStub::getDoubleClickTime() const
 	return MouseMultiClicks.DoubleClickTime;
 }
 
-//! Remove all messages pending in the system message loop
-void CIrrDeviceStub::clearSystemMessages()
-{
-}
-
-void CIrrDeviceStub::enableDragDrop(bool enable, drop_callback_function_t dragCheck) {
+void CIrrDeviceStub::toggleTouchEventMouseTranslation(bool enable, int doubleClickMaxOffset) {
+	if((ShouldTransformTouchEvents = enable) == false)
+		return;
+	TouchEmulatedDoubleClickMaxOffset = doubleClickMaxOffset;
 }
 
 
