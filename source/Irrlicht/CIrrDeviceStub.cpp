@@ -225,11 +225,9 @@ bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event) {
 		irr::u32 clicks = checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event);
 		if(clicks == 2) {
 			event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + event.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
-			postEventFromUser(event);
 			return true;
 		} else if(clicks == 3) {
 			event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_TRIPLE_CLICK + event.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
-			postEventFromUser(event);
 			return true;
 		}
 	}
