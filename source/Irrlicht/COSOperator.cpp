@@ -83,16 +83,16 @@ static void copyClipboardWindows(const wchar_t* wtext, size_t wlen) {
 	const size_t lenOld = (wlen + 1) * sizeof(wchar_t);
 
 	HGLOBAL clipbuffer = GlobalAlloc(GMEM_DDESHARE, lenOld);
-	char* cbuffer = (char*)GlobalLock(clipbuffer);
-	core::wcharToUtf8(wtext, cbuffer, lenOld);
-	GlobalUnlock(clipbuffer);
-	SetClipboardData(CF_TEXT, clipbuffer);
-
-	clipbuffer = GlobalAlloc(GMEM_DDESHARE, lenOld);
 	wchar_t* wbuffer = (wchar_t*)GlobalLock(clipbuffer);
 	memcpy(wbuffer, wtext, lenOld);
 	GlobalUnlock(clipbuffer);
 	SetClipboardData(CF_UNICODETEXT, clipbuffer);
+
+	clipbuffer = GlobalAlloc(GMEM_DDESHARE, lenOld);
+	char* cbuffer = (char*)GlobalLock(clipbuffer);
+	core::wcharToUtf8(wtext, cbuffer, lenOld);
+	GlobalUnlock(clipbuffer);
+	SetClipboardData(CF_TEXT, clipbuffer);
 
 	CloseClipboard();
 }
@@ -118,8 +118,8 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 	if(wlen == 0)
 		return;
 
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
-	if(DeviceType == EIDT_WIN32) {
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_WINDOWS_API_))
+	if(DeviceType == EIDT_WIN32 || DeviceType == EIDT_SDL) {
 		copyClipboardWindows(wtext, wlen);
 		return;
 	}
@@ -130,12 +130,13 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 	core::wcharToUtf8(wtext, ctext, lenOld);
 
 	switch(DeviceType) {
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_OSX_PLATFORM_))
+	case EIDT_SDL:
 	case EIDT_OSX:
 		copyClipboardOSX(ctext);
 		break;
 #endif
-#if defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
 	case EIDT_SDL2:
 		SDL_SetClipboardText(ctext);
 		break;
@@ -218,12 +219,14 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	NSString* str = nil;
 #endif
 	switch(DeviceType) {
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_WINDOWS_API_))
+	case EIDT_SDL:
 	case EIDT_WIN32:
 		hData = getClipboardWindows(cbuffer, wbuffer);
 		break;
 #endif
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_OSX_PLATFORM_))
+	case EIDT_SDL:
 	case EIDT_OSX:
 		cbuffer = getClipboardOSX(str);
 		break;
@@ -260,7 +263,7 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 		delete[] ws;
 	} else
 		wstring = wbuffer;
-#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_)
+#if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_WINDOWS_API_))
 	if(hData)
 		closeClipboardWindows(hData);
 #endif
