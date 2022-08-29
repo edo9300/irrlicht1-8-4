@@ -223,16 +223,23 @@ bool CIrrDeviceSDL2::createWindow()
 //! create the driver
 void CIrrDeviceSDL2::createDriver()
 {
+#ifdef _WIN32
+	HWND HWnd{ nullptr };
+	{
+		SDL_SysWMinfo wmInfo;
+		SDL_VERSION(&wmInfo.version);
+		SDL_GetWindowWMInfo(window, &wmInfo);
+		HWnd = wmInfo.info.win.window;
+	}
+#else
+	void* HWnd{ nullptr };
+#endif
 	switch(CreationParams.DriverType)
 	{
 
 	case video::EDT_DIRECT3D9:
 		#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
 		{
-			SDL_SysWMinfo wmInfo;
-			SDL_VERSION(&wmInfo.version);
-			SDL_GetWindowWMInfo(window, &wmInfo);
-			HWND HWnd = wmInfo.info.win.window;
 			VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
 			if (!VideoDriver)
 			{
@@ -270,6 +277,7 @@ void CIrrDeviceSDL2::createDriver()
 
 			data.OGLSDL2.Window = window;
 			data.OGLSDL2.Context = nullptr;
+			data.OGLSDL2.HWnd = HWnd;
 
 			ContextManager = new video::CSDL2ContextManager(data);
 			ContextManager->initialize(CreationParams, data);
@@ -288,6 +296,7 @@ void CIrrDeviceSDL2::createDriver()
 
 			data.OGLSDL2.Window = window;
 			data.OGLSDL2.Context = nullptr;
+			data.OGLSDL2.HWnd = HWnd;
 
 			ContextManager = new video::CSDL2ContextManager(data);
 			ContextManager->initialize(CreationParams, data);
@@ -305,6 +314,7 @@ void CIrrDeviceSDL2::createDriver()
 
 			data.OGLSDL2.Window = window;
 			data.OGLSDL2.Context = nullptr;
+			data.OGLSDL2.HWnd = HWnd;
 
 			ContextManager = new video::CSDL2ContextManager(data);
 			ContextManager->initialize(CreationParams, data);
@@ -323,6 +333,7 @@ void CIrrDeviceSDL2::createDriver()
 
 			data.OGLSDL2.Window = window;
 			data.OGLSDL2.Context = nullptr;
+			data.OGLSDL2.HWnd = HWnd;
 
 			ContextManager = new video::CSDL2ContextManager(data);
 			ContextManager->initialize(CreationParams, data);
