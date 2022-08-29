@@ -30,37 +30,37 @@ namespace video
 		// Initialize EAGL.
 		/* This method checks if a view has CAEAGLLayer and grabs it if it does, anyway surface and context
 		aren't create. */
-		bool initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data);
+		bool initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data) _IRR_OVERRIDE_;
 
 		// Terminate EAGL.
 		/* Terminate EAGL context. This method break both existed surface and context. */
-		void terminate();
+		void terminate() _IRR_OVERRIDE_;
 
 		// Create EAGL surface.
 		/* This method configure CAEAGLLayer. */
-		bool generateSurface();
+		bool generateSurface() _IRR_OVERRIDE_;
 
 		// Destroy EAGL surface.
 		/* This method reset CAEAGLLayer states. */
-		void destroySurface();
+		void destroySurface() _IRR_OVERRIDE_;
 
 		// Create EAGL context.
 		/* This method create and activate EAGL context. */
-		bool generateContext();
+		bool generateContext() _IRR_OVERRIDE_;
 
 		// Destroy EAGL context.
 		/* This method destroy EAGL context. */
-		void destroyContext();
+		void destroyContext() _IRR_OVERRIDE_;
 
-		const SExposedVideoData& getContext() const;
+		const SExposedVideoData& getContext() const _IRR_OVERRIDE_;
 
-		bool activateContext(const SExposedVideoData& videoData, bool restorePrimaryOnZero);
+		bool activateContext(const SExposedVideoData& videoData, bool restorePrimaryOnZero) _IRR_OVERRIDE_;
 
 		// Swap buffers.
-		bool swapBuffers();
+		bool swapBuffers() _IRR_OVERRIDE_;
 		
 		// Generic vsync setting method for several extensions
-		void swapInterval(int interval);
+		void swapInterval(int interval) _IRR_OVERRIDE_;
 
         // Context dependent getProcAddress or equivalent function
         void* loadFunction(const char* function_name) { return 0; };

@@ -31,31 +31,31 @@ namespace video
 		~CNSOGLManager();
 
         // Initialize
-        bool initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data);
+        bool initialize(const SIrrlichtCreationParameters& params, const SExposedVideoData& data) _IRR_OVERRIDE_;
 
         // Terminate
-        void terminate();
+        void terminate() _IRR_OVERRIDE_;
 
         // Create surface.
-        bool generateSurface();
+        bool generateSurface() _IRR_OVERRIDE_;
 
         // Destroy surface.
-        void destroySurface();
+        void destroySurface() _IRR_OVERRIDE_;
 
         // Create context.
-        bool generateContext();
+        bool generateContext() _IRR_OVERRIDE_;
 
         // Destroy EGL context.
-        void destroyContext();
+        void destroyContext() _IRR_OVERRIDE_;
 
 		//! Get current context
-		const SExposedVideoData& getContext() const;
+		const SExposedVideoData& getContext() const _IRR_OVERRIDE_;
 
 		//! Change render context, disable old and activate new defined by videoData
 		bool activateContext(const SExposedVideoData& videoData, bool restorePrimaryOnZero) _IRR_OVERRIDE_;
 
         // Swap buffers.
-        bool swapBuffers();
+        bool swapBuffers() _IRR_OVERRIDE_;
 		
 		// Generic vsync setting method for several extensions
 		void swapInterval(int interval) _IRR_OVERRIDE_;
