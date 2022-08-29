@@ -709,7 +709,7 @@ namespace video
 				{
 					if (multiplier > 1)
 					{
-						Version += static_cast<u16>(core::floor32(atof(&(version[i]))) * multiplier);
+						Version += static_cast<u16>(core::floor32(static_cast<f32>(atof(&(version[i])))) * multiplier);
 						multiplier /= 10;
 					}
 					else
