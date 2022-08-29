@@ -30,7 +30,7 @@ namespace video
 {
 
 COGLES1Driver::COGLES1Driver(const SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager) :
-    CNullDriver(io, params.WindowSize), COGLES1ExtensionHandler(contextManager), CacheHandler(0), initialized(false), CurrentRenderMode(ERM_NONE),
+    CNullDriver(io, params.WindowSize), COGLES1ExtensionHandler(contextManager), initialized(false), CacheHandler(0), CurrentRenderMode(ERM_NONE),
     ResetRenderStates(true), Transformation3DChanged(true), AntiAlias(params.AntiAlias),
     ColorFormat(ECF_R8G8B8), Params(params), ContextManager(contextManager)
 {

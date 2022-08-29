@@ -838,7 +838,7 @@ COGLES2Driver::~COGLES2Driver()
 			//they seem to have to be feeded swapped
 			SColor color(Material.DiffuseColor.getAlpha(), Material.AmbientColor.getBlue(), Material.AmbientColor.getGreen(), Material.AmbientColor.getRed());
 			ColorBuffer.set_used(vertexCount * 4);
-			for(u32 i = 0; i < (vertexCount * 4); i += 4) {
+			for(int i = 0; i < (vertexCount * 4); i += 4) {
 				color.toOpenGLColor(&ColorBuffer[i]);
 			}
 		}
