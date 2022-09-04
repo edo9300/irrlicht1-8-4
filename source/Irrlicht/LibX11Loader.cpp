@@ -83,7 +83,7 @@ void X11Loader::Unload() {
 
 bool X11Loader::Init()
 {
-	if(amt==0 && !LibX11)
+	if(amt==0)
 		Load();
 	inited = true;
 	amt++;
