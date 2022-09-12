@@ -3511,6 +3511,9 @@ IImage* CD3D9Driver::CaptureSurfaceD3dx() {
 															   CONST PALETTEENTRY*       pSrcPalette,
 															   CONST RECT*               pSrcRect);
 
+	if(!d3dx9)
+		return nullptr;
+
 	if(!SaveSurfaceToFileInMemory) {
 		if(d3dx9) {
 			SaveSurfaceToFileInMemory = (void*)GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
