@@ -491,10 +491,6 @@ namespace video
 		HMODULE d3dx9;
 		io::path d3dxversion;
 
-		void* SaveSurfaceToFileInMemory;
-
-		IImage* CaptureSurfaceD3dx();
-
 	};
 
 	//! This bridge between Irrlicht pseudo D3D9 calls

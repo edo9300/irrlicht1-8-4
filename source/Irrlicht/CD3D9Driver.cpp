@@ -39,8 +39,7 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	MaxLightDistance(0.f), LastSetLight(-1),
 	ColorFormat(ECF_A8R8G8B8), DeviceLost(false),
 	DriverWasReset(true), OcclusionQuerySupport(false),
-	AlphaToCoverageSupport(false), Params(params), line(nullptr), d3dx9(nullptr),
-	SaveSurfaceToFileInMemory(nullptr)
+	AlphaToCoverageSupport(false), Params(params), line(nullptr), d3dx9(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9Driver");
@@ -3503,51 +3502,63 @@ void CD3D9Driver::clearBuffers(u16 flag, SColor color, f32 depth, u8 stencil)
 	}
 }
 
-IImage* CD3D9Driver::CaptureSurfaceD3dx() {
-
-	typedef HRESULT(WINAPI *SaveSurfaceToFileInMemoryFunction)(LPD3DXBUFFER*             ppDestBuf,
-															   D3DXIMAGE_FILEFORMAT      DestFormat,
-															   LPDIRECT3DSURFACE9        pSrcSurface,
-															   CONST PALETTEENTRY*       pSrcPalette,
-															   CONST RECT*               pSrcRect);
-
-	if(!d3dx9)
-		return nullptr;
-
-	if(!SaveSurfaceToFileInMemory) {
-		if(d3dx9) {
-			SaveSurfaceToFileInMemory = (void*)GetProcAddress(d3dx9, "D3DXSaveSurfaceToFileInMemory");
-			if(!SaveSurfaceToFileInMemory) {
-				SaveSurfaceToFileInMemory = (void*)1;
-				os::Printer::log("Could not load D3DXSaveSurfaceToFileInMemory from dll, using normal screenshot function",
-								 d3dxversion, ELL_ERROR);
-			}
-		}
-	}
-
-	if((uintptr_t)SaveSurfaceToFileInMemory == 1)
-		return nullptr;
-	IImage* retimage = nullptr;
-	LPDIRECT3DSURFACE9 back_buffer = nullptr;
+namespace {
+// implementations taken from the WINE project
+// https://github.com/wine-mirror/wine/blob/1d178982ae5a73b18f367026c8689b56789c39fd/dlls/d3dx9_36/surface.c#L2361
+// licensed under GPL 2.1 or any later version
+HRESULT lock_surface(IDirect3DSurface9* surface, const RECT& surface_rect, D3DLOCKED_RECT* lock,
+					 IDirect3DSurface9** temp_surface) {
+	unsigned int width, height;
+	IDirect3DDevice9* device;
+	D3DSURFACE_DESC desc;
 	HRESULT hr;
-	hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back_buffer);
-	if(SUCCEEDED(hr)) {
-		LPD3DXBUFFER outbuffer = nullptr;
-		hr = reinterpret_cast<SaveSurfaceToFileInMemoryFunction>(SaveSurfaceToFileInMemory)(&outbuffer, D3DXIFF_PNG, back_buffer, nullptr, nullptr);
-		if(SUCCEEDED(hr)) {
-			void* data = outbuffer->GetBufferPointer();
-			auto size = outbuffer->GetBufferSize();
-			auto file = FileSystem->createMemoryReadFile(data, size, L"", false);
-			retimage = createImageFromFile(file);
-			file->drop();
-			outbuffer->Release();
+
+	*temp_surface = nullptr;
+	if(FAILED(hr = IDirect3DSurface9_LockRect(surface, lock, &surface_rect, D3DLOCK_READONLY))) {
+		IDirect3DSurface9_GetDevice(surface, &device);
+		IDirect3DSurface9_GetDesc(surface, &desc);
+
+		width = surface_rect.right - surface_rect.left;
+		height = surface_rect.bottom - surface_rect.top;
+
+		hr = IDirect3DDevice9_CreateRenderTarget(device, width, height,
+												  desc.Format, D3DMULTISAMPLE_NONE, 0, TRUE, temp_surface, nullptr);
+		if(FAILED(hr)) {
+			os::Printer::log("lock_surface: Failed to create temporary surface.", core::stringc((int)hr).c_str(), ELL_ERROR);
+			IDirect3DDevice9_Release(device);
+			return hr;
 		}
-		back_buffer->Release();
+
+		if(SUCCEEDED(hr = IDirect3DDevice9_StretchRect(device, surface, &surface_rect,
+																*temp_surface, nullptr, D3DTEXF_NONE)))
+			hr = IDirect3DSurface9_LockRect(*temp_surface, lock, nullptr, D3DLOCK_READONLY);
+
+		IDirect3DDevice9_Release(device);
+		if(FAILED(hr)) {
+			os::Printer::log("lock_surface: Failed to lock surface.", core::stringc((int)hr).c_str(), ELL_ERROR);
+			IDirect3DSurface9_Release(*temp_surface);
+			*temp_surface = nullptr;
+			return hr;
+		}
+		os::Printer::log("lock_surface: Created temporary surface.\n", ELL_INFORMATION);
 	}
-	if(FAILED(hr)) {
-		os::Printer::log("CD3D9Driver CaptureSurfaceD3dx() failed.", core::stringc((int)hr).c_str(), ELL_ERROR);
+	return hr;
+}
+
+HRESULT unlock_surface(IDirect3DSurface9* surface, IDirect3DSurface9* temp_surface) {
+	IDirect3DDevice9* device;
+	POINT surface_point;
+	HRESULT hr;
+
+	if(!temp_surface) {
+		hr = IDirect3DSurface9_UnlockRect(surface);
+		return hr;
 	}
-	return retimage;
+
+	hr = IDirect3DSurface9_UnlockRect(temp_surface);
+	IDirect3DSurface9_Release(temp_surface);
+	return hr;
+}
 }
 
 //! Returns an image created from the last rendered frame.
@@ -3560,63 +3571,48 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 	if(format == video::ECF_UNKNOWN)
 		format = video::ECF_A8R8G8B8;
 
-	IImage* newImage = CaptureSurfaceD3dx();
-
-	if(newImage)
-		return newImage;
-
-	newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
-	if(!newImage) {
-		os::Printer::log("CD3D9Driver createScreenShot() failed.", "Couldn't create return image", ELL_ERROR);
-		return nullptr;
-	}
+	IImage* newImage = nullptr;
 
 	HRESULT hr;
-	IDirect3DSurface9* captureSurface = nullptr;
-	hr = pID3DDevice->CreateOffscreenPlainSurface(present.BackBufferWidth, present.BackBufferHeight, present.BackBufferFormat, D3DPOOL_SYSTEMMEM, &captureSurface, nullptr);
+	IDirect3DSurface9* backBufferSurface = nullptr;
+	hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface);
 	if(SUCCEEDED(hr)) {
-		IDirect3DSurface9* backBufferSurface = nullptr;
-		hr = pID3DDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBufferSurface);
+		D3DLOCKED_RECT lockedRect;
+		IDirect3DSurface9* temp_surface;
+		RECT surface_rect{ 0,0,present.BackBufferWidth, present.BackBufferHeight };
+		hr = lock_surface(backBufferSurface, surface_rect, &lockedRect, &temp_surface);
 		if(SUCCEEDED(hr)) {
-			hr = pID3DDevice->GetRenderTargetData(backBufferSurface, captureSurface);
-			backBufferSurface->Release();
-			if(SUCCEEDED(hr)) {
-				RECT rc{ 0, 0, (LONG)present.BackBufferWidth, (LONG)present.BackBufferHeight };
-				D3DLOCKED_RECT lockedRect;
-				hr = captureSurface->LockRect(&lockedRect, &rc, D3DLOCK_READONLY);
-				if(SUCCEEDED(hr)) {
-					// d3d pads the image, so we need to copy the correct number of bytes
-					u32* dP = (u32*)newImage->getData();
-					u8 * sP = (u8 *)lockedRect.pBits;
+			newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
+			if(newImage) {
+				// d3d pads the image, so we need to copy the correct number of bytes
+				u32* dP = (u32*)newImage->getData();
+				u8* sP = (u8*)lockedRect.pBits;
 
-					// If the display mode format doesn't promise anything about the Alpha value
-					// and it appears that it's not presenting 255, then we should manually
-					// set each pixel alpha value to 255.
-					if(D3DFMT_X8R8G8B8 == present.BackBufferFormat && (0xFF000000 != (*dP & 0xFF000000))) {
-						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
-							for(u32 x = 0; x < present.BackBufferWidth; ++x) {
-								newImage->setPixel(x, y, *((u32*)sP) | 0xFF000000);
-								sP += 4;
-							}
+				// If the display mode format doesn't promise anything about the Alpha value
+				// and it appears that it's not presenting 255, then we should manually
+				// set each pixel alpha value to 255.
+				if(D3DFMT_X8R8G8B8 == present.BackBufferFormat && (0xFF000000 != (*dP & 0xFF000000))) {
+					for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+						for(u32 x = 0; x < present.BackBufferWidth; ++x) {
+							newImage->setPixel(x, y, *((u32*)sP) | 0xFF000000);
+							sP += 4;
+						}
 
-							sP += lockedRect.Pitch - (4 * present.BackBufferWidth);
-						}
-					} else {
-						for(u32 y = 0; y < present.BackBufferHeight; ++y) {
-							convertColor(sP, video::ECF_A8R8G8B8, present.BackBufferWidth, dP, format);
-							sP += lockedRect.Pitch;
-							dP += present.BackBufferWidth;
-						}
+						sP += lockedRect.Pitch - (4 * present.BackBufferWidth);
 					}
-
-					// we can unlock and release the surface
-					captureSurface->UnlockRect();
+				} else {
+					for(u32 y = 0; y < present.BackBufferHeight; ++y) {
+						convertColor(sP, video::ECF_A8R8G8B8, present.BackBufferWidth, dP, format);
+						sP += lockedRect.Pitch;
+						dP += present.BackBufferWidth;
+					}
 				}
-
-				// release the image surface
-				captureSurface->Release();
+			} else {
+				os::Printer::log("CD3D9Driver createScreenShot() failed.", "Couldn't create return image", ELL_ERROR);
 			}
+			unlock_surface(backBufferSurface, temp_surface);
 		}
+		backBufferSurface->Release();
 	}
 	if(FAILED(hr)) {
 		newImage->drop();
