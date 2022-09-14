@@ -3546,8 +3546,6 @@ HRESULT lock_surface(IDirect3DSurface9* surface, const RECT& surface_rect, D3DLO
 }
 
 HRESULT unlock_surface(IDirect3DSurface9* surface, IDirect3DSurface9* temp_surface) {
-	IDirect3DDevice9* device;
-	POINT surface_point;
 	HRESULT hr;
 
 	if(!temp_surface) {
@@ -3579,7 +3577,7 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 	if(SUCCEEDED(hr)) {
 		D3DLOCKED_RECT lockedRect;
 		IDirect3DSurface9* temp_surface;
-		RECT surface_rect{ 0,0,present.BackBufferWidth, present.BackBufferHeight };
+		RECT surface_rect{ 0,0,(LONG)present.BackBufferWidth, (LONG)present.BackBufferHeight };
 		hr = lock_surface(backBufferSurface, surface_rect, &lockedRect, &temp_surface);
 		if(SUCCEEDED(hr)) {
 			newImage = createImage(format, { present.BackBufferWidth, present.BackBufferHeight });
