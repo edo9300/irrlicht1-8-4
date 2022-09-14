@@ -3613,7 +3613,8 @@ IImage* CD3D9Driver::createScreenShot(video::ECOLOR_FORMAT format, video::E_REND
 		backBufferSurface->Release();
 	}
 	if(FAILED(hr)) {
-		newImage->drop();
+		if(newImage)
+			newImage->drop();
 		os::Printer::log("CD3D9Driver createScreenShot() failed.", core::stringc((int)hr).c_str(), ELL_ERROR);
 		return nullptr;
 	}
