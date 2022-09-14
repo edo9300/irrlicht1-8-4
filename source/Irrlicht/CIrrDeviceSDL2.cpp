@@ -396,6 +396,7 @@ void CIrrDeviceSDL2::checkAndUpdateIMEState() {
             isEditingText = false;
 			SDL_StopTextInput();
         }
+        return;
     }
 
     auto updateRectPosition = [&] {
