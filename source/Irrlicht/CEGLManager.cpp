@@ -839,9 +839,7 @@ bool CEGLManager::LoadEGL() {
 	const fschar_t* name = GetGLLibName(Params.DriverType);
 	HMODULE GLESLib = LoadLibrary(name);
 	if(!GLESLib) {
-		os::Printer::log("Failed to load", name, ELL_ERROR);
-		FreeLibrary(EGLLib);
-		return false;
+		os::Printer::log("Couldn't load", name, ELL_WARNING);
 	}
 	do {
 #include "CEGLFunctions.inl"
@@ -859,9 +857,7 @@ bool CEGLManager::LoadEGL() {
 	const char* name = GetGLLibName(Params.DriverType);
 	void* GLESLib = dlopen(name, RTLD_LAZY);
 	if(!GLESLib) {
-		os::Printer::log("Failed to load", name, ELL_ERROR);
-		dlclose(EGLLib);
-		return false;
+		os::Printer::log("Couldn't load", name, ELL_WARNING);
 	}
 	do {
 #define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))dlsym(EGLLib, #name); if(!p##name) break;
