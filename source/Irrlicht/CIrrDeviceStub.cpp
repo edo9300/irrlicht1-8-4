@@ -319,7 +319,7 @@ bool CIrrDeviceStub::postEventFromUser(const SEvent& event)
 	if (!absorbed && inputReceiver)
 		absorbed = inputReceiver->postEventFromUser(event);
 
-	if(ShouldTransformTouchEvents)
+	if(!absorbed && ShouldTransformTouchEvents)
 		absorbed = SendTransformedTouchEvent(event);
 
 	return absorbed;
