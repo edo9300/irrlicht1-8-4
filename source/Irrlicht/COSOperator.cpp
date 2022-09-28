@@ -15,6 +15,10 @@
 #include <sys/types.h>
 #ifdef _IRR_OSX_PLATFORM_
 #include <sys/sysctl.h>
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
+#define NSPasteboardTypeString NSStringPboardType
+#endif
 #endif
 #endif
 #endif
@@ -104,8 +108,8 @@ static void copyClipboardOSX(const char* ctext) {
 	NSPasteboard* board;
 	str = [NSString stringWithUTF8String : ctext];
 	board = [NSPasteboard generalPasteboard];
-	[board declareTypes : [NSArray arrayWithObject : NSStringPboardType] owner : NSApp] ;
-	[board setString : str forType : NSStringPboardType] ;
+	[board declareTypes : [NSArray arrayWithObject : NSPasteboardTypeString] owner : NSApp] ;
+	[board setString : str forType : NSPasteboardTypeString] ;
 }
 #endif
 
@@ -197,7 +201,7 @@ static void closeClipboardWindows(void* hData) {
 static const char* getClipboardOSX(NSString*& str) {
 	NSPasteboard* board = nil;
 	board = [NSPasteboard generalPasteboard];
-	str = [board stringForType : NSStringPboardType];
+	str = [board stringForType : NSPasteboardTypeString];
 	if(str != nil)
 		return (char*)[str UTF8String];
 	return nullptr;

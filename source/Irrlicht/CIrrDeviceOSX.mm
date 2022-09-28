@@ -48,6 +48,35 @@
 #endif
 #include <IOKit/hid/IOHIDLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
+#define NSPasteboardTypeString NSStringPboardType
+#endif
+#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
+#define NSEventModifierFlagControl NSControlKeyMask
+#define NSEventModifierFlagCommand NSCommandKeyMask
+#define NSWindowStyleMaskTitled NSTitledWindowMask
+#define NSWindowStyleMaskClosable NSClosableWindowMask
+#define NSWindowStyleMaskMiniaturizable NSMiniaturizableWindowMask
+#define NSWindowStyleMaskResizable NSResizableWindowMask
+#define NSWindowStyleMaskBorderless NSBorderlessWindowMask
+#define NSEventModifierFlagShift NSShiftKeyMask
+#define NSEventMaskAny NSAnyEventMask
+#define NSEventTypeKeyDown NSKeyDown
+#define NSEventTypeKeyUp NSKeyUp
+#define NSEventTypeFlagsChanged NSFlagsChanged
+#define NSEventTypeLeftMouseDown NSLeftMouseDown
+#define NSEventTypeLeftMouseUp NSLeftMouseUp
+#define NSEventTypeOtherMouseDown NSOtherMouseDown
+#define NSEventTypeOtherMouseUp NSOtherMouseUp
+#define NSEventTypeMouseMoved NSMouseMoved
+#define NSEventTypeLeftMouseDragged NSLeftMouseDragged
+#define NSEventTypeRightMouseDragged NSRightMouseDragged
+#define NSEventTypeOtherMouseDragged NSOtherMouseDragged
+#define NSEventTypeRightMouseDown NSRightMouseDown
+#define NSEventTypeRightMouseUp NSRightMouseUp
+#define NSEventTypeScrollWheel NSScrollWheel
+#endif
 
 struct JoystickComponent
 {
@@ -58,7 +87,7 @@ struct JoystickComponent
 	long minRead; //min read value
 	long maxRead; //max read value
 
-	JoystickComponent() : min(0), minRead(0), max(0), maxRead(0)
+	JoystickComponent() : min(0), max(0), minRead(0), maxRead(0)
 	{
 	}
 };
@@ -82,7 +111,7 @@ struct JoystickInfo
 	long usage; // usage page from IOUSBHID Parser.h which defines general usage
 	long usagePage; // usage within above page from IOUSBHID Parser.h which defines specific usage
 
-	JoystickInfo() : hats(0), axes(0), buttons(0), interface(0), removed(false), usage(0), usagePage(0), numActiveJoysticks(0)
+	JoystickInfo() : hats(0), axes(0), buttons(0), numActiveJoysticks(0), interface(0), removed(false), usage(0), usagePage(0)
 	{
 		interface = NULL;
 		memset(joystickName, '\0', 256);
@@ -529,7 +558,7 @@ static bool firstLaunch = true;
     if (self)
         Device = device;
 
-	_dockMenu = [[[NSMenu alloc] init] autorelease];
+    _dockMenu = [[[NSMenu alloc] init] autorelease];
     
     Quit = false;
     
@@ -650,7 +679,7 @@ static bool firstLaunch = true;
 {
 	NSPoint dropPoint = [sender draggingLocation];
 	NSPasteboard *pasteboard = [sender draggingPasteboard];
-	NSArray *types = [NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil];
+	NSArray *types = [NSArray arrayWithObjects:NSPasteboardTypeString,NSFilenamesPboardType,nil];
 	NSString *desiredType = [pasteboard availableTypeFromArray:types];
 
 	if (desiredType == nil) {
@@ -686,8 +715,8 @@ static bool firstLaunch = true;
 		return true;
 	};
 
-    if ([pasteboard dataForType:NSStringPboardType]) {
-        NSString *str = [pasteboard stringForType:NSStringPboardType];
+    if ([pasteboard dataForType:NSPasteboardTypeString]) {
+        NSString *str = [pasteboard stringForType:NSPasteboardTypeString];
         irrevent.DropEvent.DropType = irr::DROP_TEXT;
         if (!dispatch(irrevent, str))
             return NO;
@@ -733,10 +762,10 @@ namespace irr
 {
 //! constructor
 CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
-	: CIrrDeviceStub(param), Window(NULL), Display(NULL),
+	: CIrrDeviceStub(param), Window(NULL), Display(0),
 	SoftwareDriverTarget(0), DeviceWidth(0), DeviceHeight(0),
 	ScreenWidth(0), ScreenHeight(0), MouseButtonStates(0), SoftwareRendererType(0),
-	IsActive(true), IsFullscreen(false), IsShiftDown(false), IsControlDown(false), IsResizable(false),
+	IsFullscreen(false), IsActive(true), IsShiftDown(false), IsControlDown(false), IsResizable(false),
 	currentCursor([NSCursor arrowCursor])
 {
 	struct utsname name;
@@ -765,7 +794,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
             NSMenuItem* menuItem = [mainMenu addItemWithTitle:bundleName action:nil keyEquivalent:@""];
             [mainMenu setSubmenu:menu forItem:menuItem];
             menuItem = [menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
-            [menuItem setKeyEquivalentModifierMask:NSCommandKeyMask];
+            [menuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
             
             [NSApp setMainMenu:mainMenu];
 
@@ -829,9 +858,9 @@ void CIrrDeviceMacOSX::closeDevice()
 		[Window release];
 		Window = nil;
 	}
-    
-    if (IsFullscreen)
-        CGReleaseAllDisplays();
+
+	if (IsFullscreen)
+		CGReleaseAllDisplays();
 
 	IsFullscreen = false;
 	IsActive = false;
@@ -899,7 +928,7 @@ bool CIrrDeviceMacOSX::createWindow()
                 y = screenHeight - y - CreationParams.WindowSize.Height;
             }
             
-            Window = [[NSWindow alloc] initWithContentRect:NSMakeRect(x, y, CreationParams.WindowSize.Width,CreationParams.WindowSize.Height) styleMask:NSTitledWindowMask+NSClosableWindowMask+NSMiniaturizableWindowMask+NSResizableWindowMask backing:type defer:FALSE];
+            Window = [[NSWindow alloc] initWithContentRect:NSMakeRect(x, y, CreationParams.WindowSize.Width,CreationParams.WindowSize.Height) styleMask:NSWindowStyleMaskTitled+NSWindowStyleMaskClosable+NSWindowStyleMaskMiniaturizable+NSWindowStyleMaskResizable backing:type defer:FALSE];
 
             if (CreationParams.WindowPosition.X == -1 && CreationParams.WindowPosition.Y == -1)
                 [Window center];
@@ -964,7 +993,7 @@ bool CIrrDeviceMacOSX::createWindow()
                 
                 if (error == CGDisplayNoErr)
                 {
-                    Window = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame] styleMask:NSBorderlessWindowMask backing:type defer:FALSE screen:[NSScreen mainScreen]];
+                    Window = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame] styleMask:NSWindowStyleMaskBorderless backing:type defer:FALSE screen:[NSScreen mainScreen]];
                     
                     [Window setLevel: CGShieldingWindowLevel()];
                     [Window setBackgroundColor:[NSColor blackColor]];
@@ -1147,44 +1176,44 @@ bool CIrrDeviceMacOSX::run()
 		[Window makeFirstResponder:textView];
 	}
 
-	event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES];
+	event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES];
 	if (event != nil)
 	{
 		bzero(&ievent,sizeof(ievent));
 
 		switch([(NSEvent *)event type])
 		{
-			case NSKeyDown:
+			case NSEventTypeKeyDown:
 				if (editing)
 				{
 					core::rect<s32> crect = focusElement->getAbsolutePosition();
 					// Ensure font height is enough to fill the edit box so the IME window doesn't overlap it
 					[textView setFont:[NSFont userFontOfSize:crect.getHeight()]];
 					// Change origin from top left to bottom right
-					NSRect rect = {
-						static_cast<CGFloat>(crect.UpperLeftCorner.X),
+					NSRect rect = NSMakeRect(static_cast<CGFloat>(crect.UpperLeftCorner.X),
 						[[textView superview] frame].size.height - crect.LowerRightCorner.Y,
-						static_cast<CGFloat>(crect.getWidth()), static_cast<CGFloat>(crect.getHeight()),
-					};
+						static_cast<CGFloat>(crect.getWidth()),
+						static_cast<CGFloat>(crect.getHeight())
+						);
 					// Workaround for correct IME positioning below the edit box
 					[textView setFrame:rect]; // Reset to 0 at the start of the loop to not break other events
 					[NSApp sendEvent:event]; // Delegate to fake text edit control to handle text input
 					break;
-				} else if (([(NSEvent *)event modifierFlags] & NSCommandKeyMask)) {
+				} else if (([(NSEvent *)event modifierFlags] & NSEventModifierFlagCommand)) {
 					// Fire the event normally for the app menu
 					[NSApp sendEvent:event];
 				}
 				postKeyEvent(event,ievent,true);
 				break;
 
-			case NSKeyUp:
+			case NSEventTypeKeyUp:
 				postKeyEvent(event,ievent,false);
 				break;
 
-			case NSFlagsChanged:
+			case NSEventTypeFlagsChanged:
 				ievent.EventType = irr::EET_KEY_INPUT_EVENT;
-				ievent.KeyInput.Shift = ([(NSEvent *)event modifierFlags] & NSShiftKeyMask) != 0;
-				ievent.KeyInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
+				ievent.KeyInput.Shift = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagShift) != 0;
+				ievent.KeyInput.Control = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagControl) != 0;
 
 				if (IsShiftDown != ievent.KeyInput.Shift)
 				{
@@ -1211,7 +1240,7 @@ bool CIrrDeviceMacOSX::run()
 				[NSApp sendEvent:event];
 				break;
 
-			case NSLeftMouseDown:
+			case NSEventTypeLeftMouseDown:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_LMOUSE_PRESSED_DOWN;
 				MouseButtonStates |= irr::EMBSM_LEFT;
@@ -1219,7 +1248,7 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSLeftMouseUp:
+			case NSEventTypeLeftMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				MouseButtonStates &= !irr::EMBSM_LEFT;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
@@ -1227,7 +1256,7 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSOtherMouseDown:
+			case NSEventTypeOtherMouseDown:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_MMOUSE_PRESSED_DOWN;
 				MouseButtonStates |= irr::EMBSM_MIDDLE;
@@ -1235,7 +1264,7 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSOtherMouseUp:
+			case NSEventTypeOtherMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				MouseButtonStates &= !irr::EMBSM_MIDDLE;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
@@ -1243,17 +1272,17 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSMouseMoved:
-			case NSLeftMouseDragged:
-			case NSRightMouseDragged:
-			case NSOtherMouseDragged:
+			case NSEventTypeMouseMoved:
+			case NSEventTypeLeftMouseDragged:
+			case NSEventTypeRightMouseDragged:
+			case NSEventTypeOtherMouseDragged:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSRightMouseDown:
+			case NSEventTypeRightMouseDown:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_RMOUSE_PRESSED_DOWN;
 				MouseButtonStates |= irr::EMBSM_RIGHT;
@@ -1261,7 +1290,7 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSRightMouseUp:
+			case NSEventTypeRightMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_RMOUSE_LEFT_UP;
 				MouseButtonStates &= !irr::EMBSM_RIGHT;
@@ -1269,7 +1298,7 @@ bool CIrrDeviceMacOSX::run()
 				postMouseEvent(event,ievent);
 				break;
 
-			case NSScrollWheel:
+			case NSEventTypeScrollWheel:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_MOUSE_WHEEL;
 				ievent.MouseInput.Wheel = [(NSEvent *)event deltaY];
@@ -1434,7 +1463,7 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 				}
 			}
 		}
-		if ([(NSEvent *)event modifierFlags] & NSCommandKeyMask)
+		if ([(NSEvent *)event modifierFlags] & NSEventModifierFlagCommand)
 		{
 			if (mkey == 'A' || mkey == 'C' || mkey == 'V' || mkey == 'X')
 			{
@@ -1446,8 +1475,8 @@ void CIrrDeviceMacOSX::postKeyEvent(void *event,irr::SEvent &ievent,bool pressed
 		ievent.EventType = irr::EET_KEY_INPUT_EVENT;
 		ievent.KeyInput.Key = (irr::EKEY_CODE)mkey;
 		ievent.KeyInput.PressedDown = pressed;
-		ievent.KeyInput.Shift = ([(NSEvent *)event modifierFlags] & NSShiftKeyMask) != 0;
-		ievent.KeyInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
+		ievent.KeyInput.Shift = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagShift) != 0;
+		ievent.KeyInput.Control = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagControl) != 0;
 		if(ShouldIgnoreChar(ievent.KeyInput.Key))
 			ievent.KeyInput.Char = 0;
 		else
@@ -1489,8 +1518,8 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 
 	if (post)
 	{
-		ievent.MouseInput.Shift = ([(NSEvent *)event modifierFlags] & NSShiftKeyMask) != 0;
-		ievent.MouseInput.Control = ([(NSEvent *)event modifierFlags] & NSControlKeyMask) != 0;
+		ievent.MouseInput.Shift = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagShift) != 0;
+		ievent.MouseInput.Control = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagControl) != 0;
 		
 		postEventFromUser(ievent);
 		if(transformToMultiClickEvent(ievent))
@@ -1736,9 +1765,9 @@ void CIrrDeviceMacOSX::setResizable(bool resize)
 	IsResizable = resize;
 #if 0
 	if (resize)
-		[Window setStyleMask:NSTitledWindowMask|NSClosableWindowMask|NSMiniaturizableWindowMask|NSResizableWindowMask];
+		[Window setStyleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable];
 	else
-		[Window setStyleMask:NSTitledWindowMask|NSClosableWindowMask];
+		[Window setStyleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable];
 #endif
 }
 
@@ -2112,7 +2141,7 @@ void CIrrDeviceMacOSX::pollJoysticks()
 void CIrrDeviceMacOSX::enableDragDrop(bool enable, drop_callback_function_t dragCheck)
 {
 	if (enable) {
-		[Window registerForDraggedTypes:[NSArray arrayWithObjects:NSStringPboardType,NSFilenamesPboardType,nil]];
+		[Window registerForDraggedTypes:[NSArray arrayWithObjects:NSPasteboardTypeString,NSFilenamesPboardType,nil]];
 		dragAndDropCheck = dragCheck;
 	} else {
 		[Window unregisterDraggedTypes];

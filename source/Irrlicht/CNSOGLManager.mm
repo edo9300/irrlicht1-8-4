@@ -7,6 +7,10 @@
 #ifdef _IRR_COMPILE_WITH_NSOGL_MANAGER_
 
 #include "os.h"
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
+#define NSOpenGLContextParameterSwapInterval NSOpenGLCPSwapInterval
+#endif
 
 namespace irr
 {
@@ -170,7 +174,7 @@ bool CNSOGLManager::generateContext()
     NSOpenGLContext* Context = [[NSOpenGLContext alloc] initWithFormat:PixelFormat shareContext:nil];
     
     GLint Vsync = Params.Vsync ? 1 : 0;
-    [Context setValues:&Vsync forParameter:NSOpenGLCPSwapInterval];
+    [Context setValues:&Vsync forParameter:NSOpenGLContextParameterSwapInterval];
 
 	if (Context == nil)
 	{
@@ -244,7 +248,7 @@ bool CNSOGLManager::swapBuffers()
 void CNSOGLManager::swapInterval(int interval)
 {
     GLint value = interval;
-	[(NSOpenGLContext*)CurrentContext.OpenGLOSX.Context setValues:&value forParameter:NSOpenGLCPSwapInterval];
+	[(NSOpenGLContext*)CurrentContext.OpenGLOSX.Context setValues:&value forParameter:NSOpenGLContextParameterSwapInterval];
 }
 
 }
