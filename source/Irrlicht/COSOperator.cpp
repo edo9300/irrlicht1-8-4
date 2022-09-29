@@ -15,10 +15,6 @@
 #include <sys/types.h>
 #ifdef _IRR_OSX_PLATFORM_
 #include <sys/sysctl.h>
-#include <AvailabilityMacros.h>
-#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
-#define NSPasteboardTypeString NSStringPboardType
-#endif
 #endif
 #endif
 #endif
@@ -37,6 +33,13 @@
 #endif
 
 #include "fast_atof.h"
+
+#ifdef _IRR_OSX_PLATFORM_
+#include <AvailabilityMacros.h>
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_14
+#define NSPasteboardTypeString NSStringPboardType
+#endif
+#endif
 
 namespace irr
 {

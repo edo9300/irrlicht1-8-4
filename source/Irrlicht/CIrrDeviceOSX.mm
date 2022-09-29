@@ -49,10 +49,10 @@
 #include <IOKit/hid/IOHIDLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
 #include <AvailabilityMacros.h>
-#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_14
 #define NSPasteboardTypeString NSStringPboardType
 #endif
-#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
+#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_12
 #define NSEventModifierFlagControl NSControlKeyMask
 #define NSEventModifierFlagCommand NSCommandKeyMask
 #define NSWindowStyleMaskTitled NSTitledWindowMask

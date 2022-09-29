@@ -8,7 +8,7 @@
 
 #include "os.h"
 #include <AvailabilityMacros.h>
-#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_14
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_14
 #define NSOpenGLContextParameterSwapInterval NSOpenGLCPSwapInterval
 #endif
 
