@@ -61,7 +61,9 @@ bool CNSOGLManager::generateSurface()
             NSOpenGLPFASampleBuffers, 1,
             NSOpenGLPFASamples, Params.AntiAlias,
             NSOpenGLPFAStencilSize, static_cast<NSOpenGLPixelFormatAttribute>(Params.Stencilbuffer ? 1 : 0),
+#if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
             NSOpenGLPFAAllowOfflineRenderers,
+#endif
             //NSOpenGLPFAFullScreen,
             0
         };
@@ -173,8 +175,10 @@ bool CNSOGLManager::generateContext()
 {
     NSOpenGLContext* Context = [[NSOpenGLContext alloc] initWithFormat:PixelFormat shareContext:nil];
     
+#if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
     GLint Vsync = Params.Vsync ? 1 : 0;
     [Context setValues:&Vsync forParameter:NSOpenGLContextParameterSwapInterval];
+#endif
 
 	if (Context == nil)
 	{
@@ -247,8 +251,10 @@ bool CNSOGLManager::swapBuffers()
 
 void CNSOGLManager::swapInterval(int interval)
 {
+#if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
     GLint value = interval;
 	[(NSOpenGLContext*)CurrentContext.OpenGLOSX.Context setValues:&value forParameter:NSOpenGLContextParameterSwapInterval];
+#endif
 }
 
 }

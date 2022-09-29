@@ -11,9 +11,6 @@
 #import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
-#ifndef __MAC_10_6
-#import <Carbon/Carbon.h>
-#endif
 
 #include "CIrrDeviceOSX.h"
 
@@ -49,10 +46,13 @@
 #include <IOKit/hid/IOHIDLib.h>
 #include <IOKit/hid/IOHIDKeys.h>
 #include <AvailabilityMacros.h>
-#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_14
+#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
+#import <Carbon/Carbon.h>
+#endif
+#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_14
 #define NSPasteboardTypeString NSStringPboardType
 #endif
-#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_12
+#if !defined(MAC_OS_X_VERSION_10_12) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_12
 #define NSEventModifierFlagControl NSControlKeyMask
 #define NSEventModifierFlagCommand NSCommandKeyMask
 #define NSWindowStyleMaskTitled NSTitledWindowMask
@@ -333,7 +333,7 @@ static void getJoystickDeviceInfo (io_object_t hidDevice, CFMutableDictionaryRef
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
 // only OSX 10.5 seems to not need these defines...
-#if !defined(__MAC_10_5) || defined(__MAC_10_6)
+#if (!defined(__MAC_10_5) || defined(__MAC_10_6)) && !defined(__MAC_10_7)
 // Contents from Events.h from Carbon/HIToolbox but we need it with Cocoa too
 // and for some reason no Cocoa equivalent of these constants seems provided.
 // So I'm doing like everyone else and using copy-and-paste.
@@ -725,6 +725,8 @@ static bool firstLaunch = true;
     NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
 	for (NSString *path in fileArray) {		
 		NSURL *fileURL = [NSURL fileURLWithPath:path];
+		
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 		NSNumber *isAlias = nil;
 
 		[fileURL getResourceValue:&isAlias forKey:NSURLIsAliasFileKey error:nil];
@@ -745,6 +747,8 @@ static bool firstLaunch = true;
 				}
 			}
 		}
+#endif
+
 		irrevent.DropEvent.DropType = irr::DROP_FILE;
 		if (!dispatch(irrevent, [fileURL path]))
 			return NO;
@@ -834,7 +838,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 CIrrDeviceMacOSX::~CIrrDeviceMacOSX()
 {
 	[SoftwareDriverTarget release];
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 	[NSApp setPresentationOptions:(NSApplicationPresentationDefault)];
 #else
 	SetSystemUIMode(kUIModeNormal, kUIOptionAutoShowMenuBar);
@@ -904,7 +908,7 @@ bool CIrrDeviceMacOSX::createWindow()
     Display = CGMainDisplayID();
     
     CGRect displayRect;
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     CGDisplayModeRef displaymode, olddisplaymode;
 #else
     CFDictionaryRef displaymode, olddisplaymode;
@@ -943,7 +947,7 @@ bool CIrrDeviceMacOSX::createWindow()
     {
         IsFullscreen = true;
         
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
         displaymode = CGDisplayCopyDisplayMode(Display);
         
         CFArrayRef Modes = CGDisplayCopyAllDisplayModes(Display, NULL);
@@ -976,7 +980,7 @@ bool CIrrDeviceMacOSX::createWindow()
         
         if (displaymode != NULL)
         {
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
             olddisplaymode = CGDisplayCopyDisplayMode(Display);
 #else
             olddisplaymode = CGDisplayCurrentMode(Display);
@@ -985,7 +989,7 @@ bool CIrrDeviceMacOSX::createWindow()
             error = CGCaptureAllDisplays();
             if (error == CGDisplayNoErr)
             {
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
                 error = CGDisplaySetDisplayMode(Display, displaymode, NULL);
 #else
                 error = CGDisplaySwitchToMode(Display, displaymode);
@@ -1031,7 +1035,7 @@ bool CIrrDeviceMacOSX::createWindow()
         
         if (IsFullscreen) //hide menus in fullscreen mode only
         {
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
             [NSApp setPresentationOptions:(NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar)];
 #else
             SetSystemUIMode(kUIModeAllHidden, kUIOptionAutoShowMenuBar);
@@ -1111,20 +1115,28 @@ void CIrrDeviceMacOSX::createDriver()
                 
 				if (Window) 
 				{
+#if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
 					@try {
 						[[Window contentView] setWantsBestResolutionOpenGLSurface:NO];
 					} 
 					@catch(NSException* exception){
 					}
+#endif
 					[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context setView:[Window contentView]];
 				}
 				else 
 				{
-					[(NSView*)CreationParams.WindowId setWantsBestResolutionOpenGLSurface:NO];
+#if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
+					@try {
+						[(NSView*)CreationParams.WindowId setWantsBestResolutionOpenGLSurface:NO];
+					} 
+					@catch(NSException* exception){
+					}
+#endif
 					[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context setView:(NSView*)CreationParams.WindowId];
 				}
 
-#ifndef __MAC_10_6
+#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
                 CGLContextObj CGLContext = (CGLContextObj)[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context CGLContextObj];
                 CGLSetFullScreen(CGLContext);
 #endif
@@ -1380,12 +1392,16 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 
 bool CIrrDeviceMacOSX::isWindowActive() const
 {
+#if !defined(MAC_OS_X_VERSION_10_9) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
+	return IsActive;
+#else
 	@try {
 		return IsActive && Window != NULL && [Window occlusionState] & NSWindowOcclusionStateVisible;
 	} 
 	@catch(NSException* exception){
 		return IsActive;
 	}
+#endif
 }
 
 
@@ -1590,7 +1606,7 @@ void CIrrDeviceMacOSX::setMouseLocation(int x,int y)
 	c.x = p.x;
 	c.y = p.y;
 
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     CGEventRef ev = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, c, kCGMouseButtonLeft);
     CGEventPost(kCGHIDEventTap, ev);
     CFRelease(ev);
@@ -1618,9 +1634,11 @@ void CIrrDeviceMacOSX::changeCursorIcon(gui::ECURSOR_ICON iconId)
 	case gui::ECURSOR_ICON::ECI_IBEAM:
 		currentCursor = [NSCursor IBeamCursor];
 		break;
+#if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
 	case gui::ECURSOR_ICON::ECI_NO:
 		currentCursor = [NSCursor operationNotAllowedCursor];
 		break;
+#endif
 	}
 	[Window invalidateCursorRectsForView:[Window contentView]];
 }
@@ -1809,11 +1827,15 @@ core::position2di CIrrDeviceMacOSX::getWindowPosition()
 void CIrrDeviceMacOSX::presentSoftwareImage(NSRect dirtyRect) {
 	NSImage *nsimage = [[[NSImage alloc] init] autorelease];
 	[nsimage addRepresentation:SoftwareDriverTarget];
+#if !defined(MAC_OS_X_VERSION_10_9) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
+	[SoftwareDriverTarget drawInRect:dirtyRect];
+#else
 	@try {
 		[nsimage drawInRect:dirtyRect];
 	} @catch(NSException* exception) {
 		[SoftwareDriverTarget drawInRect:dirtyRect];
 	}
+#endif
 }
 
 NSCursor* CIrrDeviceMacOSX::getCurrentNSCursor() {
@@ -2161,7 +2183,7 @@ video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()
 		CGDirectDisplayID display;
 		display = CGMainDisplayID();
 
-#ifdef __MAC_10_6
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 		CFArrayRef Modes = CGDisplayCopyAllDisplayModes(display, NULL);
 
 		for(int i = 0; i < CFArrayGetCount(Modes); ++i)
@@ -2206,7 +2228,7 @@ video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()
 			long width = GetDictionaryLong(mode, kCGDisplayWidth);
 			long height = GetDictionaryLong(mode, kCGDisplayHeight);
 			// long refresh = GetDictionaryLong((mode), kCGDisplayRefreshRate);
-			VideoModeList.addMode(core::dimension2d<u32>(width, height),
+			VideoModeList->addMode(core::dimension2d<u32>(width, height),
 				bitsPerPixel);
 		}
 #endif
