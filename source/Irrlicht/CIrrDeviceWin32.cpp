@@ -1042,8 +1042,6 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 namespace irr
 {
 
-bool CIrrDeviceWin32::is_vista_or_greater = false;
-
 //! constructor
 CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
@@ -1058,9 +1056,14 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 
 	// get windows version and create OS operator
 	core::stringc winversion;
-	getWindowsVersion(winversion);
-	Operator = new COSOperator(winversion, EIDT_WIN32);
+	core::stringc compatWinversion;
+	getWindowsVersion(winversion, compatWinversion);
 	os::Printer::log(winversion.c_str(), ELL_INFORMATION);
+	if(compatWinversion.size()) {
+		os::Printer::log("Running in compatibility mode for", compatWinversion.data(), ELL_INFORMATION);
+		winversion.append(" (Compat mode: ").append(compatWinversion).append(")");
+	}
+	Operator = new COSOperator(winversion, EIDT_WIN32);
 
 	// get handle to exe file
 	HINSTANCE hInstance = GetModuleHandle(0);
@@ -1732,11 +1735,14 @@ typedef BOOL (WINAPI *PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 #ifndef SM_SERVERR2
 #define SM_SERVERR2 89
 #endif
+#ifndef PROCESSOR_ARCHITECTURE_ARM
+#define PROCESSOR_ARCHITECTURE_ARM 5
+#endif
 #ifndef PROCESSOR_ARCHITECTURE_ARM64
 #define PROCESSOR_ARCHITECTURE_ARM64 12
 #endif
 
-void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
+void CIrrDeviceWin32::getWindowsVersion(core::stringc& out, core::stringc& compatModeVersion)
 {
 	auto GetWineVersion = [&out] {
 		auto lib = GetModuleHandle(TEXT("ntdll.dll"));
@@ -1752,6 +1758,7 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		out.append(wine_get_build_id()).append(" ");
 		return true;
 	};
+
 	auto GetRegEntry = [](const TCHAR* path, const TCHAR* name, DWORD flag, void* buff, DWORD size) {
 		HKEY hKey;
 		DWORD dwRetFlag;
@@ -1761,50 +1768,61 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 		RegCloseKey(hKey);
 		return ret == ERROR_SUCCESS && (dwRetFlag & flag) != 0;
 	};
+
+	if(GetWineVersion())
+		return;
+
 	OSVERSIONINFOEX osvi{ sizeof(OSVERSIONINFOEX) };
 
 	if(!GetVersionEx((OSVERSIONINFO*)&osvi) &&
 	   (osvi = { sizeof(OSVERSIONINFO) }, !GetVersionEx((OSVERSIONINFO*)&osvi)))
 		return;
 
-	auto ServerOrWorkstation = [workstation = osvi.wProductType == VER_NT_WORKSTATION,&out](const char* str1, const char* str2) {
-		out.append(workstation ? str1 : str2);
-	};
+	bool compatMode = false;
 
-	if(GetWineVersion()) {
-		is_vista_or_greater = true;
-		return;
+	{
+		DWORD actualMajorVersion;
+		DWORD actualMinorVersion;
+		DWORD actualBuildNumber;
+		if(GetWindowsVersionViaWMI(out, actualMajorVersion, actualMinorVersion, actualBuildNumber)) {
+			compatMode = osvi.dwMajorVersion != actualMajorVersion || osvi.dwMinorVersion != actualMinorVersion || osvi.dwBuildNumber != actualBuildNumber;
+			if(!compatMode)
+				return;
+		}
 	}
 
-	if(osvi.dwMinorVersion >= 6)
-		is_vista_or_greater = true;
+	auto& realVersionOut = compatMode ? compatModeVersion : out;
+
+	auto ServerOrWorkstation = [workstation = osvi.wProductType == VER_NT_WORKSTATION,&realVersionOut](const char* str1, const char* str2) {
+		realVersionOut.append(workstation ? str1 : str2);
+	};
 
 	switch(osvi.dwPlatformId) {
 		case VER_PLATFORM_WIN32_NT:
-			out.append("Microsoft Windows ");
+			realVersionOut.append("Microsoft Windows ");
 			switch(osvi.dwMajorVersion) {
 				case 1:
 				case 2:
 				case 3:
 				case 4:
-					out.append("NT ");
+					realVersionOut.append("NT ");
 					break;
 				case 5:
 					switch(osvi.dwMinorVersion) {
 						case 0:
-							out.append("2000 ");
+							realVersionOut.append("2000 ");
 							break;
 						case 1:
-							out.append("XP ");
+							realVersionOut.append("XP ");
 							break;
 						case 2:
 							if(osvi.wProductType == VER_NT_WORKSTATION) {
-								out.append("XP ");
+								realVersionOut.append("XP ");
 								break;
 							}
-							out.append("Server 2003 ");
+							realVersionOut.append("Server 2003 ");
 							if(GetSystemMetrics(SM_SERVERR2))
-								out.append("R2 ");
+								realVersionOut.append("R2 ");
 							break;
 						default:
 							break;
@@ -1832,20 +1850,20 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 						case 0:
 							if(osvi.wProductType == VER_NT_WORKSTATION) {
 								if(osvi.dwBuildNumber >= 22000)
-									out.append("11 ");
+									realVersionOut.append("11 ");
 								else
-									out.append("10 ");
+									realVersionOut.append("10 ");
 							} else {
-								out.append("Server ");
+								realVersionOut.append("Server ");
 								switch(osvi.dwBuildNumber) {
 								case 14393:
-									out.append("2016 ");
+									realVersionOut.append("2016 ");
 									break;
 								case 17763:
-									out.append("2019 ");
+									realVersionOut.append("2019 ");
 									break;
 								case 20348:
-									out.append("2022 ");
+									realVersionOut.append("2022 ");
 									break;
 								default:
 									break;
@@ -1869,36 +1887,36 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 						case PRODUCT_ULTIMATE:
 						case PRODUCT_ULTIMATE_E:
 						case PRODUCT_ULTIMATE_N:
-							out.append("Ultimate Edition ");
+							realVersionOut.append("Ultimate Edition ");
 							break;
 						case PRODUCT_PROFESSIONAL:
 						case PRODUCT_PROFESSIONAL_E:
 						case PRODUCT_PROFESSIONAL_N:
-							out.append("Professional Edition ");
+							realVersionOut.append("Professional Edition ");
 							break;
 						case PRODUCT_HOME_BASIC:
 						case PRODUCT_HOME_BASIC_E:
 						case PRODUCT_HOME_BASIC_N:
-							out.append("Home Basic Edition ");
+							realVersionOut.append("Home Basic Edition ");
 							break;
 						case PRODUCT_HOME_PREMIUM:
 						case PRODUCT_HOME_PREMIUM_E:
 						case PRODUCT_HOME_PREMIUM_N:
-							out.append("Home Premium Edition ");
+							realVersionOut.append("Home Premium Edition ");
 							break;
 						case PRODUCT_ENTERPRISE:
 						case PRODUCT_ENTERPRISE_E:
 						case PRODUCT_ENTERPRISE_N:
-							out.append("Enterprise Edition ");
+							realVersionOut.append("Enterprise Edition ");
 							break;
 						case PRODUCT_BUSINESS:
 						case PRODUCT_BUSINESS_N:
-							out.append("Business Edition ");
+							realVersionOut.append("Business Edition ");
 							break;
 						case PRODUCT_STARTER:
 						case PRODUCT_STARTER_E:
 						case PRODUCT_STARTER_N:
-							out.append("Starter Edition ");
+							realVersionOut.append("Starter Edition ");
 							break;
 					}
 				}
@@ -1909,19 +1927,19 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 			{
 #ifndef __BORLANDC__
 				if( osvi.wSuiteMask & VER_SUITE_PERSONAL )
-					out.append("Personal ");
+					realVersionOut.append("Personal ");
 				else
-					out.append("Professional ");
+					realVersionOut.append("Professional ");
 #endif
 			}
 			else if (osvi.wProductType == VER_NT_SERVER)
 			{
 				if( osvi.wSuiteMask & VER_SUITE_DATACENTER )
-					out.append("DataCenter Server ");
+					realVersionOut.append("DataCenter Server ");
 				else if( osvi.wSuiteMask & VER_SUITE_ENTERPRISE )
-					out.append("Advanced Server ");
+					realVersionOut.append("Advanced Server ");
 				else
-					out.append("Server ");
+					realVersionOut.append("Server ");
 			}
 #endif
 		}
@@ -1932,11 +1950,11 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 			TCHAR szProductType[80];
 			if(GetRegEntry(path, __TEXT("ProductType"), REG_SZ, szProductType, sizeof(szProductType))) {
 				if(_tcsicmp(__TEXT("WINNT"), szProductType) == 0)
-					out.append("Professional ");
+					realVersionOut.append("Professional ");
 				if(_tcsicmp(__TEXT("LANMANNT"), szProductType) == 0)
-					out.append("Server ");
+					realVersionOut.append("Server ");
 				if(_tcsicmp(__TEXT("SERVERNT"), szProductType) == 0)
-					out.append("Advanced Server ");
+					realVersionOut.append("Advanced Server ");
 			}
 		}
 
@@ -1973,7 +1991,7 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 			}
 		}
 
-		out.append(tmp);
+		realVersionOut.append(tmp);
 		{
 			using GetNativeSystemInfo_t = VOID(WINAPI*)(LPSYSTEM_INFO);
 			auto pGetNativeSystemInfo = (GetNativeSystemInfo_t)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo");
@@ -1982,19 +2000,19 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 				pGetNativeSystemInfo(&info);
 				switch(info.wProcessorArchitecture) {
 					case PROCESSOR_ARCHITECTURE_AMD64:
-						out.append(" x64");
+						realVersionOut.append(" x64");
 						break;
 					case PROCESSOR_ARCHITECTURE_ARM:
-						out.append(" ARM");
+						realVersionOut.append(" ARM");
 						break;
 					case PROCESSOR_ARCHITECTURE_ARM64:
-						out.append(" ARM64");
+						realVersionOut.append(" ARM64");
 						break;
 					case PROCESSOR_ARCHITECTURE_IA64:
-						out.append(" Itanium");
+						realVersionOut.append(" Itanium");
 						break;
 					case PROCESSOR_ARCHITECTURE_INTEL:
-						out.append(" x86");
+						realVersionOut.append(" x86");
 						break;
 					default:
 						break;
@@ -2007,25 +2025,25 @@ void CIrrDeviceWin32::getWindowsVersion(core::stringc& out)
 
 			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 0)
 			{
-				out.append("Microsoft Windows 95 ");
+				realVersionOut.append("Microsoft Windows 95 ");
 				if ( osvi.szCSDVersion[1] == 'C' || osvi.szCSDVersion[1] == 'B' )
-					out.append("OSR2 " );
+					realVersionOut.append("OSR2 " );
 			}
 
 			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 10)
 			{
-				out.append("Microsoft Windows 98 ");
+				realVersionOut.append("Microsoft Windows 98 ");
 				if ( osvi.szCSDVersion[1] == 'A' )
-					out.append( "SE " );
+					realVersionOut.append( "SE " );
 			}
 
 			if (osvi.dwMajorVersion == 4 && osvi.dwMinorVersion == 90)
-				out.append("Microsoft Windows Me ");
+				realVersionOut.append("Microsoft Windows Me ");
 
 			break;
 
 		case VER_PLATFORM_WIN32s:
-			out.append("Microsoft Win32s ");
+			realVersionOut.append("Microsoft Win32s ");
 			break;
 	}
 }
@@ -2323,12 +2341,6 @@ void CIrrDeviceWin32::ReportLastWinApiError()
 			MessageBox(NULL, __TEXT("Unknown error"), pszCaption, MB_OK|MB_ICONERROR);
 		}
 	}
-}
-
-// Same function Windows offers in VersionHelpers.h, but we can't use that as it's not available in older sdk's (minimum is SDK 8.1)
-bool CIrrDeviceWin32::isWindowsVistaOrGreater()
-{
-	return is_vista_or_greater;
 }
 
 // Convert an Irrlicht texture to a Windows cursor
