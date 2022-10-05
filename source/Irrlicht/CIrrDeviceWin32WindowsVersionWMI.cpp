@@ -124,7 +124,7 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 		// Step 7: -------------------------------------------------
 		// Get the data from the query in step 6 -------------------
 		ULONG uReturn = 0;
-		HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
+		HRESULT hr = pEnumerator->Next(500, 1, &pclsObj, &uReturn);
 		if(FAILED(hr) || uReturn == 0)
 			return Error();
 
