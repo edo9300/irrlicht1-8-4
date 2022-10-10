@@ -19,6 +19,14 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 	int systemMajor, systemMinor, systemBuild, servicePackMajor, servicePackMinor;
 	core::stringw wSystemCaption;
 	{
+		class my_bstr_t {
+			BSTR my_bstr;
+			public:
+			my_bstr_t(const wchar_t* str) : my_bstr(SysAllocString(str)) {}
+			~my_bstr_t() { SysFreeString(my_bstr); }
+			operator BSTR const() { return my_bstr; }
+		};
+
 		// Step 1: --------------------------------------------------
 		// Initialize COM. ------------------------------------------
 
@@ -84,7 +92,7 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 		// the current user and obtain pointer pSvc
 		// to make IWbemServices calls.
 		CHECK(pLoc->ConnectServer(
-			L"ROOT\\CIMV2", // Object path of WMI namespace
+			my_bstr_t(L"ROOT\\CIMV2"), // Object path of WMI namespace
 			nullptr,				 // User name. nullptr = current user
 			nullptr,				 // User password. nullptr = current
 			nullptr,				 // Locale. nullptr indicates current
@@ -114,8 +122,8 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 
 		// For example, get the name of the operating system
 		CHECK(pSvc->ExecQuery(
-			L"WQL",
-			L"SELECT BuildNumber, Name, Version, ServicePackMajorVersion, ServicePackMinorVersion FROM Win32_OperatingSystem",
+			my_bstr_t(L"WQL"),
+			my_bstr_t(L"SELECT BuildNumber, Name, Version, ServicePackMajorVersion, ServicePackMinorVersion FROM Win32_OperatingSystem"),
 			WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
 			nullptr,
 			&pEnumerator
@@ -139,16 +147,16 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 #define GET(name,type,...) do {VariantInit(&vtProp); CHECK(Get(name, type)); __VA_ARGS__ VariantClear(&vtProp);} while(0)
 
 		// Get the value of the Name property
-		GET(L"Name", CIM_STRING, {
+		GET(my_bstr_t(L"Name"), CIM_STRING, {
 			wSystemCaption = vtProp.bstrVal;
 		});
 
-		GET(L"Version", CIM_STRING, {
+		GET(my_bstr_t(L"Version"), CIM_STRING, {
 			if(swscanf(vtProp.bstrVal, L"%d.%d.%d", &systemMajor, &systemMinor, &systemBuild) != 3)
 				return Error();
 		});
 
-		GET(L"ServicePackMajorVersion", CIM_UINT16, {
+		GET(my_bstr_t(L"ServicePackMajorVersion"), CIM_UINT16, {
 			servicePackMajor = vtProp.uiVal;
 		});
 
@@ -165,7 +173,10 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 		wSystemCaption = wSystemCaption.subString(0, pos).trim();
 
 	wSystemCaption.remove(L'\xae'); //U+00AE Registered Sign
+	wSystemCaption.remove(L'\x2122'); //U+2122 Trade Mark Sign
 	wSystemCaption.remove(L"(R)");
+	if((pos = wSystemCaption.find(L"Windows")) != -1) // Make sure the string always starts with "Microsoft" windows
+		wSystemCaption = core::stringw(L"Microsoft ") + wSystemCaption.subString(pos, wSystemCaption.size());
 	char systemCaption[512];
 	{
 		const size_t lenOld = (wSystemCaption.size() + 1) * sizeof(wchar_t);
