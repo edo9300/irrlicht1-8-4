@@ -235,7 +235,7 @@ static void PHYSFS_utf8ToUcs4(const char *src, u32 *dst, u64 len)
 } /* PHYSFS_utf8ToUcs4 */
 
 #else
-static void PHYSFS_utf8ToUcs2(const char *src, u16 *dst, u64 len)
+static void PHYSFS_utf8ToUtf16(const char *src, u16 *dst, u64 len)
 {
 	len -= sizeof (u16);   /* save room for null char. */
 	while (len >= sizeof (u16))
@@ -247,15 +247,21 @@ static void PHYSFS_utf8ToUcs2(const char *src, u16 *dst, u64 len)
 			cp = UNICODE_BOGUS_CHAR_CODEPOINT;
 
 		/* !!! BLUESKY: UTF-16 surrogates? */
-		if (cp > 0xFFFF)
-			cp = UNICODE_BOGUS_CHAR_CODEPOINT;
-
-		*(dst++) = cp;
-		len -= sizeof (u16);
+		if (cp > 0xFFFF) {
+			if((len - 1) >= sizeof(u16))
+				break;
+			u32 unicode = cp - 0x10000;
+			*(dst++) = (u16)((unicode >> 10) | 0xd800);
+			*(dst++) = (u16)((unicode & 0x3ff) | 0xdc00);
+			len -= 2 * sizeof(u16);
+		} else {
+			*(dst++) = (u16)cp;
+			len -= sizeof(u16);
+		}
 	} /* while */
 
 	*dst = 0;
-} /* PHYSFS_utf8ToUcs2 */
+} /* PHYSFS_utf8ToUtf16 */
 #endif
 
 static void utf8fromcodepoint(u32 cp, char **_dst, u64 *_len)
@@ -336,35 +342,40 @@ static void utf8fromcodepoint(u32 cp, char **_dst, u64 *_len)
 	*_len = len;
 } /* utf8fromcodepoint */
 
-#define UTF8FROMTYPE(typ, src, dst, len) \
-	if (len == 0) return; \
-	len--;	\
-	while (len) \
-	{ \
-		const u32 cp = (u32) ((typ) (*(src++))); \
-		if (cp == 0) break; \
-		utf8fromcodepoint(cp, &dst, &len); \
-	} \
-	*dst = '\0'; \
-
-#ifndef _WIN32
 static void PHYSFS_utf8FromUcs4(const u32 *src, char *dst, u64 len)
 {
-	UTF8FROMTYPE(u32, src, dst, len);
+	if(len == 0) return;
+	len--;
+	while(len) {
+		const u32 cp = *(src++);
+		if(cp == 0) break;
+		utf8fromcodepoint(cp, &dst, &len);
+	}
+	*dst = '\0';
 } /* PHYSFS_utf8FromUcs4 */
-#else
-static void PHYSFS_utf8FromUcs2(const u16 *src, char *dst, u64 len)
-{
-	UTF8FROMTYPE(u64, src, dst, len);
-} /* PHYSFS_utf8FromUcs4 */
-#endif
 
-#undef UTF8FROMTYPE
+static void PHYSFS_utf8FromUtf16(const u16 *src, char *dst, u64 len)
+{
+	if(len == 0) return;
+	len--;
+	while(len) {
+		u32 cur = *(src++);
+		u32 cp = 0;
+		if((cur - 0xd800u) >= 0x800u) {
+			cp = (u32)cur;
+		} else if((cur & 0xfffffc00) == 0xd800u && (*src & 0xfffffc00u) == 0xdc00u) {
+			cp = (cur << 10) + *(src++) - 0x35fdc00u;
+		} else break;
+		if(cp == 0) break;
+		utf8fromcodepoint(cp, &dst, &len);
+	}
+	*dst = '\0';
+} /* PHYSFS_utf8FromUcs4 */
 
 void utf8ToWchar(const char *in, wchar_t *out, const u64 len)
 {
 #ifdef _WIN32
-	PHYSFS_utf8ToUcs2(in, (u16 *) out, len);
+	PHYSFS_utf8ToUtf16(in, (u16 *) out, len);
 #else
 	PHYSFS_utf8ToUcs4(in, (u32 *) out, len);
 #endif
@@ -373,7 +384,7 @@ void utf8ToWchar(const char *in, wchar_t *out, const u64 len)
 void wcharToUtf8(const wchar_t *in, char *out, const u64 len)
 {
 #ifdef _WIN32
-	PHYSFS_utf8FromUcs2((const u16 *) in, out, len);
+	PHYSFS_utf8FromUtf16((const u16 *) in, out, len);
 #else
 	PHYSFS_utf8FromUcs4((const u32 *) in, out, len);
 #endif
