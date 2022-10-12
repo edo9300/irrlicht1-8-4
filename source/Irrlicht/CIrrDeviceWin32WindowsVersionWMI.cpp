@@ -138,7 +138,7 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 
 		auto Get = [&pclsObj, &vtProp](wchar_t* name, CIMTYPE type) -> HRESULT {
 			CIMTYPE retType;
-			auto res = pclsObj->Get(name, 0, &vtProp, &retType, 0);
+			auto res = pclsObj->Get(my_bstr_t(name), 0, &vtProp, &retType, 0);
 			if(!FAILED(res) && retType != type)
 				return -1;
 			return res;
@@ -147,16 +147,16 @@ bool CIrrDeviceWin32::GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVe
 #define GET(name,type,...) do {VariantInit(&vtProp); CHECK(Get(name, type)); __VA_ARGS__ VariantClear(&vtProp);} while(0)
 
 		// Get the value of the Name property
-		GET(my_bstr_t(L"Name"), CIM_STRING, {
+		GET(L"Name", CIM_STRING, {
 			wSystemCaption = vtProp.bstrVal;
 		});
 
-		GET(my_bstr_t(L"Version"), CIM_STRING, {
+		GET(L"Version", CIM_STRING, {
 			if(swscanf(vtProp.bstrVal, L"%d.%d.%d", &systemMajor, &systemMinor, &systemBuild) != 3)
 				return Error();
 		});
 
-		GET(my_bstr_t(L"ServicePackMajorVersion"), CIM_UINT16, {
+		GET(L"ServicePackMajorVersion", CIM_UINT16, {
 			servicePackMajor = vtProp.uiVal;
 		});
 
