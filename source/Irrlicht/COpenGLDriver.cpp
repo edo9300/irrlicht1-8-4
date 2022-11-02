@@ -52,7 +52,7 @@ bool COpenGLDriver::initDriver()
 	if(!genericDriverInit())
 		return false;
 	
-	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
+	ContextManager->swapInterval(Params.Vsync);
 
 	return true;
 }
@@ -4520,10 +4520,10 @@ COpenGLCacheHandler* COpenGLDriver::getCacheHandler() const
 	return CacheHandler;
 }
 
-void COpenGLDriver::setVsync(bool enabled) {
-	if(Params.Vsync == enabled)
+void COpenGLDriver::setSwapInterval(int interval) {
+	if(Params.Vsync == interval)
 		return;
-	ContextManager->swapInterval((Params.Vsync = enabled) ? 1 : 0);
+	ContextManager->swapInterval(Params.Vsync = interval);
 }
 
 

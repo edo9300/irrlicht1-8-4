@@ -703,8 +703,8 @@ namespace video
 
 		virtual bool checkDriverReset() _IRR_OVERRIDE_ {return false;}
 
-		//! Toggles vsync
-		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
+		//! Toggles vsync with more granularity
+		virtual void setSwapInterval(int enabled) _IRR_OVERRIDE_ {}
 	protected:
 
 		//! deletes all textures

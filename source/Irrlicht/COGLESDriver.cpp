@@ -53,7 +53,7 @@ COGLES1Driver::COGLES1Driver(const SIrrlichtCreationParameters& params, io::IFil
 
 	initialized = genericDriverInit(windowSize, params.Stencilbuffer);
 	
-	ContextManager->swapInterval(Params.Vsync ? 1 : 0);
+	ContextManager->swapInterval(Params.Vsync);
 }
 
 COGLES1Driver::~COGLES1Driver()
@@ -3378,11 +3378,10 @@ COGLES1CacheHandler* COGLES1Driver::getCacheHandler() const
 	return CacheHandler;
 }
 
-void COGLES1Driver::setVsync(bool enabled)
-{
-	if (Params.Vsync == enabled)
+void COGLES1Driver::setSwapInterval(int interval) {
+	if(Params.Vsync == interval)
 		return;
-	ContextManager->swapInterval((Params.Vsync = enabled) ? 1 : 0);
+	ContextManager->swapInterval(Params.Vsync = interval);
 }
 
 } // end namespace

@@ -313,8 +313,8 @@ namespace video
 
 		COGLES1CacheHandler* getCacheHandler() const;
 
-		//! Toggles vsync
-		virtual void setVsync(bool enabled) _IRR_OVERRIDE_;
+		//! Toggles vsync with more granularity
+		virtual void setSwapInterval(int interval) _IRR_OVERRIDE_;
 
 		bool driverInitialized() { return initialized; };
 
