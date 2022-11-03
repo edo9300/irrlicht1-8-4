@@ -250,24 +250,10 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 
 	present.BackBufferCount = 1;
 	present.EnableAutoDepthStencil = TRUE;
-	switch(Params.Vsync) {
-	default:
-	case 0:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-		break;
-	case 1:
+	//This driver only supports vsync on/off
+	Params.Vsync = !!Params.Vsync;
+	if(Params.Vsync)
 		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-		break;
-	case 2:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
-		break;
-	case 3:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_THREE;
-		break;
-	case 4:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_FOUR;
-		break;
-	}
 
 	if (Params.Fullscreen)
 	{
@@ -3961,26 +3947,12 @@ void CD3D9CallBridge::setBlend(bool enable)
 void CD3D9Driver::setSwapInterval(int interval) {
 	if(!pID3DDevice)
 		return;
-	if(Params.Vsync == interval)
+	if(Params.Vsync == !!interval)
 		return;
-	switch(Params.Vsync = interval) {
-	default:
-	case 0:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-		break;
-	case 1:
+	if(Params.Vsync = !!interval)
 		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-		break;
-	case 2:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_TWO;
-		break;
-	case 3:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_THREE;
-		break;
-	case 4:
-		present.PresentationInterval = D3DPRESENT_INTERVAL_FOUR;
-		break;
-	}
+	else
+		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 	reset();
 }
 
