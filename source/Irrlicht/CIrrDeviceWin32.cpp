@@ -818,11 +818,6 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 	case WM_KEYDOWN:
 	case WM_KEYUP:
 		{
-			if(dev && dev->GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
-				auto ev = dev->GetPrevKeyEvent();
-				dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
-				dev->postEventFromUser(ev);
-			}
 			BYTE allKeys[256];
 
 			event.EventType = irr::EET_KEY_INPUT_EVENT;
@@ -896,6 +891,14 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 			dev->GetPrevKeyEvent().KeyInput.Char = wParam;
 			auto ev = dev->GetPrevKeyEvent();
 			dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+			if(ev.EventType != irr::EET_KEY_INPUT_EVENT || ev.KeyInput.Key == irr::KEY_MENU || ev.KeyInput.Key == irr::KEY_LMENU || ev.KeyInput.Key == irr::KEY_RMENU) {
+				ev.EventType = irr::EET_KEY_INPUT_EVENT;
+				ev.KeyInput.PressedDown = true;
+				ev.KeyInput.Char = wParam;
+				ev.KeyInput.Key = irr::KEY_ACCEPT;
+				ev.KeyInput.Shift = 0;
+				ev.KeyInput.Control = 0;
+			}
 			dev->postEventFromUser(ev);
 		}
 		return 0;
@@ -2263,6 +2266,11 @@ void CIrrDeviceWin32::handleSystemMessages()
 		}
 		else
 		{
+			if(msg.message != WM_CHAR && GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
+				auto ev = GetPrevKeyEvent();
+				GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+				postEventFromUser(ev);
+			}
 			// conflict with deadkey handling.
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
