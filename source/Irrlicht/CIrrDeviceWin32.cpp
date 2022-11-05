@@ -736,12 +736,6 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		{-1, 0, 0}
 	};
 
-	if(dev && message != WM_CHAR && dev->GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
-		auto ev = dev->GetPrevKeyEvent();
-		dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
-		dev->postEventFromUser(ev);
-	}
-
 	// handle grouped events
 	messageMap * m = mouseMap;
 	while ( m->group >=0 && m->winMessage != message )
@@ -824,6 +818,11 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 	case WM_KEYDOWN:
 	case WM_KEYUP:
 		{
+			if(dev && dev->GetPrevKeyEvent().EventType != irr::EGUIET_FORCE_32_BIT) {
+				auto ev = dev->GetPrevKeyEvent();
+				dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
+				dev->postEventFromUser(ev);
+			}
 			BYTE allKeys[256];
 
 			event.EventType = irr::EET_KEY_INPUT_EVENT;
