@@ -6,7 +6,7 @@
 
 #ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
 
-#include <SDL/sdl.h>
+#include <SDL/SDL.h>
 
 namespace irr
 {
