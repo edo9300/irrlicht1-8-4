@@ -888,13 +888,13 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 
 	case WM_CHAR:
 		if(dev) {
-			dev->GetPrevKeyEvent().KeyInput.Char = wParam;
+			dev->GetPrevKeyEvent().KeyInput.Char = static_cast<wchar_t>(wParam);
 			auto ev = dev->GetPrevKeyEvent();
 			dev->GetPrevKeyEvent().EventType = irr::EGUIET_FORCE_32_BIT;
 			if(ev.EventType != irr::EET_KEY_INPUT_EVENT || ev.KeyInput.Key == irr::KEY_MENU || ev.KeyInput.Key == irr::KEY_LMENU || ev.KeyInput.Key == irr::KEY_RMENU) {
 				ev.EventType = irr::EET_KEY_INPUT_EVENT;
 				ev.KeyInput.PressedDown = true;
-				ev.KeyInput.Char = wParam;
+				ev.KeyInput.Char = static_cast<wchar_t>(wParam);
 				ev.KeyInput.Key = irr::KEY_ACCEPT;
 				ev.KeyInput.Shift = 0;
 				ev.KeyInput.Control = 0;
@@ -1007,7 +1007,7 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		event.EventType = irr::EET_KEY_INPUT_EVENT;
 		event.KeyInput.PressedDown = true;
 #ifdef _UNICODE
-		event.KeyInput.Char = wParam;
+		event.KeyInput.Char = static_cast<wchar_t>(wParam);
 #else
 		BYTE ch[3];
 		if(wParam >> 8) {

@@ -140,7 +140,7 @@ void COGLES2MaterialRenderer::init(s32& outMaterialTypeNr,
 			return;
 
 	for ( size_t i = 0; i < EVA_COUNT; ++i )
-			Driver->pglBindAttribLocation( Program, i, sBuiltInVertexAttributeNames[i]);
+			Driver->pglBindAttribLocation( Program, static_cast<GLuint>(i), sBuiltInVertexAttributeNames[i]);
 
 	if (!linkProgram())
 		return;
