@@ -518,14 +518,6 @@ bool CIrrDeviceSDL2::run()
 			if (irrevent.MouseInput.Event != irr::EMIE_MOUSE_MOVED)
 			{
 				postEventFromUser(irrevent);
-
-				if(SDL_event.button.clicks == 2) {
-					irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_DOUBLE_CLICK + irrevent.MouseInput.Event - EMIE_LMOUSE_PRESSED_DOWN);
-					postEventFromUser(irrevent);
-				} else if(SDL_event.button.clicks == 3) {
-					irrevent.MouseInput.Event = (EMOUSE_INPUT_EVENT)(EMIE_LMOUSE_TRIPLE_CLICK + irrevent.MouseInput.Event - EMIE_LMOUSE_PRESSED_DOWN);
-					postEventFromUser(irrevent);
-				}
 			}
 			break;
 
