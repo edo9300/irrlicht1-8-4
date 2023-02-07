@@ -221,7 +221,7 @@ u32 CIrrDeviceStub::checkSuccessiveClicks(s32 mouseX, s32 mouseY, EMOUSE_INPUT_E
 
 bool CIrrDeviceStub::transformToMultiClickEvent(irr::SEvent& event, s32 maxMouseOffset) {
 	if(event.MouseInput.Event >= irr::EMIE_LMOUSE_PRESSED_DOWN && event.MouseInput.Event <= irr::EMIE_MMOUSE_PRESSED_DOWN) {
-		irr::u32 clicks = checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event);
+		irr::u32 clicks = checkSuccessiveClicks(event.MouseInput.X, event.MouseInput.Y, event.MouseInput.Event, maxMouseOffset);
 		if(clicks == 2) {
 			event.MouseInput.Event = (irr::EMOUSE_INPUT_EVENT)(irr::EMIE_LMOUSE_DOUBLE_CLICK + event.MouseInput.Event - irr::EMIE_LMOUSE_PRESSED_DOWN);
 			return true;
