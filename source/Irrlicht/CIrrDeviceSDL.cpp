@@ -20,6 +20,7 @@
 #include <SDL/SDL_syswm.h>
 #include <SDL/SDL_video.h>
 #include "CSDLContextManager.h"
+#include "CDriverCreationPrototypes.h"
 
 #ifdef _IRR_EMSCRIPTEN_PLATFORM_
 #ifdef _IRR_COMPILE_WITH_OGLES2_
@@ -33,31 +34,6 @@
 #endif // _MSC_VER
 
 static int SDLDeviceInstances = 0;
-
-namespace irr
-{
-	namespace video
-	{
-		#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
-		IVideoDriver* createDirectX9Driver(const irr::SIrrlichtCreationParameters& params,
-			io::IFileSystem* io, HWND window);
-		#endif
-
-		#ifdef _IRR_COMPILE_WITH_OPENGL_
-		IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& params,
-				io::IFileSystem* io, IContextManager* contextManager);
-		#endif
-
-		#if defined(_IRR_COMPILE_WITH_OGLES2_) && defined(_IRR_EMSCRIPTEN_PLATFORM_)
-		IVideoDriver* createOGLES2Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-		#endif
-
-		#if defined(_IRR_COMPILE_WITH_WEBGL1_) && defined(_IRR_EMSCRIPTEN_PLATFORM_)
-		IVideoDriver* createWebGL1Driver(const irr::SIrrlichtCreationParameters& params, io::IFileSystem* io, IContextManager* contextManager);
-		#endif
-	} // end namespace video
-
-} // end namespace irr
 
 
 namespace irr
