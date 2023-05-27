@@ -14,8 +14,11 @@
 	#define bswap_64(X) SDL_Swap64(X)
 #elif defined(_IRR_WINDOWS_API_) && defined(_MSC_VER) && (_MSC_VER > 1298)
 	#include <stdlib.h>
+	#pragma intrinsic(_byteswap_ushort)
 	#define bswap_16(X) _byteswap_ushort(X)
+	#pragma intrinsic(_byteswap_ulong)
 	#define bswap_32(X) _byteswap_ulong(X)
+	#pragma intrinsic(_byteswap_uint64)
 	#define bswap_64(X) _byteswap_uint64(X)
 #if (_MSC_VER >= 1400)
 	#define localtime _localtime_s
