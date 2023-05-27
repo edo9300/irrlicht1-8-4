@@ -8,7 +8,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include "CIrrDeviceWin32WindowsVersionWMI.h"
+#include "CIrrDeviceWin32.h"
+#include <WinSock2.h>
+#define strtok_r strtok_s
+#else
 #include <sys/utsname.h>
+#endif
 #include <time.h>
 #include <locale.h>
 #include "IEventReceiver.h"
@@ -121,6 +128,17 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	// print version, distribution etc.
 	// thx to LynxLuna for pointing me to the uname function
 	core::stringc linuxversion;
+#ifdef _WIN32
+	core::stringc winversion;
+	core::stringc compatWinversion;
+	GetWindowsVersion(winversion, compatWinversion);
+	os::Printer::log(winversion.c_str(), ELL_INFORMATION);
+	if(compatWinversion.size()) {
+		os::Printer::log("Running in compatibility mode for", compatWinversion.data(), ELL_INFORMATION);
+		winversion.append(" (Compat mode: ").append(compatWinversion).append(")");
+	}
+	winversion.append(" (X11)");
+#else
 	struct utsname LinuxInfo;
 	uname(&LinuxInfo);
 
@@ -132,6 +150,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	linuxversion += " ";
 	linuxversion += LinuxInfo.machine;
 	linuxversion += " (X11)";
+#endif
 	
 #ifdef _IRR_X11_DYNAMIC_LOAD_
 	if(!libx11.Init()) {
@@ -441,7 +460,7 @@ bool CIrrDeviceLinux::createWindow()
 
 	switchToFullscreen();
 
-#if defined(_IRR_COMPILE_WITH_OPENGL_)
+#if defined(_IRR_COMPILE_WITH_OPENGL_) && defined(_IRR_COMPILE_WITH_GLX_MANAGER_)
 	// don't use the XVisual with OpenGL, because it ignores all requested
 	// properties of the CreationParams
 	if (CreationParams.DriverType == video::EDT_OPENGL)
@@ -1578,8 +1597,12 @@ bool CIrrDeviceLinux::run()
 //! Pause the current process for the minimum time allowed only to allow other processes to execute
 void CIrrDeviceLinux::yield()
 {
+#ifdef _WIN32
+	Sleep(1);
+#else
 	struct timespec ts = {0,1};
 	nanosleep(&ts, NULL);
+#endif
 }
 
 
@@ -1588,14 +1611,17 @@ void CIrrDeviceLinux::sleep(u32 timeMs, bool pauseTimer=false)
 {
 	const bool wasStopped = Timer ? Timer->isStopped() : true;
 
-	struct timespec ts;
-	ts.tv_sec = (time_t) (timeMs / 1000);
-	ts.tv_nsec = (long) (timeMs % 1000) * 1000000;
-
 	if (pauseTimer && !wasStopped)
 		Timer->stop();
 
+#ifdef _WIN32
+	Sleep(timeMs);
+#else
+	struct timespec ts;
+	ts.tv_sec = (time_t)(timeMs / 1000);
+	ts.tv_nsec = (long)(timeMs % 1000) * 1000000;
 	nanosleep(&ts, NULL);
+#endif
 
 	if (pauseTimer && !wasStopped)
 		Timer->start();
@@ -2749,8 +2775,10 @@ CIrrDeviceLinux::CCursorControl::CCursorControl(CIrrDeviceLinux* dev, bool null)
 		Pixmap invisBitmap = X11Loader::XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
 		Pixmap maskBitmap = X11Loader::XCreatePixmap(Device->XDisplay, Device->XWindow, 32, 32, 1);
 		Colormap screen_colormap = DefaultColormap( Device->XDisplay, DefaultScreen( Device->XDisplay ) );
+#ifndef _WIN32
 		X11Loader::XAllocNamedColor( Device->XDisplay, screen_colormap, "black", &fg, &fg );
 		X11Loader::XAllocNamedColor( Device->XDisplay, screen_colormap, "white", &bg, &bg );
+#endif
 
 		GC gc = X11Loader::XCreateGC( Device->XDisplay, invisBitmap, valuemask, &values );
 
