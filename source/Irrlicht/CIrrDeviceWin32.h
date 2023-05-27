@@ -425,13 +425,9 @@ namespace irr
 		//! Process system events
 		void handleSystemMessages();
 
-		void getWindowsVersion(core::stringc& version, core::stringc& compatModeVersion);
-
 		void resizeIfNecessary();
 
 		DWORD getWindowStyle(bool fullscreen, bool resizable) const;
-
-		static bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& minorVersion, DWORD& buildNumber);
 
 		HWND HWnd;
 
