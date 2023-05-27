@@ -1020,6 +1020,13 @@ bool CIrrDeviceMacOSX::createWindow()
     {
         if (Window)
         {
+            if(CreationParams.WindowCaption) {
+                size_t lenOld = strlen(CreationParams.WindowCaption);
+                wchar_t* title = new wchar_t[lenOld + 1];
+                core::utf8ToWchar(CreationParams.WindowCaption, title, (lenOld + 1) * sizeof(wchar_t));
+                setWindowCaption(title);
+                delete[] title;
+            }
             if(CreationParams.DriverType == video::EDT_SOFTWARE || CreationParams.DriverType == video::EDT_BURNINGSVIDEO) {
                 ContentView* view = [[[ContentViewSoftware alloc] initWithWindow:this] autorelease];
                 [Window setContentView:view];

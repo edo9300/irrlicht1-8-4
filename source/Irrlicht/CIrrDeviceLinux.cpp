@@ -168,8 +168,17 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	// create window
 	if (CreationParams.DriverType != video::EDT_NULL)
 	{
-		if(CreationParams.PrivateData)
-			class_name = static_cast<const char*>(CreationParams.PrivateData);
+		if(CreationParams.ClassName) {
+#ifndef _IRR_WCHAR_FILESYSTEM
+			class_name = CreationParams.ClassName;
+#else
+			const size_t lenOld = (wcslen(CreationParams.ClassName) + 1) * sizeof(wchar_t);
+			char* name = new char[lenOld];
+			core::wcharToUtf8(CreationParams.ClassName, name, lenOld);
+			class_name = name;
+			delete[] name;
+#endif
+		}
 		// create the window, only if we do not use the null device
 		if (!createWindow())
 			return;
@@ -585,6 +594,18 @@ bool CIrrDeviceLinux::createWindow()
 			hints->res_name = hints->res_class = &class_name[0];
 			X11Loader::XSetClassHint(XDisplay, XWindow, hints);
 			X11Loader::XFree(hints);
+		}
+
+		if(CreationParams.WindowCaption) {
+#ifndef _IRR_WCHAR_FILESYSTEM
+			size_t lenOld = strlen(CreationParams.WindowCaption);
+			wchar_t* title = new wchar_t[lenOld + 1];
+			core::utf8ToWchar(CreationParams.WindowCaption, title, (lenOld + 1) * sizeof(wchar_t));
+			setWindowCaption(title);
+			delete[] title;
+#else
+			setWindowCaption(CreationParams.WindowCaption);
+#endif
 		}
 	}
 	else

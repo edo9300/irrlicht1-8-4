@@ -239,8 +239,29 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 	// create window
 	if (CreationParams.DriverType != video::EDT_NULL)
 	{
+		if(CreationParams.ClassName) {
+			core::stringc wmClass = "SDL_VIDEO_X11_WMCLASS=";
+#ifndef _IRR_WCHAR_FILESYSTEM
+			wmClass += CreationParams.ClassName;
+#else
+			const size_t lenOld = (wcslen(CreationParams.ClassName) + 1) * sizeof(wchar_t);
+			char* name = new char[lenOld];
+			core::wcharToUtf8(CreationParams.ClassName, name, lenOld);
+			wmClass += name;
+			delete[] name;
+#endif
+			SDL_putenv(wmClass.data());
+		}
 		// create the window, only if we do not use the null device
 		createWindow();
+
+		if(CreationParam.WindowCaption) {
+#ifndef _IRR_WCHAR_FILESYSTEM
+			SDL_WM_SetCaption(CreationParam.WindowCaption, CreationParam.WindowCaption);
+#else
+			setWindowCaption(CreationParam.WindowCaption);
+#endif
+		}
 	}
 
 	// create cursor control
@@ -869,7 +890,11 @@ void CIrrDeviceSDL::sleep(u32 timeMs, bool pauseTimer)
 //! sets the caption of the window
 void CIrrDeviceSDL::setWindowCaption(const wchar_t* text)
 {
-	core::stringc textc = text;
+	const size_t lenOld = (wcslen(text) + 1) * sizeof(wchar_t);
+	char* name = new char[lenOld];
+	core::wcharToUtf8(text, name, lenOld);
+	core::stringc textc = name;
+	delete[] name;
 	SDL_WM_SetCaption( textc.c_str( ), textc.c_str( ) );
 }
 

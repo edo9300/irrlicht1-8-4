@@ -1931,8 +1931,6 @@ bool CIrrDeviceWayland::initWayland()
 
     if (CreationParams.DriverType != video::EDT_NULL)
     {
-        if(CreationParams.PrivateData)
-            class_name = static_cast<const char*>(CreationParams.PrivateData);
 #ifdef IRR_USE_LIBDECOR
 		if(!m_decoration_manager && !m_kwin_server_decoration_manager) {
 			if(LibdecorLoader::Init()) {
@@ -1978,6 +1976,14 @@ bool CIrrDeviceWayland::initWayland()
         {
             os::Printer::log("Couldn't create window.", ELL_ERROR);
             return false;
+        }
+
+        if(CreationParams.WindowCaption) {
+            size_t lenOld = strlen(CreationParams.WindowCaption);
+            wchar_t* title = new wchar_t[lenOld + 1];
+            core::utf8ToWchar(CreationParams.WindowCaption, title, (lenOld + 1) * sizeof(wchar_t));
+            setWindowCaption(title);
+            delete[] title;
         }
     }
     
@@ -2096,6 +2102,8 @@ bool CIrrDeviceWayland::createWindow()
 
     m_egl_window = pwl_egl_window_create(m_surface, m_width, m_height);
 
+    const char* class_name = CreationParams.ClassName;
+
     if (m_xdg_wm_base != nullptr)
     {
         m_xdg_surface = xdg_wm_base_get_xdg_surface(m_xdg_wm_base, m_surface);
@@ -2105,8 +2113,8 @@ bool CIrrDeviceWayland::createWindow()
                                      
         m_xdg_toplevel = xdg_surface_get_toplevel(m_xdg_surface);
 
-        if(class_name.size() > 0)
-            xdg_toplevel_set_app_id(m_xdg_toplevel, class_name.data());
+        if(class_name)
+            xdg_toplevel_set_app_id(m_xdg_toplevel, class_name);
         xdg_toplevel_add_listener(m_xdg_toplevel,
                                   &WaylandCallbacks::toplevel_listener, this);
 
@@ -2135,8 +2143,8 @@ bool CIrrDeviceWayland::createWindow()
                                      
         m_zxdg_toplevel = zxdg_surface_v6_get_toplevel(m_zxdg_surface);
 
-        if(class_name.size() > 0)
-            zxdg_toplevel_v6_set_app_id(m_zxdg_toplevel, class_name.data());
+        if(class_name)
+            zxdg_toplevel_v6_set_app_id(m_zxdg_toplevel, class_name);
         zxdg_toplevel_v6_add_listener(m_zxdg_toplevel,
                                   &WaylandCallbacks::zxdg_toplevel_listener, this);
 
@@ -2185,8 +2193,8 @@ bool CIrrDeviceWayland::createWindow()
         if (m_libdecor_surface == nullptr) {
 			os::Printer::log("CFailed to create libdecor frame!", ELL_ERROR);
         } else {
-			if(class_name.size() > 0)
-				LibdecorLoader::libdecor_frame_set_app_id(m_libdecor_surface, class_name.data());
+			if(class_name)
+				LibdecorLoader::libdecor_frame_set_app_id(m_libdecor_surface, class_name);
             LibdecorLoader::libdecor_frame_map(m_libdecor_surface);
         }
 		                       

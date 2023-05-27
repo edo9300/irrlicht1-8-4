@@ -1080,7 +1080,8 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 	// create the window if we need to and we do not use the null device
 	if (!CreationParams.WindowId && CreationParams.DriverType != video::EDT_NULL)
 	{
-		const fschar_t* ClassName = __TEXT("CIrrDeviceWin32");
+		const fschar_t* ClassName = CreationParams.ClassName ? CreationParams.ClassName : __TEXT("CIrrDeviceWin32");
+		const fschar_t* WindowCaption = CreationParams.WindowCaption ? CreationParams.WindowCaption : __TEXT("");
 
 		// Register Class
 		WNDCLASSEX wcex;
@@ -1095,10 +1096,15 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
 		wcex.lpszMenuName	= 0;
 		wcex.lpszClassName	= ClassName;
-		wcex.hIconSm		= 0;
+
+		const fschar_t* iconPath = CreationParams.WindowIcon ? CreationParams.WindowIcon : __TEXT("irrlicht.ico");
+		auto iconFlags = LR_DEFAULTCOLOR;
+		if(!IS_INTRESOURCE(iconPath))
+			iconFlags |= LR_LOADFROMFILE;
 
 		// if there is an icon, load it
-		wcex.hIcon = (HICON)LoadImage(hInstance, __TEXT("irrlicht.ico"), IMAGE_ICON, 0,0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+		wcex.hIcon = (HICON)LoadImage(hInstance, iconPath, IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), iconFlags);
+		wcex.hIconSm = (HICON)LoadImage(hInstance, iconPath, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CXSMICON), iconFlags);
 
 		RegisterClassEx(&wcex);
 
@@ -1135,7 +1141,7 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		}
 
 		// create window
-		HWnd = CreateWindow( ClassName, __TEXT(""), style, windowLeft, windowTop,
+		HWnd = CreateWindow( ClassName, WindowCaption, style, windowLeft, windowTop,
 					realWidth, realHeight, NULL, NULL, hInstance, NULL);
 		if (!HWnd)
 		{

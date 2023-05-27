@@ -57,6 +57,17 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 
 	// create window
 	if(CreationParams.DriverType != video::EDT_NULL) {
+		if(CreationParams.ClassName) {
+#ifndef _IRR_WCHAR_FILESYSTEM
+			SDL_setenv("SDL_VIDEO_X11_WMCLASS", CreationParams.ClassName, 1);
+#else
+			const size_t lenOld = (wcslen(CreationParams.ClassName) + 1) * sizeof(wchar_t);
+			char* name = new char[lenOld];
+			core::wcharToUtf8(CreationParams.ClassName, name, lenOld);
+			SDL_setenv("SDL_VIDEO_X11_WMCLASS", name, 1);
+			delete[] name;
+#endif
+		}
 		// create the window, only if we do not use the null device
 		if(!createWindow())
 			return;
@@ -193,8 +204,21 @@ bool CIrrDeviceSDL2::createWindow()
 	}
 #endif
 
+	irr::core::stringc title = "Irrlicht (title not set)";
+	if(CreationParams.WindowCaption) {
+#ifndef _IRR_WCHAR_FILESYSTEM
+		title = CreationParams.WindowCaption;
+#else
+		const size_t lenOld = (wcslen(CreationParams.WindowCaption) + 1) * sizeof(wchar_t);
+		char* name = new char[lenOld];
+		core::wcharToUtf8(CreationParams.WindowCaption, name, lenOld);
+		title = name;
+		delete[] name;
+#endif
+	}
+
 	window = SDL_CreateWindow(
-    "Irrlicht (title not set)",
+		title.data(),
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		CreationParams.WindowSize.Width,

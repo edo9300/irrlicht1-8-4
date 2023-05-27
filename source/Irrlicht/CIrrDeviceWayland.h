@@ -474,7 +474,6 @@ namespace irr
         bool loadXKBCommonFunctions() { return true; }
         bool loadWaylandClientFunctions() { return true; }
 #endif
-        core::stringc class_name;
     public:
 #define WAYLAND_EGL_CORE
 #define WAYLAND_CURSOR
