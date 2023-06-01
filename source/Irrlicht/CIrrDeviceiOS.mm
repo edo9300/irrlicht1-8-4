@@ -226,7 +226,7 @@ namespace irr
 
 @interface CIrrViewiOS : UIView
 
-- (id)initWithFrame:(CGRect)frame forDevice:(irr::CIrrDeviceiOS*)device;
+- (id)initWithFrame:(CGRect)frame forDevice:(irr::CIrrDeviceiOS*)device scale:(CGFloat)scale;
 
 @end
 
@@ -237,12 +237,13 @@ namespace irr
     ClientGestures* Gestures;
 }
 
-- (id)initWithFrame:(CGRect)frame forDevice:(irr::CIrrDeviceiOS*)device;
+- (id)initWithFrame:(CGRect)frame forDevice:(irr::CIrrDeviceiOS*)device scale:(CGFloat)scale;
 {
     self = [super initWithFrame:frame];
     
     if (self)
     {
+        //self.contentScaleFactor = scale;
         Device = device;
         Scale = ([self respondsToSelector:@selector(setContentScaleFactor:)]) ? [[UIScreen mainScreen] scale] : 1.f;
     }
@@ -271,8 +272,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
+        ev.TouchInput.X = touchPoint.x;
+        ev.TouchInput.Y = touchPoint.y;
 
         Device->postEventFromUser(ev);
 	}
@@ -291,8 +292,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
+        ev.TouchInput.X = touchPoint.x;
+        ev.TouchInput.Y = touchPoint.y;
         
         Device->postEventFromUser(ev);
 	}
@@ -311,8 +312,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
+        ev.TouchInput.X = touchPoint.x;
+        ev.TouchInput.Y = touchPoint.y;
         
         Device->postEventFromUser(ev);
 	}
@@ -805,14 +806,19 @@ namespace irr
 		
 		UIView* externalView = (__bridge UIView*)CreationParams.WindowId;
 		
-		CGRect resolution = (externalView == nil) ? [[UIScreen mainScreen] bounds] : externalView.bounds;
+		CGRect resolution = dataStorage->Window.bounds;
+		
+		CGFloat scale = dataStorage->Window.screen.scale;
+		if ([dataStorage->Window.screen respondsToSelector:@selector(nativeScale)]) {
+			scale = dataStorage->Window.screen.nativeScale;
+		}
 
         switch (CreationParams.DriverType)
         {
             case video::EDT_OGLES1:
 #ifdef _IRR_COMPILE_WITH_OGLES1_
                 {
-					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this];
+					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this scale:scale];
 					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width, view.frame.size.height);
 					
 					dataStorage->View = view;
@@ -834,7 +840,7 @@ namespace irr
 			case video::EDT_OGLES2:
 #ifdef _IRR_COMPILE_WITH_OGLES2_
 				{
-					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this];
+					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this scale:scale];
 					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width, view.frame.size.height);
 				
 					dataStorage->View = view;
