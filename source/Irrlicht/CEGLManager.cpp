@@ -709,26 +709,6 @@ void CEGLManager::swapInterval(int interval)
 	peglSwapInterval(EglDisplay, interval);
 }
 
-void* CEGLManager::loadFunction(const char* function_name)
-{
-	void* ret = (void*)peglGetProcAddress(function_name);
-#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
-	if(!ret && LibGLES)
-#ifdef _WIN32
-		ret = (void*)GetProcAddress((HMODULE)LibGLES, function_name);
-#else
-		ret = (void*)dlsym(LibGLES, function_name);
-#endif
-	if(!ret && LibEGL)
-#ifdef _WIN32
-		ret = (void*)GetProcAddress((HMODULE)LibEGL, function_name);
-#else
-		ret = (void*)dlsym(LibEGL, function_name);
-#endif
-#endif
-	return ret;
-}
-
 bool CEGLManager::testEGLError()
 {
 #if defined(EGL_VERSION_1_0) && defined(_DEBUG)
@@ -817,30 +797,44 @@ static const fschar_t* GetGLLibName(E_DRIVER_TYPE driverType) {
 }
 #endif
 
-bool CEGLManager::LoadEGL() {
 #if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+#ifdef _WIN32
+#define LoadFunction(lib, name) GetProcAddress((HMODULE)lib, name)
+static auto LoadEglLib() {
+	auto ret = LoadLibrary(TEXT("libEGL.dll"));
+	if(ret)
+		return ret;
+	return LoadLibrary(TEXT("atioglxx.dll"));
+}
+#else
+#define LoadFunction(lib, name) dlsym(lib, name)
+#define LoadEglLib() dlopen("libEGL.so.1", RTLD_LAZY)
+#define LoadLibrary(name) dlopen(name, RTLD_LAZY)
+#define FreeLibrary(lib) dlclose(lib)
+#endif
+#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
+
+void* CEGLManager::loadFunction(const char* function_name) {
+	void* ret = (void*)peglGetProcAddress(function_name);
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+	if(!ret && LibGLES)
+		ret = (void*)LoadFunction(LibGLES, function_name);
+	if(!ret && LibEGL)
+		ret = (void*)LoadFunction(LibEGL, function_name);
+#endif
+	return ret;
+}
+
+bool CEGLManager::LoadEGL() {
 	if(LibEGL)
 		return true;
-#ifdef _WIN32
-#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
-	HMODULE EGLLib = LoadLibrary(TEXT("libEGL.dll"));
-	if(EGLLib == nullptr) {
-		if((EGLLib = LoadLibrary(TEXT("atioglxx.dll"))) != nullptr) {
-			do {
-#include "CEGLFunctions.inl"
-				LibEGL = EGLLib;
-				return true;
-			} while(0);
-			FreeLibrary(EGLLib);
-		}
-	}
+	auto EGLLib = LoadEglLib();
 	if(!EGLLib)
 		return false;
-	const fschar_t* name = GetGLLibName(Params.DriverType);
-	HMODULE GLESLib = LoadLibrary(name);
-	if(!GLESLib) {
+	const auto* name = GetGLLibName(Params.DriverType);
+	auto GLESLib = LoadLibrary(name);
+	if(!GLESLib)
 		os::Printer::log("Couldn't load", name, ELL_WARNING);
-	}
 	do {
 #include "CEGLFunctions.inl"
 		LibEGL = EGLLib;
@@ -849,33 +843,15 @@ bool CEGLManager::LoadEGL() {
 	} while(0);
 	FreeLibrary(EGLLib);
 	FreeLibrary(GLESLib);
-#undef EGL_FUNC
-#elif defined(_IRR_COMPILE_WITH_X11_DEVICE_) || defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-	void* EGLLib = dlopen("libEGL.so.1", RTLD_LAZY);
-	if(!EGLLib)
-		return false;
-	const char* name = GetGLLibName(Params.DriverType);
-	void* GLESLib = dlopen(name, RTLD_LAZY);
-	if(!GLESLib) {
-		os::Printer::log("Couldn't load", name, ELL_WARNING);
-	}
-	do {
-#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))dlsym(EGLLib, #name); if(!p##name) break;
-#include "CEGLFunctions.inl"
-#undef EGL_FUNC
-		LibEGL = EGLLib;
-		LibGLES = GLESLib;
-		return true;
-	} while(0);
-	dlclose(EGLLib);
-	dlclose(GLESLib);
-#endif
 	os::Printer::log("Failed to load all required egl functions", ELL_ERROR);
 	return false;
-#else
-	return true;
-#endif
 }
+#undef EGL_FUNC
+#else
+bool CEGLManager::LoadEGL() {
+	return true;
+}
+#endif
 
 void CEGLManager::GenerateConfig() {
 #if defined(_IRR_EMSCRIPTEN_PLATFORM_) || (defined(__linux__) && !defined(__ANDROID__))
