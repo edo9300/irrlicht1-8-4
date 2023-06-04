@@ -170,7 +170,7 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 
 #if defined(_IRR_WINDOWS_API_)
 static void* RetrieveBuffer(HANDLE& hData, UINT type) {
-	if(hData = GetClipboardData(type)) {
+	if((hData = GetClipboardData(type))) {
 		void* buffer = GlobalLock(hData);
 		if(!buffer) {
 			GlobalUnlock(hData);

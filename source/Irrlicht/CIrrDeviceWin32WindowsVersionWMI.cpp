@@ -4,6 +4,12 @@
 
 #ifdef _WIN32
 
+template<typename T, typename T2>
+inline T function_cast(T2 ptr) {
+	using generic_function_ptr = void (*)(void);
+	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
+}
+
 #include "CIrrDeviceWin32WindowsVersionWMI.h"
 #include <Wbemidl.h>
 #include <tchar.h>
@@ -64,10 +70,10 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 	auto GetWineVersion = [&out] {
 		auto lib = GetModuleHandle(TEXT("ntdll.dll"));
-		auto wine_get_build_id = (const char *(*)(void))GetProcAddress(lib, "wine_get_build_id");
+		auto wine_get_build_id = function_cast<const char* (*)(void)>(GetProcAddress(lib, "wine_get_build_id"));
 		if(wine_get_build_id == nullptr)
 			return false;
-		auto wine_get_host_version = (void (*)(const char **, const char **))GetProcAddress(lib, "wine_get_host_version");
+		auto wine_get_host_version = function_cast<void (*)(const char **, const char **)>(GetProcAddress(lib, "wine_get_host_version"));
 		if(wine_get_host_version) {
 			const char *sysname, *release;
 			wine_get_host_version(&sysname, &release);
@@ -199,7 +205,7 @@ void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 			if (osvi.dwMajorVersion >= 6)
 			{
 				DWORD dwType;
-				auto pGPI = (PGPI)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo");
+				auto pGPI = function_cast<PGPI>(GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetProductInfo"));
 				if(pGPI && pGPI(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &dwType)) {
 					switch(dwType) {
 						case PRODUCT_ULTIMATE:
@@ -312,7 +318,7 @@ void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 		realVersionOut.append(tmp);
 		{
 			using GetNativeSystemInfo_t = VOID(WINAPI*)(LPSYSTEM_INFO);
-			auto pGetNativeSystemInfo = (GetNativeSystemInfo_t)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo");
+			auto pGetNativeSystemInfo = function_cast<GetNativeSystemInfo_t>(GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo"));
 			if(pGetNativeSystemInfo) {
 				SYSTEM_INFO info;
 				pGetNativeSystemInfo(&info);
@@ -419,10 +425,10 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 			-1,						  // COM authentication
 			nullptr,						// Authentication services
 			nullptr,						// Reserved
-			RPC_C_AUTHN_LEVEL_DEFAULT,   // Default authentication 
-			RPC_C_IMP_LEVEL_IMPERSONATE, // Default Impersonation  
+			RPC_C_AUTHN_LEVEL_DEFAULT,   // Default authentication
+			RPC_C_IMP_LEVEL_IMPERSONATE, // Default Impersonation
 			nullptr,						// Authentication info
-			EOAC_NONE,				   // Additional capabilities 
+			EOAC_NONE,				   // Additional capabilities
 			nullptr						 // Reserved
 		));
 
@@ -449,7 +455,7 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 			nullptr,				 // Locale. nullptr indicates current
 			0,						 // Security flags.
 			0,						 // Authority (for example, Kerberos)
-			0,						 // Context object 
+			0,						 // Context object
 			&pSvc					 // pointer to IWbemServices proxy
 		));
 
@@ -461,11 +467,11 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 			pSvc,						// Indicates the proxy to set
 			RPC_C_AUTHN_WINNT,			// RPC_C_AUTHN_xxx
 			RPC_C_AUTHZ_NONE,			// RPC_C_AUTHZ_xxx
-			nullptr,					// Server principal name 
-			RPC_C_AUTHN_LEVEL_CALL,		// RPC_C_AUTHN_LEVEL_xxx 
+			nullptr,					// Server principal name
+			RPC_C_AUTHN_LEVEL_CALL,		// RPC_C_AUTHN_LEVEL_xxx
 			RPC_C_IMP_LEVEL_IMPERSONATE,// RPC_C_IMP_LEVEL_xxx
 			nullptr,					// client identity
-			EOAC_NONE					// proxy capabilities 
+			EOAC_NONE					// proxy capabilities
 		));
 
 		// Step 6: --------------------------------------------------
@@ -487,7 +493,7 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 		if(FAILED(hr) || uReturn == 0)
 			return Error();
 
-		auto Get = [&pclsObj, &vtProp](wchar_t* name, CIMTYPE type) -> HRESULT {
+		auto Get = [&pclsObj, &vtProp](auto name, CIMTYPE type) -> HRESULT {
 			CIMTYPE retType;
 			auto res = pclsObj->Get(my_bstr_t(name), 0, &vtProp, &retType, 0);
 			if(!FAILED(res) && retType != type)
@@ -563,7 +569,7 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 		DWORD UBR;
 		if(!GetRegEntry(path, TEXT("UBR"), REG_DWORD, &UBR, sizeof(UBR)))
 			return false;
-		sprintf(productBuildString, " (Version %s, Build %ld.%ld)", irr::core::stringc(szReleaseId).c_str(), systemBuild, UBR);
+		sprintf(productBuildString, " (Version %s, Build %d.%ld)", irr::core::stringc(szReleaseId).c_str(), systemBuild, UBR);
 		return true;
 	};
 
@@ -572,13 +578,13 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 	buildNumber = systemBuild;
 
 	if(systemMajor < 10 || !GetWin10ProductInfo()) {
-		sprintf(productBuildString, " (Build %ld)", systemBuild);
+		sprintf(productBuildString, " (Build %d)", systemBuild);
 	}
 
 	out.append(systemCaption).append(servicePackString).append(productBuildString);
 	if(systemMajor >= 6 || systemMinor >= 1) {
 		using GetNativeSystemInfo_t = VOID(WINAPI*)(LPSYSTEM_INFO);
-		auto pGetNativeSystemInfo = (GetNativeSystemInfo_t)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo");
+		auto pGetNativeSystemInfo = function_cast<GetNativeSystemInfo_t>(GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetNativeSystemInfo"));
 		if(pGetNativeSystemInfo) {
 			SYSTEM_INFO info;
 			pGetNativeSystemInfo(&info);

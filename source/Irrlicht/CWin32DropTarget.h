@@ -9,7 +9,7 @@
 namespace irr {
 class IrrlichtDevice;
 
-class CDropTarget : public IDropTarget {
+class CDropTarget final : public IDropTarget {
 public:
 	using callback_function = bool(*)(core::vector2di pos, bool isFile);
 	CDropTarget(HWND hwnd, callback_function callback, IrrlichtDevice* dev) :

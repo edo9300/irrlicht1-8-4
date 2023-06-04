@@ -1959,7 +1959,7 @@ void CIrrDeviceWin32::enableDragDrop(bool enable, drop_callback_function_t dragC
 		return;
 	if(enable) {
 		dropper = new CDropTarget(HWnd, dragCheck, this);
-		auto res = OleInitialize(NULL);
+		OleInitialize(NULL);
 		RegisterDragDrop(HWnd, dropper);
 	} else {
 		RevokeDragDrop(HWnd);

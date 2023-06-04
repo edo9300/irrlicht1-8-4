@@ -18,6 +18,12 @@
 #include "CD3D9HLSLMaterialRenderer.h"
 #include "SIrrCreationParameters.h"
 
+template<typename T, typename T2>
+inline T function_cast(T2 ptr) {
+	using generic_function_ptr = void (*)(void);
+	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
+}
+
 namespace irr
 {
 namespace video
@@ -33,13 +39,13 @@ CD3D9Driver::CD3D9Driver(const SIrrlichtCreationParameters& params, io::IFileSys
 	: CNullDriver(io, params.WindowSize), BridgeCalls(0), CurrentRenderMode(ERM_NONE),
 	ResetRenderStates(true), Transformation3DChanged(false),
 	D3DLibrary(0), pID3D(0), pID3DDevice(0), BackBufferSurface(0),
-	DepthStencilSurface(0), WindowId(0), SceneSourceRect(0),
+	DepthStencilSurface(0), WindowId(0), SceneSourceRect(0), Params(params),
 	LastVertexType((video::E_VERTEX_TYPE)-1), VendorID(0),
 	MaxTextureUnits(0), MaxFixedPipelineTextureUnits(0), MaxUserClipPlanes(0),
 	MaxLightDistance(0.f), LastSetLight(-1),
 	ColorFormat(ECF_A8R8G8B8), DeviceLost(false),
 	DriverWasReset(true), OcclusionQuerySupport(false),
-	AlphaToCoverageSupport(false), Params(params), line(nullptr), d3dx9(nullptr)
+	AlphaToCoverageSupport(false), line(nullptr), d3dx9(nullptr)
 {
 	#ifdef _DEBUG
 	setDebugName("CD3D9Driver");
@@ -192,7 +198,7 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 		}
 
 		typedef IDirect3D9 * (__stdcall *D3DCREATETYPE)(UINT);
-		D3DCREATETYPE d3dCreate = (D3DCREATETYPE) GetProcAddress(D3DLibrary, "Direct3DCreate9");
+		D3DCREATETYPE d3dCreate = function_cast<D3DCREATETYPE>(GetProcAddress(D3DLibrary, "Direct3DCreate9"));
 
 		if (!d3dCreate)
 		{
@@ -516,7 +522,7 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 		HRESULT(WINAPI *pFn)(LPDIRECT3DDEVICE9 pDevice, LPD3DXLINE* ppLine) = nullptr;
 
 		if(d3dx9)
-			pFn = (decltype(pFn))GetProcAddress(d3dx9, "D3DXCreateLine");
+			pFn = function_cast<decltype(pFn)>(GetProcAddress(d3dx9, "D3DXCreateLine"));
 
 		if(!pFn) {
 			os::Printer::log("Could not load function D3DXCreateLine from dll, line stipple disabled",
@@ -712,7 +718,7 @@ void CD3D9Driver::setTransform(E_TRANSFORMATION_STATE state, const core::matrix4
 		{
 			const s32 stage = state - ETS_TEXTURE_0;
 
-			if (   stage < static_cast<s32>(MaxTextureUnits) 
+			if (   stage < static_cast<s32>(MaxTextureUnits)
 				&& stage < static_cast<s32>(MaxFixedPipelineTextureUnits))	// texture transforms for shader pipeline have to be passed by user
 			{
 				if (mat.isIdentity())
@@ -1481,7 +1487,7 @@ void CD3D9Driver::draw2D3DVertexPrimitiveList(const void* vertices,
 			else
 				pID3DDevice->DrawIndexedPrimitiveUP(D3DPT_TRIANGLEFAN, 0, vertexCount, primitiveCount,
 						indexList, indexType, vertices, stride);
-				break;
+			break;
 		case scene::EPT_TRIANGLES:
 			if(!vertices)
 			{
@@ -1513,8 +1519,6 @@ void CD3D9Driver::draw2DImage(const video::ITexture* texture,
 	tcoords.UpperLeftCorner.Y = (f32)sourceRect.UpperLeftCorner.Y / (f32)ss.Height;
 	tcoords.LowerRightCorner.X = (f32)sourceRect.LowerRightCorner.X / (f32)ss.Width;
 	tcoords.LowerRightCorner.Y = (f32)sourceRect.LowerRightCorner.Y / (f32)ss.Height;
-
-	const core::dimension2d<u32>& renderTargetSize = getCurrentRenderTargetSize();
 
 	const video::SColor temp[4] =
 	{
@@ -3947,9 +3951,10 @@ void CD3D9CallBridge::setBlend(bool enable)
 void CD3D9Driver::setSwapInterval(int interval) {
 	if(!pID3DDevice)
 		return;
-	if(Params.Vsync == !!interval)
+	bool bInterval = !!interval;
+	if(Params.Vsync == bInterval)
 		return;
-	if(Params.Vsync = !!interval)
+	if((Params.Vsync = bInterval))
 		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
 	else
 		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;

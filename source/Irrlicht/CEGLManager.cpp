@@ -10,6 +10,12 @@
 #include "irrArray.h"
 #include "os.h"
 
+template<typename T, typename T2>
+inline T function_cast(T2 ptr) {
+	using generic_function_ptr = void (*)(void);
+	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
+}
+
 #if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -812,7 +818,7 @@ static auto LoadEglLib() {
 #define LoadLibrary(name) dlopen(name, RTLD_LAZY)
 #define FreeLibrary(lib) dlclose(lib)
 #endif
-#define EGL_FUNC(name, ret_type, ...) p##name = (ret_type(EGLAPIENTRY *)(__VA_ARGS__))GetProcAddress(EGLLib, #name); if(!p##name) break;
+#define EGL_FUNC(name, ret_type, ...) p##name = function_cast<ret_type(EGLAPIENTRY *)(__VA_ARGS__)>(LoadFunction(EGLLib, #name)); if(!p##name) break;
 
 void* CEGLManager::loadFunction(const char* function_name) {
 	void* ret = (void*)peglGetProcAddress(function_name);
