@@ -260,6 +260,8 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 	Params.Vsync = !!Params.Vsync;
 	if(Params.Vsync)
 		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+	else
+		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 
 	if (Params.Fullscreen)
 	{
