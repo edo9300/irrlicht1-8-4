@@ -192,15 +192,15 @@ namespace irr
       initWithTarget:self
               action:@selector(twoFingerTapGestureTriggered:)];
   _twoFingerTapRecognizer.numberOfTouchesRequired = 2;
-  _twoFingerTapRecognizer.delegate = self;
   [view addGestureRecognizer:_twoFingerTapRecognizer];
+  _twoFingerTapRecognizer.delegate = self;
 
   _threeFingerTapRecognizer = [[UITapGestureRecognizer alloc]
       initWithTarget:self
               action:@selector(threeFingerTapGestureTriggered:)];
   _threeFingerTapRecognizer.numberOfTouchesRequired = 3;
-  _threeFingerTapRecognizer.delegate = self;
   [view addGestureRecognizer:_threeFingerTapRecognizer];
+  _threeFingerTapRecognizer.delegate = self;
   return self;
 }
 
