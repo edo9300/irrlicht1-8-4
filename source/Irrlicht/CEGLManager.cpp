@@ -820,17 +820,6 @@ static auto LoadEglLib() {
 #endif
 #define EGL_FUNC(name, ret_type, ...) p##name = function_cast<ret_type(EGLAPIENTRY *)(__VA_ARGS__)>(LoadFunction(EGLLib, #name)); if(!p##name) break;
 
-void* CEGLManager::loadFunction(const char* function_name) {
-	void* ret = (void*)peglGetProcAddress(function_name);
-#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
-	if(!ret && LibGLES)
-		ret = (void*)LoadFunction(LibGLES, function_name);
-	if(!ret && LibEGL)
-		ret = (void*)LoadFunction(LibEGL, function_name);
-#endif
-	return ret;
-}
-
 bool CEGLManager::LoadEGL() {
 	if(LibEGL)
 		return true;
@@ -858,6 +847,17 @@ bool CEGLManager::LoadEGL() {
 	return true;
 }
 #endif
+
+void* CEGLManager::loadFunction(const char* function_name) {
+	void* ret = (void*)peglGetProcAddress(function_name);
+#if defined(_IRR_DYNAMIC_OPENGL_ES_1_) || defined(_IRR_DYNAMIC_OPENGL_ES_2_) || defined(_IRR_DYNAMIC_OPENGL_)
+	if(!ret && LibGLES)
+		ret = (void*)LoadFunction(LibGLES, function_name);
+	if(!ret && LibEGL)
+		ret = (void*)LoadFunction(LibEGL, function_name);
+#endif
+	return ret;
+}
 
 void CEGLManager::GenerateConfig() {
 #if defined(_IRR_EMSCRIPTEN_PLATFORM_) || (defined(__linux__) && !defined(__ANDROID__))
