@@ -36,7 +36,7 @@ namespace core
 			fsub	h
 			fistp	t
 		}
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 		__asm__ __volatile__ (
 			"fsub %2 \n\t"
 			"fistpl %0"
@@ -71,7 +71,7 @@ namespace core
 			fadd	h
 			fistp	t
 		}
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 		__asm__ __volatile__ (
 			"fadd %2 \n\t"
 			"fistpl %0 \n\t"
@@ -104,7 +104,7 @@ namespace core
 			fld   x
 			fistp t
 		}
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 		__asm__ __volatile__ (
 			"fistpl %0 \n\t"
 			: "=m"(t)
