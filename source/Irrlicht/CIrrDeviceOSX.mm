@@ -1399,20 +1399,7 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 
 bool CIrrDeviceMacOSX::isWindowActive() const
 {
-    if (Window == NULL || !IsActive)
-        return false;
-#if !defined(MAC_OS_X_VERSION_10_9) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
-	return IsActive;
-#else
-	@try {
-        if([Window fullScreen])
-            return true;
-		return ([Window occlusionState] & NSWindowOcclusionStateVisible);
-	} 
-	@catch(NSException* exception){
-		return true;
-	}
-#endif
+    return Window != NULL && IsActive;
 }
 
 
