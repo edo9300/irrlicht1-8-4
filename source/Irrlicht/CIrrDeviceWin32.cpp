@@ -1243,8 +1243,21 @@ void CIrrDeviceWin32::createDriver()
 	case video::DEPRECATED_EDT_DIRECT3D8_NO_LONGER_EXISTS:
 		os::Printer::log("DIRECT3D8 Driver is no longer supported in Irrlicht. Try another one.", ELL_ERROR);
 		break;
+	case video::EDT_DIRECT3D9_ON_12:
+#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
+		VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
+
+		if (VideoDriver)
+			break;
+		os::Printer::log("Could not create DIRECT3D9on12 Driver.", ELL_ERROR);
+		os::Printer::log("Falling back to DIRECT3D9 driver.", ELL_ERROR);
+#else
+		os::Printer::log("DIRECT3D9on12 Driver was not compiled into this dll. Try another one.", ELL_ERROR);
+		break;
+#endif
 	case video::EDT_DIRECT3D9:
 #ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
+		CreationParams.DriverType = video::EDT_DIRECT3D9;
 		VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
 
 		if (VideoDriver)

@@ -62,6 +62,10 @@ namespace video
 		//! WebGL1 friendly subset of OpenGL-ES 2.x driver for Emscripten
 		EDT_WEBGL1,
 
+		//! Direct3D 9 device using the directx 12 driver,
+		//!  only available on Windows 10 and newer platforms.
+		EDT_DIRECT3D9_ON_12,
+
 		//! No driver, just for counting the elements
 		EDT_COUNT
 	};

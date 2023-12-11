@@ -24,7 +24,7 @@ namespace irr
 			setDebugName("CD3D9RenderTarget");
 #endif
 
-			DriverType = EDT_DIRECT3D9;
+			DriverType = driver->getDriverType();
 			Size = Driver->getScreenSize();
 		}
 

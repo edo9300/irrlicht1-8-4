@@ -197,17 +197,38 @@ bool CD3D9Driver::initDriver(HWND hwnd, bool pureSoftware)
 			return false;
 		}
 
-		typedef IDirect3D9 * (__stdcall *D3DCREATETYPE)(UINT);
-		D3DCREATETYPE d3dCreate = function_cast<D3DCREATETYPE>(GetProcAddress(D3DLibrary, "Direct3DCreate9"));
+#ifndef MAX_D3D9ON12_QUEUES
+#define MAX_D3D9ON12_QUEUES 2
+		struct D3D9ON12_ARGS {
+			BOOL Enable9On12;
+			IUnknown* pD3D12Device;
+			IUnknown* ppD3D12Queues[MAX_D3D9ON12_QUEUES];
+			UINT NumQueues;
+			UINT NodeMask;
+		};
+#endif
+		if(Params.DriverType == EDT_DIRECT3D9_ON_12) {
+			typedef IDirect3D9* (WINAPI* PFN_Direct3DCreate9On12)(UINT, D3D9ON12_ARGS*, UINT);
+			PFN_Direct3DCreate9On12 d3dCreateon12 = function_cast<PFN_Direct3DCreate9On12>(GetProcAddress(D3DLibrary, MAKEINTRESOURCEA(20)));/*Direct3DCreate9On12*/
 
-		if (!d3dCreate)
-		{
-			os::Printer::log("Error, could not get proc adress of Direct3DCreate9.", ELL_ERROR);
-			return false;
+			if(d3dCreateon12) {
+				os::Printer::log("Creating device with Direct3DCreate9On12.", ELL_INFORMATION);
+				D3D9ON12_ARGS d3d9on12Args{};
+				d3d9on12Args.Enable9On12 = true;
+				pID3D = (*d3dCreateon12)(D3D_SDK_VERSION, &d3d9on12Args, 1);
+			}
+		} else {
+			typedef IDirect3D9* (__stdcall* D3DCREATETYPE)(UINT);
+			D3DCREATETYPE d3dCreate = function_cast<D3DCREATETYPE>(GetProcAddress(D3DLibrary, "Direct3DCreate9"));
+
+			if(!d3dCreate) {
+				os::Printer::log("Error, could not get proc adress of Direct3DCreate9.", ELL_ERROR);
+				return false;
+			}
+
+			//just like pID3D = Direct3DCreate9(D3D_SDK_VERSION);
+			pID3D = (*d3dCreate)(D3D_SDK_VERSION);
 		}
-
-		//just like pID3D = Direct3DCreate9(D3D_SDK_VERSION);
-		pID3D = (*d3dCreate)(D3D_SDK_VERSION);
 
 		if (!pID3D)
 		{
@@ -745,7 +766,7 @@ bool CD3D9Driver::setActiveTexture(u32 stage, const video::ITexture* texture)
 	if (CurrentTexture[stage] == texture)
 		return true;
 
-	if (texture && texture->getDriverType() != EDT_DIRECT3D9)
+	if (texture && texture->getDriverType() != Params.DriverType)
 	{
 		os::Printer::log("Fatal Error: Tried to set a texture not owned by this driver.", ELL_ERROR);
 		return false;
@@ -818,7 +839,7 @@ ITexture* CD3D9Driver::createDeviceDependentTextureCubemap(const io::path& name,
 
 bool CD3D9Driver::setRenderTargetEx(IRenderTarget* target, u16 clearFlag, SColor clearColor, f32 clearDepth, u8 clearStencil)
 {
-	if (target && target->getDriverType() != EDT_DIRECT3D9)
+	if (target && target->getDriverType() != Params.DriverType)
 	{
 		os::Printer::log("Fatal Error: Tried to set a render target not owned by this driver.", ELL_ERROR);
 		return false;
@@ -3061,7 +3082,7 @@ bool CD3D9Driver::reset()
 
 	for (u32 i = 0; i<RenderTargets.size(); ++i)
 	{
-		if (RenderTargets[i]->getDriverType() == EDT_DIRECT3D9)
+		if (RenderTargets[i]->getDriverType() == Params.DriverType)
 		{
 			static_cast<CD3D9RenderTarget*>(RenderTargets[i])->releaseSurfaces();
 
@@ -3185,7 +3206,7 @@ bool CD3D9Driver::reset()
 	}
 	for (u32 i = 0; i<RenderTargets.size(); ++i)
 	{
-		if (RenderTargets[i]->getDriverType() == EDT_DIRECT3D9)
+		if (RenderTargets[i]->getDriverType() == Params.DriverType)
 		{
 			const core::array<ITexture*> texArray = RenderTargets[i]->getTexture();
 
@@ -3249,7 +3270,7 @@ void CD3D9Driver::OnResize(const core::dimension2d<u32>& size)
 //! Returns type of video driver
 E_DRIVER_TYPE CD3D9Driver::getDriverType() const
 {
-	return EDT_DIRECT3D9;
+	return Params.DriverType;
 }
 
 
