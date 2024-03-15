@@ -3288,16 +3288,16 @@ static constexpr uint32_t IrrlichtShapeToCursorShape(gui::ECURSOR_ICON iconId) {
 //! Sets the active cursor icon
 void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
 {
+    if (iconId >= (s32)Cursors.size())
+        iconId = gui::ECI_NORMAL;
+
+    m_active_icon = iconId;
+
     //If cursor shape protocol is present, use directly that and skip everything else
     if(m_device->m_cursor_shape) {
         wp_cursor_shape_device_v1_set_shape(m_device->m_cursor_shape, m_device->m_enter_serial, IrrlichtShapeToCursorShape(iconId));
         return;
     }
-
-	if ( iconId >= (s32)Cursors.size() )
-		return;
-
-    m_active_icon = iconId;
 
     wl_cursor* cursor = Cursors[iconId];
     if(!cursor) {
