@@ -39,6 +39,7 @@
 #include "org_kde_kwin_server_decoration_manager_client_protocol.h"
 #include "zxdg_shell_unstable_v6_client_protocol.h"
 #include "ztext_input_unstable_v3_client_protocol.h"
+#include "cursor_shape_v1_client_protocol.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -358,6 +359,9 @@ namespace irr
         zxdg_toplevel_v6* m_zxdg_toplevel;
         bool m_has_zxdg_shell;
         uint32_t m_zxdg_shell_name;
+
+        wp_cursor_shape_manager_v1* m_cursor_shape_manager;
+        wp_cursor_shape_device_v1* m_cursor_shape;
 		
 #ifdef IRR_USE_LIBDECOR
 		libdecor* m_libdecor;

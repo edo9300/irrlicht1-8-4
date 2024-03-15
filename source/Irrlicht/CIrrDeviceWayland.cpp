@@ -726,10 +726,19 @@ public:
         if ((caps & WL_SEAT_CAPABILITY_POINTER) && !device->m_pointer)
         {
             device->m_pointer = wl_seat_get_pointer(seat);
+            if (device->m_cursor_shape_manager) {
+                if (device->m_pointer && !device->m_cursor_shape) {
+                    device->m_cursor_shape = wp_cursor_shape_manager_v1_get_pointer(device->m_cursor_shape_manager, device->m_pointer);
+                }
+            }
             wl_pointer_add_listener(device->m_pointer, &pointer_listener, device);
         }
         else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && device->m_pointer)
         {
+            if (device->m_cursor_shape) {
+                wp_cursor_shape_device_v1_destroy(device->m_cursor_shape);
+                device->m_cursor_shape = nullptr;
+            }
             wl_pointer_destroy(device->m_pointer);
             device->m_pointer = nullptr;
         }
@@ -1029,6 +1038,13 @@ public:
                                            version < 2 ? version : 2));
                                            
             wl_output_add_listener(device->m_output, &output_listener, device);
+        }
+        else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0)
+        {
+            device->m_cursor_shape_manager =
+                                    static_cast<wp_cursor_shape_manager_v1*>(
+                                    wl_registry_bind(registry, name,
+                                    &wp_cursor_shape_manager_v1_interface, 1));
         }
         else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
         {
@@ -1576,6 +1592,9 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_zxdg_toplevel = nullptr;
     m_has_zxdg_shell = false;
     m_zxdg_shell_name = 0;
+
+    m_cursor_shape_manager = nullptr;
+    m_cursor_shape = nullptr;
 	
 #ifdef IRR_USE_LIBDECOR
 	m_libdecor = nullptr;
@@ -1733,7 +1752,13 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
         
     if (m_zxdg_shell)
         zxdg_shell_v6_destroy(m_zxdg_shell);
-        
+
+    if (m_cursor_shape)
+        wp_cursor_shape_device_v1_destroy(m_cursor_shape);
+
+    if(m_cursor_shape_manager)
+        wp_cursor_shape_manager_v1_destroy(m_cursor_shape_manager);
+
     if (m_shell_surface)
         wl_shell_surface_destroy(m_shell_surface);
         
@@ -3227,9 +3252,48 @@ void CIrrDeviceWayland::CCursorControl::initCursors() {
     }
 }
 
+static constexpr uint32_t IrrlichtShapeToCursorShape(gui::ECURSOR_ICON iconId) {
+    using namespace gui;
+    switch(iconId) {
+        default:
+        case ECI_NORMAL:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
+        case ECI_CROSS:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR;
+        case ECI_HAND:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_POINTER;
+        case ECI_HELP:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_HELP;
+        case ECI_IBEAM:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_TEXT;
+        case ECI_NO:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NOT_ALLOWED;
+        case ECI_WAIT:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_WAIT;
+        case ECI_SIZEALL:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_SCROLL;
+        case ECI_SIZENESW:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NESW_RESIZE;
+        case ECI_SIZENWSE:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NWSE_RESIZE;
+        case ECI_SIZENS:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NS_RESIZE;
+        case ECI_SIZEWE:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_EW_RESIZE;
+        case ECI_UP:
+            return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_N_RESIZE;
+    }
+}
+
 //! Sets the active cursor icon
 void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
 {
+    //If cursor shape protocol is present, use directly that and skip everything else
+    if(m_device->m_cursor_shape) {
+        wp_cursor_shape_device_v1_set_shape(m_device->m_cursor_shape, m_device->m_enter_serial, IrrlichtShapeToCursorShape(iconId));
+        return;
+    }
+
 	if ( iconId >= (s32)Cursors.size() )
 		return;
 
