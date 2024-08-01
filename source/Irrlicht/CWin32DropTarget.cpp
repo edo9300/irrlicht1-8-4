@@ -39,21 +39,24 @@ FORMATETC CheckFormat(IDataObject* pDataObj) {
 		return ret;
 	bool unicode = false;
 	bool found = false;
-	while(!unicode && Enum->Next(1, &ret, 0) == S_OK) {
-		if(ret.cfFormat == CF_HDROP) {
+	FORMATETC cur_format;
+	while(!unicode && Enum->Next(1, &cur_format, 0) == S_OK) {
+		if(cur_format.cfFormat == CF_HDROP) {
 			STGMEDIUM stg;
-			if(pDataObj->GetData(&ret, &stg) == S_OK) {
+			if(pDataObj->GetData(&cur_format, &stg) == S_OK) {
 				DROPFILES* filelist = static_cast<DROPFILES*>(GlobalLock(stg.hGlobal));
 				if(filelist != nullptr) {
 					unicode = filelist->fWide != 0;
 					GlobalUnlock(stg.hGlobal);
+					ret = cur_format;
 					found = true;
 				}
 				ReleaseStgMedium(&stg);
 			}
-		} else {
-			unicode = (ret.cfFormat == CF_UNICODETEXT);
-			found = found || unicode || ret.cfFormat == CF_TEXT;
+		} else if(cur_format.cfFormat == CF_UNICODETEXT || cur_format.cfFormat == CF_TEXT) {
+			unicode = (cur_format.cfFormat == CF_UNICODETEXT);
+			found = true;
+			ret = cur_format;
 		}
 	}
 	Enum->Release();
