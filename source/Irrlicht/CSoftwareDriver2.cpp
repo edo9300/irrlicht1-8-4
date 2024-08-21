@@ -824,7 +824,7 @@ void CBurningVideoDriver::setViewPort(const core::rect<s32>& area)
 	core::rect<s32> rendert(0, 0, RenderTargetSize.Width, RenderTargetSize.Height);
 	ViewPort.clipAgainst(rendert);
 
-	buildNDCToDCMatrix(Transformation_ETS_CLIPSCALE[0], ViewPort, 1.f/2048.f); //SkyBox,Billboard 90° problem
+	buildNDCToDCMatrix(Transformation_ETS_CLIPSCALE[0], ViewPort, 1.f/2048.f); //SkyBox,Billboard 90 deg problem
 	buildNDCToDCMatrix(Transformation_ETS_CLIPSCALE[1], ViewPort, 0.f); // OverrideMaterial2DEnabled ? -IRRLICHT_2D_TEXEL_OFFSET : 0.f);
 
 	if (CurrentShader)
