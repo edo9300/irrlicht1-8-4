@@ -248,7 +248,7 @@ static void PHYSFS_utf8ToUtf16(const char *src, u16 *dst, u64 len)
 
 		/* !!! BLUESKY: UTF-16 surrogates? */
 		if (cp > 0xFFFF) {
-			if((len - 1) >= sizeof(u16))
+			if((len - 1) < sizeof(u16))
 				break;
 			u32 unicode = cp - 0x10000;
 			*(dst++) = (u16)((unicode >> 10) | 0xd800);
