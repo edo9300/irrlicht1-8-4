@@ -100,8 +100,14 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	// create driver
 	createDriver();
 
-	if (VideoDriver)
+	if(window)
+		SDL_ShowWindow(window);
+	if(VideoDriver) {
+		// a default SDL2 window will have a black background, render it white
+		VideoDriver->beginScene(true, true, { 255, 255, 255, 255 });
+		VideoDriver->endScene();
 		createGUIAndScene();
+	}
 }
 
 
@@ -223,7 +229,7 @@ bool CIrrDeviceSDL2::createWindow()
 		SDL_WINDOWPOS_UNDEFINED,
 		CreationParams.WindowSize.Width,
 		CreationParams.WindowSize.Height,
-		windowFlags
+		windowFlags | SDL_WINDOW_HIDDEN
 	);
 
 	if(window == nullptr) {
@@ -261,6 +267,18 @@ void CIrrDeviceSDL2::createDriver()
 	switch(CreationParams.DriverType)
 	{
 
+	case video::EDT_DIRECT3D9_ON_12:
+#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
+		VideoDriver = video::createDirectX9Driver(CreationParams, FileSystem, HWnd);
+
+		if(VideoDriver)
+			break;
+		os::Printer::log("Could not create DIRECT3D9on12 Driver.", ELL_ERROR);
+		os::Printer::log("Falling back to DIRECT3D9 driver.", ELL_ERROR);
+#else
+		os::Printer::log("DIRECT3D9on12 Driver was not compiled into this dll. Try another one.", ELL_ERROR);
+		break;
+#endif
 	case video::EDT_DIRECT3D9:
 		#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
 		{
@@ -378,39 +396,6 @@ void CIrrDeviceSDL2::createDriver()
 		break;
 	}
 }
-
-// UTF-8 to UTF-16/UTF-32
-static int DecodeUTF8(wchar_t * dest, const char * src, int size) {
-	const char* p = src;
-	wchar_t* wp = dest;
-	while(*p != 0 && (wp - dest < size)) {
-		if((*p & 0x80) == 0) {
-			*wp = *p;
-			p++;
-		} else if((*p & 0xe0) == 0xc0) {
-			*wp = (((unsigned)p[0] & 0x1f) << 6) | ((unsigned)p[1] & 0x3f);
-			p += 2;
-		} else if((*p & 0xf0) == 0xe0) {
-			*wp = (((unsigned)p[0] & 0xf) << 12) | (((unsigned)p[1] & 0x3f) << 6) | ((unsigned)p[2] & 0x3f);
-			p += 3;
-		} else if((*p & 0xf8) == 0xf0) {
-#if	WCHAR_MAX == 0xffff
-			unsigned unicode = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
-			unicode -= 0x10000;
-			*wp++ = (unicode >> 10) | 0xd800;
-			*wp = (unicode & 0x3ff) | 0xdc00;
-#else
-			*wp = (((unsigned)p[0] & 0x7) << 18) | (((unsigned)p[1] & 0x3f) << 12) | (((unsigned)p[2] & 0x3f) << 6) | ((unsigned)p[3] & 0x3f);
-#endif
-			p += 4;
-		} else
-			p++;
-		wp++;
-	}
-	*wp = 0;
-	return wp - dest;
-}
-
 
 void CIrrDeviceSDL2::checkAndUpdateIMEState() {
     auto* env = getGUIEnvironment();
@@ -632,8 +617,7 @@ bool CIrrDeviceSDL2::run()
 				irrevent.DropEvent.DropType = (SDL_event.type == SDL_DROPFILE) ?  irr::DROP_FILE : irr::DROP_TEXT;
 				size_t lenOld = strlen(SDL_event.drop.file);
 				wchar_t *ws = new wchar_t[lenOld + 1];
-				size_t len = DecodeUTF8(ws, SDL_event.drop.file, lenOld);
-				ws[len] = 0;
+				core::utf8ToWchar(SDL_event.drop.file, ws, (lenOld + 1) * sizeof(wchar_t));
 				irrevent.DropEvent.Text = ws;
 				SDL_free(SDL_event.drop.file);
 				postEventFromUser(irrevent);
