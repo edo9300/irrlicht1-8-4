@@ -31,6 +31,9 @@
 #if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
 #include <SDL2/SDL_clipboard.h>
 #endif
+#if defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+#include <SDL3/SDL_clipboard.h>
+#endif
 
 #include "fast_atof.h"
 
@@ -148,6 +151,11 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 		SDL_SetClipboardText(ctext);
 		break;
 #endif
+#if defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+	case EIDT_SDL3:
+		SDL_SetClipboardText(ctext);
+		break;
+#endif
 #if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 	case EIDT_X11:
 		if(IrrDeviceLinux)
@@ -244,6 +252,12 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 			cbuffer = SDL_GetClipboardText();
 		break;
 #endif
+#if defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+	case EIDT_SDL3:
+		if(SDL_HasClipboardText())
+			cbuffer = SDL_GetClipboardText();
+		break;
+#endif
 #if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
 	case EIDT_X11:
 		if(IrrDeviceLinux)
@@ -274,8 +288,8 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	if(hData)
 		closeClipboardWindows(hData);
 #endif
-#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
-	if(DeviceType == EIDT_SDL2)
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_) || defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+	if(DeviceType == EIDT_SDL2 || DeviceType == EIDT_SDL3)
 		SDL_free(const_cast<char*>(cbuffer));
 #endif
 	return wstring.c_str();

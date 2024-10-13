@@ -54,6 +54,11 @@
 #undef _IRR_COMPILE_WITH_SDL2_DEVICE_
 #endif
 
+//#define _IRR_COMPILE_WITH_SDL3_DEVICE_
+#ifdef NO_IRR_COMPILE_WITH_SDL3_DEVICE_
+#undef _IRR_COMPILE_WITH_SDL3_DEVICE_
+#endif
+
 //! Comment this line to compile without the fallback console device.
 #define _IRR_COMPILE_WITH_CONSOLE_DEVICE_
 #ifdef NO_IRR_COMPILE_WITH_CONSOLE_DEVICE_
