@@ -12,6 +12,16 @@
 	#define bswap_16(X) SDL_Swap16(X)
 	#define bswap_32(X) SDL_Swap32(X)
 	#define bswap_64(X) SDL_Swap64(X)
+#elif defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
+	#include <SDL2/SDL_endian.h>
+	#define bswap_16(X) SDL_Swap16(X)
+	#define bswap_32(X) SDL_Swap32(X)
+	#define bswap_64(X) SDL_Swap64(X)
+#elif defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+	#include <SDL3/SDL_endian.h>
+	#define bswap_16(X) SDL_Swap16(X)
+	#define bswap_32(X) SDL_Swap32(X)
+	#define bswap_64(X) SDL_Swap64(X)
 #elif defined(_IRR_WINDOWS_API_) && defined(_MSC_VER) && (_MSC_VER > 1298)
 	#include <stdlib.h>
 	#pragma intrinsic(_byteswap_ushort)

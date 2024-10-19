@@ -192,7 +192,7 @@ void CSDL3ContextManager::swapInterval(int interval)
 
 void* CSDL3ContextManager::loadFunction(const char* function_name)
 {
-	return SDL_GL_GetProcAddress(function_name);
+	return reinterpret_cast<void*>(SDL_GL_GetProcAddress(function_name));
 }
 
 }

@@ -250,7 +250,7 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 			wmClass += name;
 			delete[] name;
 #endif
-			SDL_putenv(wmClass.data());
+			SDL_putenv((char*)wmClass.data());
 		}
 		// create the window, only if we do not use the null device
 		createWindow();

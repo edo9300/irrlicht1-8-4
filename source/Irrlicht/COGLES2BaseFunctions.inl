@@ -58,7 +58,11 @@ GL_FUNC(glLinkProgram, void, GLuint program)
 GL_FUNC(glPixelStorei, void, GLenum pname, GLint param)
 GL_FUNC(glReadPixels, void, GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
 GL_FUNC(glScissor, void, GLint x, GLint y, GLsizei width, GLsizei height)
+#ifdef _IRR_ANDROID_PLATFORM_
 GL_FUNC(glShaderSource, void, GLuint shader, GLsizei count, const GLchar* const* string, const GLint* length)
+#else
+GL_FUNC(glShaderSource, void, GLuint shader, GLsizei count, const GLchar** string, const GLint* length)
+#endif
 GL_FUNC(glStencilFunc, void, GLenum func, GLint ref, GLuint mask)
 GL_FUNC(glStencilMask, void, GLuint mask)
 GL_FUNC(glStencilOp, void, GLenum fail, GLenum zfail, GLenum zpass)

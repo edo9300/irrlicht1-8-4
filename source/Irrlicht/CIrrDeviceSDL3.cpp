@@ -765,27 +765,29 @@ bool CIrrDeviceSDL3::activateJoysticks(core::array<SJoystickInfo> & joystickInfo
 	joystickInfo.clear();
 
 	// we can name up to 256 different joysticks
-	const int numJoysticks = core::min_(SDL_NumJoysticks(), 256);
+	int num_joysticks;
+	auto* joysticksArray = SDL_GetJoysticks(&num_joysticks);
+	const int numJoysticks = core::min_(num_joysticks, 256);
 	Joysticks.reallocate(numJoysticks);
 	joystickInfo.reallocate(numJoysticks);
 
-	int joystick = 0;
-	for (; joystick<numJoysticks; ++joystick)
+	for (int joystickIdx = 0; joystickIdx<numJoysticks; ++joystickIdx)
 	{
+		auto joystick = joysticksArray[joystickIdx];
 		Joysticks.push_back(SDL_OpenJoystick(joystick));
 		SJoystickInfo info;
 
 		info.Joystick = joystick;
 		info.Axes = SDL_GetNumJoystickAxes(Joysticks[joystick]);
 		info.Buttons = SDL_GetNumJoystickButtons(Joysticks[joystick]);
-		info.Name = SDL_JoystickNameForIndex(joystick);
+		info.Name = SDL_GetJoystickNameForID(joystick);
 		info.PovHat = (SDL_GetNumJoystickHats(Joysticks[joystick]) > 0)
 						? SJoystickInfo::POV_HAT_PRESENT : SJoystickInfo::POV_HAT_ABSENT;
 
 		joystickInfo.push_back(info);
 	}
 
-	for(joystick = 0; joystick < (int)joystickInfo.size(); ++joystick)
+	for(int joystick = 0; joystick < (int)joystickInfo.size(); ++joystick)
 	{
 		char logString[256];
 		(void)sprintf(logString, "Found joystick %d, %d axes, %d buttons '%s'",
