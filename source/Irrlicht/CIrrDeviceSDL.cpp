@@ -255,11 +255,11 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 		// create the window, only if we do not use the null device
 		createWindow();
 
-		if(CreationParam.WindowCaption) {
+		if(CreationParams.WindowCaption) {
 #ifndef _IRR_WCHAR_FILESYSTEM
-			SDL_WM_SetCaption(CreationParam.WindowCaption, CreationParam.WindowCaption);
+			SDL_WM_SetCaption(CreationParams.WindowCaption, CreationParams.WindowCaption);
 #else
-			setWindowCaption(CreationParam.WindowCaption);
+			setWindowCaption(CreationParams.WindowCaption);
 #endif
 		}
 	}
