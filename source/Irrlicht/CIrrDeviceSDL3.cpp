@@ -559,7 +559,13 @@ bool CIrrDeviceSDL3::run()
 				is_ctrl_pressed = (SDL_event.key.mod & SDL_KMOD_CTRL) != 0;
 				is_shift_pressed = (SDL_event.key.mod & SDL_KMOD_SHIFT) != 0;
 				irrevent.EventType = irr::EET_KEY_INPUT_EVENT;
-				irrevent.KeyInput.Char = (isEditingText && key != 8) ? 0 : SDL_event.key.mod;
+				irrevent.KeyInput.Char = [&] {
+					if(key == KEY_BACK)
+						return '\b';
+					if(key == KEY_RETURN)
+						return '\n';
+					return '\0';
+				}();
 				irrevent.KeyInput.Key = key;
 				irrevent.KeyInput.PressedDown = (SDL_event.type == SDL_EVENT_KEY_DOWN);
 				irrevent.KeyInput.Shift = (SDL_event.key.mod & SDL_KMOD_SHIFT) != 0;
