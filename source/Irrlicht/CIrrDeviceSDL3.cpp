@@ -529,6 +529,8 @@ bool CIrrDeviceSDL3::run()
 			if (irrevent.MouseInput.Event != irr::EMIE_MOUSE_MOVED)
 			{
 				postEventFromUser(irrevent);
+				if(transformToMultiClickEvent(irrevent))
+					postEventFromUser(irrevent);
 			}
 			break;
 
