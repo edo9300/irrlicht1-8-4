@@ -1285,6 +1285,7 @@ void CIrrDeviceSDL::createKeyMap()
 	KeyMap.push_back(SKeyMap(SDLK_KP_MINUS, KEY_SUBTRACT));
 	KeyMap.push_back(SKeyMap(SDLK_KP_PERIOD, KEY_DECIMAL));
 	KeyMap.push_back(SKeyMap(SDLK_KP_DIVIDE, KEY_DIVIDE));
+	KeyMap.push_back(SKeyMap(SDLK_KP_ENTER, KEY_RETURN));
 
 	KeyMap.push_back(SKeyMap(SDLK_F1,  KEY_F1));
 	KeyMap.push_back(SKeyMap(SDLK_F2,  KEY_F2));
