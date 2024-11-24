@@ -80,6 +80,10 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 #endif
 	SDL_SetHintWithPriority(SDL_HINT_IME_SHOW_UI, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_IME_INTERNAL_EDITING, "1", SDL_HINT_OVERRIDE);
+#ifndef SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS
+#define SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS "SDL_WINDOWS_ENABLE_MENU_MNEMONICS"
+#endif
+	SDL_SetHintWithPriority(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, "1", SDL_HINT_OVERRIDE);
 	SDL_GetWindowWMInfo(window, &Info);
 	core::stringc sdlversion = "SDL Version ";
 	sdlversion += Info.version.major;

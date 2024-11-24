@@ -47,6 +47,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 	SDL_SetMainReady();
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "1", SDL_HINT_OVERRIDE);
+	SDL_SetHintWithPriority(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, "1", SDL_HINT_OVERRIDE);
 	// Initialize SDL... Timer for sleep, video for the obvious, and
 	// noparachute prevents SDL from catching fatal errors.
 	auto init_flags = SDL_INIT_VIDEO;
