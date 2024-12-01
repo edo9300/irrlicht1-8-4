@@ -677,7 +677,6 @@ bool CIrrDeviceSDL2::run()
 					if((SDL_event.window.data1 != (int)Width) || (SDL_event.window.data2 != (int)Height)) {
 						Width = SDL_event.window.data1;
 						Height = SDL_event.window.data2;
-						resizeWindow(Width, Height);
 						if(VideoDriver)
 							VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
 					}
