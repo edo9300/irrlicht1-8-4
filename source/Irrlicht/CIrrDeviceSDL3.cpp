@@ -44,6 +44,27 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 	setDebugName("CIrrDeviceSDL3");
 	#endif
 
+	auto version = SDL_GetVersion();
+	core::stringc sdlversion = "SDL Version ";
+	sdlversion += SDL_VERSIONNUM_MAJOR(version);
+	sdlversion += ".";
+	sdlversion += SDL_VERSIONNUM_MINOR(version);
+	sdlversion += ".";
+	sdlversion += SDL_VERSIONNUM_MICRO(version);
+	if(SDL_VERSION != version) {
+		sdlversion += " (Built against version ";
+		sdlversion += SDL_MAJOR_VERSION;
+		sdlversion += ".";
+		sdlversion += SDL_MINOR_VERSION;
+		sdlversion += ".";
+		sdlversion += SDL_MICRO_VERSION;
+		sdlversion += ")";
+	}
+	sdlversion += " (";
+	sdlversion += SDL_GetPlatform();
+	sdlversion += ")";
+	os::Printer::log(sdlversion.c_str(), ELL_INFORMATION);
+
 	SDL_SetMainReady();
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "1", SDL_HINT_OVERRIDE);
@@ -79,28 +100,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 			return;
 	}
 
-	auto version = SDL_GetVersion();
-	core::stringc sdlversion = "SDL Version ";
-	sdlversion += SDL_VERSIONNUM_MAJOR(version);
-	sdlversion += ".";
-	sdlversion += SDL_VERSIONNUM_MINOR(version);
-	sdlversion += ".";
-	sdlversion += SDL_VERSIONNUM_MICRO(version);
-	if(SDL_VERSION != version) {
-		sdlversion += "(Compile version ";
-		sdlversion += SDL_MAJOR_VERSION;
-		sdlversion += ".";
-		sdlversion += SDL_MINOR_VERSION;
-		sdlversion += ".";
-		sdlversion += SDL_MICRO_VERSION;
-		sdlversion += ")";
-	}
-	sdlversion += " (";
-	sdlversion += SDL_GetPlatform();
-	sdlversion += ")";
-
 	Operator = new COSOperator(sdlversion, EIDT_SDL3);
-	os::Printer::log(sdlversion.c_str(), ELL_INFORMATION);
 
 	// create keymap
 	createKeyMap();

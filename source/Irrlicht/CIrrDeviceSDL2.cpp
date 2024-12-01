@@ -42,6 +42,30 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	setDebugName("CIrrDeviceSDL2");
 	#endif
 
+	SDL_version curversion, oldversion;
+	SDL_VERSION(&oldversion);
+	Info.version = oldversion;
+	core::stringc sdlversion = "SDL Version ";
+	SDL_GetVersion(&curversion);
+	sdlversion += curversion.major;
+	sdlversion += ".";
+	sdlversion += curversion.minor;
+	sdlversion += ".";
+	sdlversion += curversion.patch;
+	if(memcmp(&oldversion, &curversion, sizeof(SDL_version)) != 0) {
+		sdlversion += " (Built against version ";
+			sdlversion += SDL_MAJOR_VERSION;
+			sdlversion += ".";
+			sdlversion += SDL_MINOR_VERSION;
+			sdlversion += ".";
+			sdlversion += SDL_PATCHLEVEL;
+			sdlversion += ")";
+	}
+	sdlversion += " (";
+	sdlversion += SDL_GetPlatform();
+	sdlversion += ")";
+	os::Printer::log(sdlversion.c_str(), ELL_INFORMATION);
+
 	SDL_SetMainReady();
 	// Initialize SDL... Timer for sleep, video for the obvious, and
 	// noparachute prevents SDL from catching fatal errors.
@@ -73,7 +97,6 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 			return;
 	}
 
-	SDL_VERSION(&Info.version);
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
 #ifndef SDL_HINT_IME_SHOW_UI
 #define SDL_HINT_IME_SHOW_UI "SDL_IME_SHOW_UI"
@@ -85,15 +108,8 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 #endif
 	SDL_SetHintWithPriority(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, "1", SDL_HINT_OVERRIDE);
 	SDL_GetWindowWMInfo(window, &Info);
-	core::stringc sdlversion = "SDL Version ";
-	sdlversion += Info.version.major;
-	sdlversion += ".";
-	sdlversion += Info.version.minor;
-	sdlversion += ".";
-	sdlversion += Info.version.patch;
 
 	Operator = new COSOperator(sdlversion, EIDT_SDL2);
-	os::Printer::log(sdlversion.c_str(), ELL_INFORMATION);
 
 	// create keymap
 	createKeyMap();
