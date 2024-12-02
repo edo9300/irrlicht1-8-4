@@ -565,6 +565,9 @@ bool CIrrDeviceSDL3::run()
 						return '\b';
 					if(key == KEY_RETURN)
 						return '\n';
+					if(!isEditingText && (SDL_event.key.key & SDLK_SCANCODE_MASK) == 0) {
+						return (char)SDL_event.key.key;
+					}
 					return '\0';
 				}();
 				irrevent.KeyInput.Key = key;

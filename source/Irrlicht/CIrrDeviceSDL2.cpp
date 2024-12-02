@@ -591,6 +591,9 @@ bool CIrrDeviceSDL2::run()
 						return '\b';
 					if(key == KEY_RETURN)
 						return '\n';
+					if(!isEditingText && (SDL_event.key.keysym.sym & SDLK_SCANCODE_MASK) == 0) {
+						return (char)SDL_event.key.keysym.sym;
+					}
 					return '\0';
 				}();
 				irrevent.KeyInput.Key = key;
