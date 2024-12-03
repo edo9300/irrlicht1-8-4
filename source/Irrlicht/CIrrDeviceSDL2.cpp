@@ -935,7 +935,13 @@ void CIrrDeviceSDL2::restoreWindow()
 
 //! Restore original window size
 void CIrrDeviceSDL2::toggleFullscreen(bool fullscreen) {
+	// hack to work around the fact that sdl will automatically
+	// warp the mouse when changing fullscreen state to keep
+	// it relative to the window 0,0 coordinates
+	int x, y;
+	SDL_GetGlobalMouseState(&x, &y);
 	SDL_SetWindowFullscreen(window, fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+	SDL_WarpMouseGlobal(x, y);
 }
 
 
