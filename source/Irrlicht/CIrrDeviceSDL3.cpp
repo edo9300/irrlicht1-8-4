@@ -277,6 +277,7 @@ void CIrrDeviceSDL3::createDriver()
 			break;
 		os::Printer::log("Could not create DIRECT3D9on12 Driver.", ELL_ERROR);
 		os::Printer::log("Falling back to DIRECT3D9 driver.", ELL_ERROR);
+		CreationParams.DriverType = video::EDT_DIRECT3D9;
 #else
 		os::Printer::log("DIRECT3D9on12 Driver was not compiled into this dll. Try another one.", ELL_ERROR);
 		break;
