@@ -2,8 +2,8 @@
 // This file is part of the "Irrlicht Engine".
 // Licensed under agpl3
 
-#ifndef __C_OPEN_GL_BASE_FUNCTIONS_HANDLER_H_INCLUDED__
-#define __C_OPEN_GL_BASE_FUNCTIONS_HANDLER_H_INCLUDED__
+#ifndef __C_OPEN_GLES2_BASE_FUNCTIONS_HANDLER_H_INCLUDED__
+#define __C_OPEN_GLES2_BASE_FUNCTIONS_HANDLER_H_INCLUDED__
 
 #include "IrrCompileConfig.h"
 
@@ -15,7 +15,7 @@
 #include "os.h"
 
 #include "COGLES2Common.h"
-#include "GLES/glplatform.h"
+#include "GLES2/gl2platform.h"
 
 namespace irr {
 namespace video {

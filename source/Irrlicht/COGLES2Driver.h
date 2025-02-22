@@ -19,14 +19,6 @@
 #include "COGLES2ExtensionHandler.h"
 #include "IContextManager.h"
 
-#if defined(_IRR_WINDOWS_API_)
-// include windows headers for HWND
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
-
 namespace irr
 {
 namespace video
