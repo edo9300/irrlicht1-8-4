@@ -8,7 +8,7 @@ namespace irr
 
 		#ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
 		IVideoDriver* createDirectX9Driver(const irr::SIrrlichtCreationParameters& params,
-			io::IFileSystem* io, HWND window);
+			io::IFileSystem* io, void* window);
 		#endif
 
 		#ifdef _IRR_COMPILE_WITH_OPENGL_

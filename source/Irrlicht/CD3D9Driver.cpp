@@ -3975,12 +3975,10 @@ void CD3D9Driver::setSwapInterval(int interval) {
 	if(!pID3DDevice)
 		return;
 	bool bInterval = !!interval;
-	if(Params.Vsync == bInterval)
+	if(!!Params.Vsync == bInterval)
 		return;
-	if((Params.Vsync = bInterval))
-		present.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-	else
-		present.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	Params.Vsync = bInterval;
+	present.PresentationInterval = bInterval ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 	reset();
 }
 
@@ -3999,11 +3997,11 @@ namespace video
 #ifdef _IRR_COMPILE_WITH_DIRECT3D_9_
 //! creates a video driver
 IVideoDriver* createDirectX9Driver(const SIrrlichtCreationParameters& params,
-			io::IFileSystem* io, HWND window)
+			io::IFileSystem* io, void* window)
 {
 	const bool pureSoftware = false;
 	CD3D9Driver* dx9 = new CD3D9Driver(params, io);
-	if (!dx9->initDriver(window, pureSoftware))
+	if (!dx9->initDriver(static_cast<HWND>(window), pureSoftware))
 	{
 		dx9->drop();
 		dx9 = 0;
