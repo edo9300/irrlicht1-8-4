@@ -250,7 +250,7 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 			wmClass += name;
 			delete[] name;
 #endif
-			SDL_putenv((char*)wmClass.data());
+			SDL_putenv(wmClass.data());
 		}
 		// create the window, only if we do not use the null device
 		createWindow();
@@ -610,7 +610,7 @@ bool CIrrDeviceSDL::run()
 				else
 				{
 					irrevent.MouseInput.Event = irr::EMIE_LMOUSE_LEFT_UP;
-					MouseButtonStates &= !irr::EMBSM_LEFT;
+					MouseButtonStates &= ~irr::EMBSM_LEFT;
 				}
 				break;
 

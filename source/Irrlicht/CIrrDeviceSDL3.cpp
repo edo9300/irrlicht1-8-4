@@ -495,7 +495,7 @@ bool CIrrDeviceSDL3::run()
 				else
 				{
 					irrevent.MouseInput.Event = irr::EMIE_LMOUSE_LEFT_UP;
-					MouseButtonStates &= !irr::EMBSM_LEFT;
+					MouseButtonStates &= ~irr::EMBSM_LEFT;
 				}
 				break;
 
