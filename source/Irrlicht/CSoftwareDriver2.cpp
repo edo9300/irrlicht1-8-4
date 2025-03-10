@@ -994,7 +994,7 @@ size_t clipToHyperPlane(
 			a = source + index;
 	#endif
 	*/
-	//Sutherland–Hodgman
+	//Sutherland-Hodgman
 	for (size_t i = 0; i < inCount; ++i)
 	{
 		a = source + (i == inCount - 1 ? 0 : s4DVertex_ofs(i + 1));
