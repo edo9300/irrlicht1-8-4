@@ -59,7 +59,7 @@ public:
 	// deferred initialization
 	bool initBaseFunctions() { return true; };
 
-#define GL_FUNC(name, ret_type, ...) ret_type(GL_APIENTRY * p##name)(__VA_ARGS__) = &name;
+#define GL_FUNC(name, ret_type, ...) const decltype(&name) p##name = &name;
 #include "COpenGLBaseFunctions.inl"
 #undef GL_FUNC
 };
