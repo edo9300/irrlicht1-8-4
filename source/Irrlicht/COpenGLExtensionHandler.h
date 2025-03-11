@@ -3365,11 +3365,7 @@ inline void COpenGLExtensionHandler::extGlGenerateTextureMipmap(GLuint texture, 
                 return;
         }
         glBindTexture(target, texture);
-#ifdef _IRR_OPENGL_USE_EXTPOINTER_
-        pGlGenerateMipmap(target);
-#else
-        glGenerateMipmap(target);
-#endif // _IRR_OPENGL_USE_EXTPOINTER_
+        irrGlGenerateMipmap(target);
         glBindTexture(target, bound);
     }
 }
