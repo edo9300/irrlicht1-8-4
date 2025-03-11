@@ -38,6 +38,9 @@ class quaternion
 		//! Constructor
 		quaternion(f32 x, f32 y, f32 z, f32 w) : X(x), Y(y), Z(z), W(w) { }
 
+		//! Constructor
+		quaternion(const quaternion& other) : X(other.X), Y(other.Y), Z(other.Z), W(other.W) { }
+
 		//! Constructor which converts Euler angles (radians) to a quaternion
 		quaternion(f32 x, f32 y, f32 z);
 

@@ -537,6 +537,10 @@ class map
 			reset();
 		}
 
+		ParentLastIterator(const ParentLastIterator& src) : Root(src.Root), Cur(src.Cur)
+		{
+		}
+
 		void reset()
 		{
 			Cur = getMin(Root);
