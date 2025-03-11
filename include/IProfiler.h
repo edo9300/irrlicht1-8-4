@@ -343,7 +343,7 @@ s32 IProfiler::add(const core::stringw &name, const core::stringw &groupName)
 	}
 }
 
-void IProfiler::add(s32 id, const core::stringw &name, const core::stringw &groupName)
+void IProfiler::add(s32 prof_id, const core::stringw &name, const core::stringw &groupName)
 {
 	u32 groupIdx;
 	if ( !findGroupIndex(groupIdx, groupName) )
@@ -351,7 +351,7 @@ void IProfiler::add(s32 id, const core::stringw &name, const core::stringw &grou
 		groupIdx = addGroup(groupName);
 	}
 
-	SProfileData data(id);
+	SProfileData data(prof_id);
 	s32 idx = ProfileDatas.binary_search(data);
 	if ( idx < 0 )
 	{
@@ -397,9 +397,9 @@ bool IProfiler::findDataIndex(u32 & result, const core::stringw &name) const
 	return false;
 }
 
-const SProfileData* IProfiler::getProfileDataById(u32 id)
+const SProfileData* IProfiler::getProfileDataById(u32 prof_id)
 {
-	SProfileData data(id);
+	SProfileData data(prof_id);
     s32 idx = ProfileDatas.binary_search(data);
 	if ( idx >= 0 )
 		return &ProfileDatas[idx];
@@ -420,9 +420,9 @@ bool IProfiler::findGroupIndex(u32 & result, const core::stringw &name) const
 	return false;
 }
 
-void IProfiler::resetDataById(s32 id)
+void IProfiler::resetDataById(s32 prof_id)
 {
-	s32 idx = ProfileDatas.binary_search(SProfileData(id));
+	s32 idx = ProfileDatas.binary_search(SProfileData(prof_id));
     if ( idx >= 0 )
     {
 		resetDataByIndex((u32)idx);
