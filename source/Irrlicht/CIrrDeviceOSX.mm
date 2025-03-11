@@ -11,6 +11,7 @@
 #import <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
+#import <OpenGL/OpenGL.h>
 
 #include "CIrrDeviceOSX.h"
 
@@ -32,22 +33,16 @@
 #include <time.h>
 
 #include "CNSOGLManager.h"
-
-#if defined _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
-
-#include <IOKit/IOKitLib.h>
-#include <IOKit/IOCFPlugIn.h>
-#ifdef MACOS_10_0_4
-#include <IOKit/hidsystem/IOHIDUsageTables.h>
-#else
-/* The header was moved here in Mac OS X 10.1 */
-#include <Kernel/IOKit/hidsystem/IOHIDUsageTables.h>
-#endif
-#include <IOKit/hid/IOHIDLib.h>
-#include <IOKit/hid/IOHIDKeys.h>
 #include <AvailabilityMacros.h>
 #if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
 #import <Carbon/Carbon.h>
+#define AUTORELEASEPOOL_START_BLOCK(pool) NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init]; (void)pool
+#define AUTORELEASEPOOL_RELEASE(pool) [pool release]
+#define AUTORELEASEPOOL_END_BLOCK(pool) (void)0;
+#else
+#define AUTORELEASEPOOL_START_BLOCK(pool) @autoreleasepool {
+#define AUTORELEASEPOOL_RELEASE(pool) (void)0
+#define AUTORELEASEPOOL_END_BLOCK(pool) }
 #endif
 #if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_14
 #define NSPasteboardTypeString NSStringPboardType
@@ -77,6 +72,19 @@
 #define NSEventTypeRightMouseUp NSRightMouseUp
 #define NSEventTypeScrollWheel NSScrollWheel
 #endif
+
+#if defined _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
+
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IOCFPlugIn.h>
+#ifdef MACOS_10_0_4
+#include <IOKit/hidsystem/IOHIDUsageTables.h>
+#else
+/* The header was moved here in Mac OS X 10.1 */
+#include <Kernel/IOKit/hidsystem/IOHIDUsageTables.h>
+#endif
+#include <IOKit/hid/IOHIDLib.h>
+#include <IOKit/hid/IOHIDKeys.h>
 
 struct JoystickComponent
 {
@@ -333,7 +341,7 @@ static void getJoystickDeviceInfo (io_object_t hidDevice, CFMutableDictionaryRef
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
 // only OSX 10.5 seems to not need these defines...
-#if defined(__MAC_10_6)
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6)
 // Contents from Events.h from Carbon/HIToolbox but we need it with Cocoa too
 // and for some reason no Cocoa equivalent of these constants seems provided.
 // So I'm doing like everyone else and using copy-and-paste.
@@ -497,13 +505,13 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
 }
 
 @interface ContentView : NSView
+    irr::CIrrDeviceMacOSX* device;
 @end
 
 @implementation ContentView {
-    irr::CIrrDeviceMacOSX* device;
 }
 
-- (instancetype)initWithWindow:(irr::CIrrDeviceMacOSX*)_device {
+- (instancetype)initWithDevice:(irr::CIrrDeviceMacOSX*)_device {
     self = [super init];
     if (self != nil) {
         device = _device;
@@ -545,10 +553,27 @@ namespace irr
 
 static bool firstLaunch = true;
 
+#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
+@interface CIrrDelegateOSX : NSTextView
+#else
+@interface CIrrDelegateOSX : NSTextView <NSApplicationDelegate>
+#endif
+{
+	NSMenu* _dockMenu;
+	BOOL	_dropIsFile;
+	irr::CIrrDeviceMacOSX* Device;
+	bool Quit;
+}
+
+- (id)initWithDevice:(irr::CIrrDeviceMacOSX*)device;
+- (void)terminate:(id)sender;
+- (BOOL)isQuit;
+- (NSMenu*)applicationDockMenu:(NSApplication*)sender;
+
+@end
+
 @implementation CIrrDelegateOSX
 {
-    irr::CIrrDeviceMacOSX* Device;
-    bool Quit;
 }
 
 - (id)initWithDevice:(irr::CIrrDeviceMacOSX*)device
@@ -626,7 +651,7 @@ static bool firstLaunch = true;
 
 - (void)keyDown:(NSEvent *)event
 {
-	[self interpretKeyEvents:@[event]];
+	[self interpretKeyEvents:[NSArray arrayWithObjects:event,nil]];
 }
 
 - (void)insertText:(id)string
@@ -656,7 +681,7 @@ static bool firstLaunch = true;
 {
 	NSPoint dropPoint = [sender draggingLocation];
 	NSPasteboard *pasteboard = [sender draggingPasteboard];
-    _dropIsFile = [[pasteboard types] containsObject:NSFilenamesPboardType];
+	_dropIsFile = [[pasteboard types] containsObject:NSFilenamesPboardType];
 
 	if (Device->isDraggable((int)dropPoint.x, (int)dropPoint.y, _dropIsFile) &&
 		([sender draggingSourceOperationMask] & NSDragOperationGeneric) == NSDragOperationGeneric) {
@@ -675,19 +700,21 @@ static bool firstLaunch = true;
 }
 
 - (BOOL)performDragOperation:(id <NSDraggingInfo>)sender
-{ @autoreleasepool
 {
+	AUTORELEASEPOOL_START_BLOCK(pool);
 	NSPoint dropPoint = [sender draggingLocation];
 	NSPasteboard *pasteboard = [sender draggingPasteboard];
 	NSArray *types = [NSArray arrayWithObjects:NSPasteboardTypeString,NSFilenamesPboardType,nil];
 	NSString *desiredType = [pasteboard availableTypeFromArray:types];
 
 	if (desiredType == nil) {
+		AUTORELEASEPOOL_RELEASE(pool);
 		return NO;  /* can't accept anything that's being dropped here. */
 	}
 
 	NSData *data = [pasteboard dataForType:desiredType];
 	if (data == nil) {
+		AUTORELEASEPOOL_RELEASE(pool);
 		return NO;
 	}
 
@@ -699,7 +726,7 @@ static bool firstLaunch = true;
 	irrevent.DropEvent.Text = nullptr;
 	Device->postEventFromUser(irrevent);
 
-	bool(^dispatch)(irr::SEvent&, NSString*) = ^ (irr::SEvent& irrevent, NSString* str) {
+	auto dispatch = [&](irr::SEvent& irrevent, NSString* str) -> bool {
 		const char* cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
@@ -710,20 +737,27 @@ static bool firstLaunch = true;
 			irrevent.DropEvent.Text = nullptr;
 			irrevent.DropEvent.DropType = irr::DROP_END;
 			Device->postEventFromUser(irrevent);
-			return false;
+			AUTORELEASEPOOL_RELEASE(pool);
+			return NO;
 		}
-		return true;
+		AUTORELEASEPOOL_RELEASE(pool);
+		return YES;
 	};
 
-    if ([pasteboard dataForType:NSPasteboardTypeString]) {
-        NSString *str = [pasteboard stringForType:NSPasteboardTypeString];
-        irrevent.DropEvent.DropType = irr::DROP_TEXT;
-        if (!dispatch(irrevent, str))
-            return NO;
-    }
+	if ([pasteboard dataForType:NSPasteboardTypeString]) {
+		NSString *str = [pasteboard stringForType:NSPasteboardTypeString];
+		irrevent.DropEvent.DropType = irr::DROP_TEXT;
+		if (!dispatch(irrevent, str)) {
+			AUTORELEASEPOOL_RELEASE(pool);
+			return NO;
+		}
+	}
 
-    NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
-	for (NSString *path in fileArray) {		
+	NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
+	NSEnumerator *e = [fileArray objectEnumerator];
+	id object;
+	while (object = [e nextObject]) {		
+		NSString *path = object;
 		NSURL *fileURL = [NSURL fileURLWithPath:path];
 		
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
@@ -750,15 +784,19 @@ static bool firstLaunch = true;
 #endif
 
 		irrevent.DropEvent.DropType = irr::DROP_FILE;
-		if (!dispatch(irrevent, [fileURL path]))
+		if (!dispatch(irrevent, [fileURL path])) {
+			AUTORELEASEPOOL_RELEASE(pool);
 			return NO;
+		}
 	}
 
 	irrevent.DropEvent.Text = nullptr;
 	irrevent.DropEvent.DropType = irr::DROP_END;
 	Device->postEventFromUser(irrevent);
+	AUTORELEASEPOOL_RELEASE(pool);
 	return YES;
-}}
+	AUTORELEASEPOOL_END_BLOCK(pool)
+}
 
 @end
 
@@ -785,7 +823,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 
 		if (!CreationParams.WindowId)
 		{
-			[[NSAutoreleasePool alloc] init];
+			AUTORELEASEPOOL_START_BLOCK(Pool);
 			[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 			[NSApp setDelegate:[[[[CIrrDelegateOSX alloc] initWithDevice:this] initWithFrame:NSZeroRect] autorelease]];
             
@@ -803,6 +841,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
             [NSApp setMainMenu:mainMenu];
 
             [NSApp finishLaunching];
+			AUTORELEASEPOOL_END_BLOCK(Pool)
 		}
 
 		/*path = [[NSBundle mainBundle] bundlePath];
@@ -1028,13 +1067,17 @@ bool CIrrDeviceMacOSX::createWindow()
                 delete[] title;
             }
             if(CreationParams.DriverType == video::EDT_SOFTWARE || CreationParams.DriverType == video::EDT_BURNINGSVIDEO) {
-                ContentView* view = [[[ContentViewSoftware alloc] initWithWindow:this] autorelease];
+                ContentView* view = [[[ContentViewSoftware alloc] initWithDevice:this] autorelease];
                 [Window setContentView:view];
             } else {
-                ContentView* view = [[[ContentView alloc] initWithWindow:this] autorelease];
+                ContentView* view = [[[ContentView alloc] initWithDevice:this] autorelease];
                 [Window setContentView:view];
             }
+#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
+            [Window setDelegate:[NSApp delegate]];
+#else
             [Window setDelegate:(id<NSWindowDelegate>)[NSApp delegate]];
+#endif
             [Window setAcceptsMouseMovedEvents:TRUE];
             [Window setIsVisible:TRUE];
             [Window makeKeyAndOrderFront:nil];
@@ -1172,7 +1215,7 @@ void CIrrDeviceMacOSX::createDriver()
 
 bool CIrrDeviceMacOSX::run()
 {
-	NSAutoreleasePool* Pool = [[NSAutoreleasePool alloc] init];
+	AUTORELEASEPOOL_START_BLOCK(Pool);
 
 	NSEvent *event;
 	irr::SEvent	ievent;
@@ -1336,9 +1379,10 @@ bool CIrrDeviceMacOSX::run()
 
 	pollJoysticks();
 
-	[Pool release];
+	AUTORELEASEPOOL_RELEASE(Pool);
 
 	return (![(CIrrDelegateOSX*)[NSApp delegate] isQuit] && IsActive);
+	AUTORELEASEPOOL_END_BLOCK(Pool)
 }
 
 
@@ -1632,7 +1676,7 @@ void CIrrDeviceMacOSX::changeCursorIcon(gui::ECURSOR_ICON iconId)
 	case gui::ECURSOR_ICON::ECI_IBEAM:
 		currentCursor = [NSCursor IBeamCursor];
 		break;
-#if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 	case gui::ECURSOR_ICON::ECI_NO:
 		currentCursor = [NSCursor operationNotAllowedCursor];
 		break;

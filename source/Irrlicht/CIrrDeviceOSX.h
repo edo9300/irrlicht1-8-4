@@ -24,24 +24,6 @@
 
 namespace irr
 {
-    class CIrrDeviceMacOSX;
-}
-
-@interface CIrrDelegateOSX : NSTextView <NSApplicationDelegate>
-{
-	NSMenu* _dockMenu;
-	BOOL			_dropIsFile;
-}
-
-- (id)initWithDevice:(irr::CIrrDeviceMacOSX*)device;
-- (void)terminate:(id)sender;
-- (BOOL)isQuit;
--(NSMenu*)applicationDockMenu:(NSApplication*)sender;
-
-@end
-
-namespace irr
-{
 	class CIrrDeviceMacOSX : public CIrrDeviceStub, video::IImagePresenter
 	{
 	public:
