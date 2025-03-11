@@ -1269,7 +1269,7 @@ bool CIrrDeviceMacOSX::run()
 
 			case NSEventTypeLeftMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
-				MouseButtonStates &= !irr::EMBSM_LEFT;
+				MouseButtonStates &= ~irr::EMBSM_LEFT;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
 				ievent.MouseInput.Event = irr::EMIE_LMOUSE_LEFT_UP;
 				postMouseEvent(event,ievent);
@@ -1285,7 +1285,7 @@ bool CIrrDeviceMacOSX::run()
 
 			case NSEventTypeOtherMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
-				MouseButtonStates &= !irr::EMBSM_MIDDLE;
+				MouseButtonStates &= ~irr::EMBSM_MIDDLE;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
 				ievent.MouseInput.Event = irr::EMIE_MMOUSE_LEFT_UP;
 				postMouseEvent(event,ievent);
@@ -1312,7 +1312,7 @@ bool CIrrDeviceMacOSX::run()
 			case NSEventTypeRightMouseUp:
 				ievent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 				ievent.MouseInput.Event = irr::EMIE_RMOUSE_LEFT_UP;
-				MouseButtonStates &= !irr::EMBSM_RIGHT;
+				MouseButtonStates &= ~irr::EMBSM_RIGHT;
 				ievent.MouseInput.ButtonStates = MouseButtonStates;
 				postMouseEvent(event,ievent);
 				break;
