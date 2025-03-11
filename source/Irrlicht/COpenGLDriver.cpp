@@ -2061,6 +2061,9 @@ void COpenGLDriver::disableFeature(E_VIDEO_DRIVER_FEATURE feature, bool flag)
 
 	if ( feature == EVDF_TEXTURE_CUBEMAP_SEAMLESS )
 	{
+#ifndef GL_TEXTURE_CUBE_MAP_SEAMLESS
+#define GL_TEXTURE_CUBE_MAP_SEAMLESS      0x884F
+#endif
 		if ( queryFeature(feature) )
 			pglEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 		else if (COpenGLExtensionHandler::queryFeature(feature))
@@ -4381,6 +4384,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R8:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_R8
+#define GL_R8 0x8229
+#endif
 			supported = true;
 			internalFormat = GL_R8;
 			pixelFormat = GL_RED;
@@ -4390,6 +4396,12 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R8G8:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_RG8
+#define GL_RG8 0x822B
+#endif
+#ifndef GL_RG
+#define GL_RG 0x8227
+#endif
 			supported = true;
 			internalFormat = GL_RG8;
 			pixelFormat = GL_RG;
@@ -4399,6 +4411,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R16:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_R16
+#define GL_R16 0x822A
+#endif
 			supported = true;
 			internalFormat = GL_R16;
 			pixelFormat = GL_RED;
@@ -4408,6 +4423,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R16G16:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_RG16
+#define GL_RG16 0x822C
+#endif
 			supported = true;
 			internalFormat = GL_RG16;
 			pixelFormat = GL_RG;
@@ -4417,6 +4435,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R16F:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_R16F
+#define GL_R16F 0x822D
+#endif
 			supported = true;
 			internalFormat = GL_R16F;
 			pixelFormat = GL_RED;
@@ -4431,6 +4452,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_G16R16F:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_RG16F
+#define GL_RG16F 0x822F
+#endif
 			supported = true;
 			internalFormat = GL_RG16F;
 			pixelFormat = GL_RG;
@@ -4459,6 +4483,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_R32F:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_R32F
+#define GL_R32F 0x822E
+#endif
 			supported = true;
 			internalFormat = GL_R32F;
 			pixelFormat = GL_RED;
@@ -4468,6 +4495,9 @@ bool COpenGLDriver::getColorFormatParameters(ECOLOR_FORMAT format, GLint& intern
 	case ECF_G32R32F:
 		if (queryOpenGLFeature(COpenGLExtensionHandler::IRR_ARB_texture_rg))
 		{
+#ifndef GL_RG32F
+#define GL_RG32F 0x8230
+#endif
 			supported = true;
 			internalFormat = GL_RG32F;
 			pixelFormat = GL_RG;
