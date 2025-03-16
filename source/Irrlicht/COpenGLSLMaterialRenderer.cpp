@@ -613,6 +613,15 @@ bool COpenGLSLMaterialRenderer::setVertexShaderConstant(s32 index, const u32* in
 	return setPixelShaderConstant(index, ints, count);
 }
 
+#ifndef GL_FLOAT_MAT2x3
+#define GL_FLOAT_MAT2x3                   0x8B65
+#define GL_FLOAT_MAT2x4                   0x8B66
+#define GL_FLOAT_MAT3x2                   0x8B67
+#define GL_FLOAT_MAT3x4                   0x8B68
+#define GL_FLOAT_MAT4x2                   0x8B69
+#define GL_FLOAT_MAT4x3                   0x8B6A
+#endif
+
 bool COpenGLSLMaterialRenderer::setPixelShaderConstant(s32 index, const f32* floats, int count)
 {
 	if(index < 0 || UniformInfo[index].location < 0)

@@ -749,6 +749,10 @@ void COpenGLExtensionHandler::initExtensions(bool stencilBuffer)
 	}
 #endif
 
+#ifndef GL_TEXTURE_CUBE_MAP_SEAMLESS
+#define GL_TEXTURE_CUBE_MAP_SEAMLESS      0x884F
+#endif
+
 	if (queryFeature(EVDF_TEXTURE_CUBEMAP_SEAMLESS))
 		pglEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 

@@ -8,6 +8,9 @@
 #include "irrTypes.h"
 #include "irrAllocator.h"
 #include "irrMath.h"
+// ctype.h in the mac os 10.4u SDK defines isdigit as a macro
+// cctype takes care of undefining it and redefining it as function
+#include <cctype>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

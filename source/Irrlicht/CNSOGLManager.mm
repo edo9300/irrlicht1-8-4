@@ -53,20 +53,20 @@ bool CNSOGLManager::generateSurface()
             NSOpenGLPFAAccelerated,
             NSOpenGLPFADoubleBuffer,
             NSOpenGLPFADepthSize, static_cast<NSOpenGLPixelFormatAttribute>(depthSize),
-            NSOpenGLPFAColorSize, Params.Bits,
+            NSOpenGLPFAColorSize, static_cast<NSOpenGLPixelFormatAttribute>(Params.Bits),
             NSOpenGLPFAAlphaSize, static_cast<NSOpenGLPixelFormatAttribute>(alphaSize),
-            NSOpenGLPFASampleBuffers, 1,
-            NSOpenGLPFASamples, Params.AntiAlias,
+            NSOpenGLPFASampleBuffers, static_cast<NSOpenGLPixelFormatAttribute>(1),
+            NSOpenGLPFASamples, static_cast<NSOpenGLPixelFormatAttribute>(Params.AntiAlias),
             NSOpenGLPFAStencilSize, static_cast<NSOpenGLPixelFormatAttribute>(Params.Stencilbuffer ? 1 : 0),
 #if defined(__MAC_10_5) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
             NSOpenGLPFAAllowOfflineRenderers,
 #endif
             //NSOpenGLPFAFullScreen,
-            0
+            static_cast<NSOpenGLPixelFormatAttribute>(0)
         };
 
         if(!Params.UseIntegratedGPU)
-            Attribs[15] = 0;
+            Attribs[15] = static_cast<NSOpenGLPixelFormatAttribute>(0);
 
         u32 Steps = 6;
         
@@ -80,23 +80,23 @@ bool CNSOGLManager::generateSurface()
                 break;
             case 5: // samples
                 if (Attribs[12] > 2)
-                    --Attribs[12];
+                    Attribs[12] = static_cast<NSOpenGLPixelFormatAttribute>(static_cast<int>(Attribs[12]) - 1);
                 else
                 {
-                    Attribs[10] = 0;
-                    Attribs[12] = 0;
+                    Attribs[10] = static_cast<NSOpenGLPixelFormatAttribute>(0);
+                    Attribs[12] = static_cast<NSOpenGLPixelFormatAttribute>(0);
                     --Steps;
                 }
                 break;
             case 4: // alpha
                 if (Attribs[8])
                 {
-                    Attribs[8] = 0;
+                    Attribs[8] = static_cast<NSOpenGLPixelFormatAttribute>(0);
                         
                     if (Params.AntiAlias)
                     {
-                        Attribs[10] = 1;
-                        Attribs[12] = Params.AntiAlias;
+                        Attribs[10] = static_cast<NSOpenGLPixelFormatAttribute>(1);
+                        Attribs[12] = static_cast<NSOpenGLPixelFormatAttribute>(Params.AntiAlias);
                         Steps = 5;
                     }
                 }
@@ -106,12 +106,12 @@ bool CNSOGLManager::generateSurface()
             case 3: // stencil
                 if (Attribs[14])
                 {
-                    Attribs[14] = 0;
+                    Attribs[14] = static_cast<NSOpenGLPixelFormatAttribute>(0);
                         
                     if (Params.AntiAlias)
                     {
-                        Attribs[10] = 1;
-                        Attribs[12] = Params.AntiAlias;
+                        Attribs[10] = static_cast<NSOpenGLPixelFormatAttribute>(1);
+                        Attribs[12] = static_cast<NSOpenGLPixelFormatAttribute>(Params.AntiAlias);
                         Steps = 5;
                     }
                 }
@@ -121,7 +121,7 @@ bool CNSOGLManager::generateSurface()
             case 2: // depth size
                 if (Attribs[4] > 16)
                 {
-                    Attribs[4] = Attribs[4] - 8;
+                    Attribs[4] = static_cast<NSOpenGLPixelFormatAttribute>(static_cast<int>(Attribs[4]) - 8);
                 }
                 else
                     --Steps;
@@ -129,7 +129,7 @@ bool CNSOGLManager::generateSurface()
             case 1: // buffer size
                 if (Attribs[6] > 16)
                 {
-                    Attribs[6] = Attribs[6] - 8;
+                    Attribs[6] = static_cast<NSOpenGLPixelFormatAttribute>(static_cast<int>(Attribs[6]) - 8);
                 }
                 else
                     --Steps;

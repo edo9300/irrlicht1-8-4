@@ -73,6 +73,11 @@
 #define NSEventTypeScrollWheel NSScrollWheel
 #endif
 
+#ifndef CGFLOAT_DEFINED
+// mac os 10.4u and earlier sdks don't have this type
+// and on those platforms it corresponds to a float
+typedef float CGFloat;
+#endif
 #if defined _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
 #include <IOKit/IOKitLib.h>
@@ -341,7 +346,7 @@ static void getJoystickDeviceInfo (io_object_t hidDevice, CFMutableDictionaryRef
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
 // only OSX 10.5 seems to not need these defines...
-#if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6)
+#if !defined(__MAC_10_5) || !defined(MAC_OS_X_VERSION_10_5)
 // Contents from Events.h from Carbon/HIToolbox but we need it with Cocoa too
 // and for some reason no Cocoa equivalent of these constants seems provided.
 // So I'm doing like everyone else and using copy-and-paste.
@@ -726,17 +731,17 @@ static bool firstLaunch = true;
 	irrevent.DropEvent.Text = nullptr;
 	Device->postEventFromUser(irrevent);
 
-	auto dispatch = [&](irr::SEvent& irrevent, NSString* str) -> bool {
+	auto dispatch = [&](irr::SEvent& irrevent, NSString* str, irr::IrrlichtDevice* device) -> bool {
 		const char* cstr = [str UTF8String];
 		size_t lenUTF8 = strlen(cstr);
 		std::wstring wstr(lenUTF8 + 1, 0);
 		irr::core::utf8ToWchar(cstr, &wstr[0], (lenUTF8 + 1)*sizeof(wchar_t));
 		irrevent.DropEvent.Text = wstr.c_str();
 
-		if (!Device->postEventFromUser(irrevent)) {
+		if (!device->postEventFromUser(irrevent)) {
 			irrevent.DropEvent.Text = nullptr;
 			irrevent.DropEvent.DropType = irr::DROP_END;
-			Device->postEventFromUser(irrevent);
+			device->postEventFromUser(irrevent);
 			AUTORELEASEPOOL_RELEASE(pool);
 			return NO;
 		}
@@ -747,7 +752,7 @@ static bool firstLaunch = true;
 	if ([pasteboard dataForType:NSPasteboardTypeString]) {
 		NSString *str = [pasteboard stringForType:NSPasteboardTypeString];
 		irrevent.DropEvent.DropType = irr::DROP_TEXT;
-		if (!dispatch(irrevent, str)) {
+		if (!dispatch(irrevent, str, Device)) {
 			AUTORELEASEPOOL_RELEASE(pool);
 			return NO;
 		}
@@ -784,7 +789,7 @@ static bool firstLaunch = true;
 #endif
 
 		irrevent.DropEvent.DropType = irr::DROP_FILE;
-		if (!dispatch(irrevent, [fileURL path])) {
+		if (!dispatch(irrevent, [fileURL path], Device)) {
 			AUTORELEASEPOOL_RELEASE(pool);
 			return NO;
 		}
@@ -830,6 +835,8 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
             // Create menu
             
             NSString* bundleName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
+            if(!bundleName)
+                bundleName = @"BundleName";
             
             NSMenu* mainMenu = [[[NSMenu alloc] initWithTitle:@"MainMenu"] autorelease];
             NSMenu* menu = [[[NSMenu alloc] initWithTitle:bundleName] autorelease];
@@ -1185,11 +1192,6 @@ void CIrrDeviceMacOSX::createDriver()
 #endif
 					[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context setView:(NSView*)CreationParams.WindowId];
 				}
-
-#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
-                CGLContextObj CGLContext = (CGLContextObj)[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context CGLContextObj];
-                CGLSetFullScreen(CGLContext);
-#endif
             }
 #else
 			os::Printer::log("No OpenGL support compiled in.", ELL_ERROR);
@@ -1419,19 +1421,18 @@ void CIrrDeviceMacOSX::setWindowCaption(const wchar_t* text)
 	{
 		if ( text )
 		{
-			size_t numBytes = wcslen(text) * sizeof(wchar_t);
+			size_t wlen = wcslen(text);
+			const size_t lenOld = (wlen + 1) * sizeof(wchar_t);
+			char* ctext = new char[lenOld];
+			core::wcharToUtf8(text, ctext, lenOld);
 
-#ifdef __BIG_ENDIAN__
-			NSStringEncoding encode = sizeof(wchar_t) == 4 ? NSUTF32BigEndianStringEncoding : NSUTF16BigEndianStringEncoding;
-#else
-			NSStringEncoding encode = sizeof(wchar_t) == 4 ? NSUTF32LittleEndianStringEncoding : NSUTF16LittleEndianStringEncoding;
-#endif
-			NSString* name = [[NSString alloc] initWithBytes:text length:numBytes encoding:encode];
+			NSString* name = [NSString stringWithUTF8String : ctext];
 			if ( name )
 			{
 				[Window setTitle:name];
 				[name release];
 			}
+			delete[] ctext;
 		}
 		else
 		{
