@@ -590,6 +590,39 @@ public:
         irrevent.KeyInput.Char = key_char;
         irrevent.KeyInput.Key = device->m_key_map[key];
 
+		if(irrevent.KeyInput.Char == 0 && (irrevent.KeyInput.Key >= IRR_KEY_NUMPAD0 && irrevent.KeyInput.Key <= IRR_KEY_SEPARATOR)){
+			auto mapped_key = [&]{
+				switch(irrevent.KeyInput.Key){
+					case IRR_KEY_NUMPAD0:
+						return IRR_KEY_INSERT;
+					case IRR_KEY_NUMPAD1:
+						return IRR_KEY_END;
+					case IRR_KEY_NUMPAD2:
+						return IRR_KEY_DOWN;
+					case IRR_KEY_NUMPAD3:
+						return IRR_KEY_NEXT;
+					case IRR_KEY_NUMPAD4:
+						return IRR_KEY_LEFT;
+					case IRR_KEY_NUMPAD5:
+						return IRR_KEY_HOME;
+					case IRR_KEY_NUMPAD6:
+						return IRR_KEY_RIGHT;
+					case IRR_KEY_NUMPAD7:
+						return IRR_KEY_HOME;
+					case IRR_KEY_NUMPAD8:
+						return IRR_KEY_UP;
+					case IRR_KEY_NUMPAD9:
+						return IRR_KEY_PRIOR;
+					case IRR_KEY_SEPARATOR:
+						return IRR_KEY_DELETE;
+					default:
+						return 0;
+					}
+			}();
+			if(mapped_key != 0)
+				irrevent.KeyInput.Key = (irr::EKEY_CODE)mapped_key;
+		}
+
         if (irrevent.KeyInput.Key == 0 && key > 0)
         {
             irrevent.KeyInput.Key = (EKEY_CODE)(KEY_KEY_CODES_COUNT + key);

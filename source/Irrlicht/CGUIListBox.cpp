@@ -234,7 +234,8 @@ bool CGUIListBox::OnEvent(const SEvent& event)
 		switch(event.EventType)
 		{
 		case EET_KEY_INPUT_EVENT:
-			if (event.KeyInput.PressedDown &&
+			if(event.KeyInput.Char == 0 &&
+				event.KeyInput.PressedDown &&
 				(event.KeyInput.Key == KEY_DOWN ||
 				event.KeyInput.Key == KEY_UP   ||
 				event.KeyInput.Key == KEY_HOME ||
