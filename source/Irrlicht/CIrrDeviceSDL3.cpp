@@ -571,7 +571,38 @@ bool CIrrDeviceSDL3::run()
 					}
 					return '\0';
 				}();
-				irrevent.KeyInput.Key = key;
+				if((SDL_event.key.mod & SDL_KMOD_NUM) == 0) {
+					irrevent.KeyInput.Key = [&] {
+						switch(key) {
+							case KEY_NUMPAD0:
+								return KEY_INSERT;
+							case KEY_NUMPAD1:
+								return KEY_END;
+							case KEY_NUMPAD2:
+								return KEY_DOWN;
+							case KEY_NUMPAD3:
+								return KEY_NEXT;
+							case KEY_NUMPAD4:
+								return KEY_LEFT;
+							case KEY_NUMPAD5:
+								return KEY_HOME;
+							case KEY_NUMPAD6:
+								return KEY_RIGHT;
+							case KEY_NUMPAD7:
+								return KEY_HOME;
+							case KEY_NUMPAD8:
+								return KEY_UP;
+							case KEY_NUMPAD9:
+								return KEY_PRIOR;
+							case KEY_SEPARATOR:
+								return KEY_DELETE;
+							default:
+								return key;
+						}
+					}();
+				} else {
+					irrevent.KeyInput.Key = key;
+				}
 				irrevent.KeyInput.PressedDown = (SDL_event.type == SDL_EVENT_KEY_DOWN);
 				irrevent.KeyInput.Shift = (SDL_event.key.mod & SDL_KMOD_SHIFT) != 0;
 				irrevent.KeyInput.Control = (SDL_event.key.mod & SDL_KMOD_CTRL ) != 0;
