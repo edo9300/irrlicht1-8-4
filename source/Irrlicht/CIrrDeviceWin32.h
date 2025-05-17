@@ -451,6 +451,7 @@ namespace irr
 		irr::gui::IGUIElement* lastFocusedElement;
 		core::rect<s32> lastFocusedElementPosition;
 		bool isEditingText;
+		HIMC defaultInputContext;
 
 		void checkAndUpdateIMEState();
 	};

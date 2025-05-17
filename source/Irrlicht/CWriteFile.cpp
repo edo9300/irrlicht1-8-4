@@ -4,6 +4,11 @@
 
 #include "CWriteFile.h"
 #include <stdio.h>
+#ifdef _IRR_WINDOWS_API_
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+#endif
 
 namespace irr
 {
@@ -75,16 +80,37 @@ long CWriteFile::getPos() const
 //! opens the file
 void CWriteFile::openFile(bool append)
 {
+	File = 0;
 	if (Filename.size() == 0)
 	{
-		File = 0;
 		return;
 	}
 
+#ifdef _IRR_WINDOWS_API_
+	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, append ? CREATE_NEW : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(file == INVALID_HANDLE_VALUE)
+	{
+		return;
+	}
+
+	int descriptor = _open_osfhandle((intptr_t)file, _O_RDWR);
+	if(descriptor == -1)
+	{
+		CloseHandle(file);
+		return;
+	}
+	File = _fdopen(descriptor, append ? "ab" : "wb");
+	if(!File)
+	{
+		_close(descriptor);
+		return;
+	}
+#else
 #if defined(_IRR_WCHAR_FILESYSTEM)
 	File = _wfopen(Filename.c_str(), append ? L"ab" : L"wb");
 #else
 	File = fopen(Filename.c_str(), append ? "ab" : "wb");
+#endif
 #endif
 
 	if (File)

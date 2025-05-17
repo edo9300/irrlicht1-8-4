@@ -11,8 +11,17 @@ inline T function_cast(T2 ptr) {
 }
 
 #include "CIrrDeviceWin32WindowsVersionWMI.h"
-#include <Wbemidl.h>
+#include <windows.h>
 #include <tchar.h>
+#if defined(__has_include) && __has_include(<wbemidl.h>)
+#define USE_WMI 1
+#else
+#define USE_WMI 0
+#endif
+
+#if USE_WMI
+#include <wbemidl.h>
+#endif
 
 namespace irr {
 #ifndef PROCESSOR_ARCHITECTURE_ARM
@@ -66,6 +75,12 @@ typedef BOOL(WINAPI* PGPI)(DWORD, DWORD, DWORD, DWORD, PDWORD);
 #endif
 
 bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& minorVersion, DWORD& buildNumber);
+#if !USE_WMI
+bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& minorVersion, DWORD& buildNumber)
+{
+	return false;
+}
+#endif
 
 void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 	auto GetWineVersion = [&out] {
@@ -372,6 +387,7 @@ void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 	}
 }
 
+#if USE_WMI
 bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& minorVersion, DWORD& buildNumber) {
 	int systemMajor, systemMinor, systemBuild, servicePackMajor, servicePackMinor;
 	core::stringw wSystemCaption;
@@ -611,6 +627,7 @@ bool GetWindowsVersionViaWMI(core::stringc& out, DWORD& majorVersion, DWORD& min
 	}
 	return true;
 }
+#endif
 }
 
 #endif

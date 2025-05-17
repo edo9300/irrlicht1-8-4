@@ -3,7 +3,7 @@
 
 #ifndef C_WIN32_DROP_TARGET_H
 #define C_WIN32_DROP_TARGET_H
-#include <oleidl.h>
+#include <ole2.h>
 #include <vector2d.h>
 
 namespace irr {

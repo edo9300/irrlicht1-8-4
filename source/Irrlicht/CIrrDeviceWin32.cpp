@@ -25,6 +25,7 @@
 #include "IGUIEnvironment.h"
 #include "IGUIElement.h"
 #include <winuser.h>
+#include <imm.h>
 #include "SExposedVideoData.h"
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)
 #include <mmsystem.h>
@@ -707,6 +708,12 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 	#ifndef WHEEL_DELTA
 	#define WHEEL_DELTA 120
 	#endif
+	#ifndef MK_XBUTTON1
+	#define MK_XBUTTON1 0x0020
+	#endif
+	#ifndef MK_XBUTTON2
+	#define MK_XBUTTON2 0x0040
+	#endif
 
 	irr::CIrrDeviceWin32* const dev = getDeviceFromHWnd(hWnd);
 	irr::SEvent event;
@@ -770,12 +777,10 @@ LRESULT CALLBACK irr::CIrrDeviceWin32::WndProc(HWND hWnd, UINT message, WPARAM w
 		// middle and extra buttons
 		if (wParam & MK_MBUTTON)
 			event.MouseInput.ButtonStates |= irr::EMBSM_MIDDLE;
-#if(_WIN32_WINNT >= 0x0500)
 		if (wParam & MK_XBUTTON1)
 			event.MouseInput.ButtonStates |= irr::EMBSM_EXTRA1;
 		if (wParam & MK_XBUTTON2)
 			event.MouseInput.ButtonStates |= irr::EMBSM_EXTRA2;
-#endif
 		event.MouseInput.Wheel = 0.f;
 
 		// wheel
@@ -1049,7 +1054,7 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 : CIrrDeviceStub(params), HWnd(0), ChangedToFullScreen(false), Resized(false),
 	ExternalWindow(false), Win32CursorControl(0), JoyControl(0), dropper(nullptr),
 	has_charevent(false), key_event{},
-	lastFocusedElement(nullptr), isEditingText(false)
+	lastFocusedElement(nullptr), isEditingText(false), defaultInputContext((HIMC)nullptr)
 {
 	key_event.EventType = EGUIET_FORCE_32_BIT;
 	#ifdef _DEBUG
@@ -1147,6 +1152,8 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		{
 			os::Printer::log("Window could not be created.", ELL_ERROR);
 		}
+
+		defaultInputContext = ImmGetContext(HWnd);
 
 		HMENU menu = GetSystemMenu(HWnd, FALSE);
 		AppendMenu(menu, MF_SEPARATOR, 1, NULL);
@@ -1391,9 +1398,8 @@ void CIrrDeviceWin32::checkAndUpdateIMEState() {
 			if(hIMC) {
 				ImmNotifyIME(hIMC, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
 				ImmNotifyIME(hIMC, NI_CLOSECANDIDATE, 0, 0);
-				ImmReleaseContext(HWnd, hIMC);
 			}
-			ImmAssociateContext(HWnd, nullptr);
+			ImmAssociateContext(HWnd, (HIMC)nullptr);
 		}
 	};
 
@@ -1409,7 +1415,6 @@ void CIrrDeviceWin32::checkAndUpdateIMEState() {
 		COMPOSITIONFORM CompForm = { CFS_POINT, { pos.X, pos.Y + lastFocusedElementPosition.getHeight() } };
 		HIMC hIMC = ImmGetContext(HWnd);
 		ImmSetCompositionWindow(hIMC, &CompForm);
-		ImmReleaseContext(HWnd, hIMC);
 	};
 
 	irr::gui::IGUIElement* ele = env->getFocus();
@@ -1431,7 +1436,7 @@ void CIrrDeviceWin32::checkAndUpdateIMEState() {
 	if(!isEditingText)
 		return;
 
-	ImmAssociateContextEx(HWnd, nullptr, IACE_DEFAULT);
+	ImmAssociateContext(HWnd, defaultInputContext);
 	updateRectPosition();
 }
 

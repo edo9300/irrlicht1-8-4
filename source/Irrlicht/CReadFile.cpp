@@ -3,6 +3,11 @@
 // For conditions of distribution and use, see copyright notice in irrlicht.h
 
 #include "CReadFile.h"
+#ifdef _IRR_WINDOWS_API_
+#include <windows.h>
+#include <io.h>
+#include <fcntl.h>
+#endif
 
 namespace irr
 {
@@ -67,16 +72,39 @@ long CReadFile::getPos() const
 //! opens the file
 void CReadFile::openFile()
 {
+	File = 0;
 	if (Filename.size() == 0) // bugfix posted by rt
 	{
-		File = 0;
 		return;
 	}
+
+#ifdef _IRR_WINDOWS_API_
+	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(file == INVALID_HANDLE_VALUE)
+	{
+		return;
+	}
+
+	int descriptor = _open_osfhandle((intptr_t)file, _O_RDONLY);
+	if(descriptor == -1)
+	{
+		CloseHandle(file);
+		return;
+	}
+	File = _fdopen(descriptor, "rb");
+	if(!File)
+	{
+		_close(descriptor);
+		return;
+	}
+
+#else
 
 #if defined ( _IRR_WCHAR_FILESYSTEM )
 	File = _wfopen(Filename.c_str(), L"rb");
 #else
 	File = fopen(Filename.c_str(), "rb");
+#endif
 #endif
 
 	if (File)

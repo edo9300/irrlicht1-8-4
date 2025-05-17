@@ -30,11 +30,7 @@
 #endif
 
 #if defined (_IRR_WINDOWS_API_)
-	#if !defined ( _WIN32_WCE )
-		#include <direct.h> // for _chdir
-		#include <io.h> // for _access
-		#include <tchar.h>
-	#endif
+	#include <windows.h>
 #elif (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_) || defined(_IRR_IOS_PLATFORM_) || defined(_IRR_ANDROID_PLATFORM_))
 		#include <stdio.h>
 		#include <stdlib.h>
@@ -521,15 +517,9 @@ const io::path& CFileSystem::getWorkingDirectory()
 	{
 		#if defined(_IRR_WINDOWS_API_)
 			fschar_t tmp[_MAX_PATH];
-			#if defined(_IRR_WCHAR_FILESYSTEM )
-				_wgetcwd(tmp, _MAX_PATH);
-				WorkingDirectory[FILESYSTEM_NATIVE] = tmp;
-				WorkingDirectory[FILESYSTEM_NATIVE].replace(L'\\', L'/');
-			#else
-				_getcwd(tmp, _MAX_PATH);
-				WorkingDirectory[FILESYSTEM_NATIVE] = tmp;
-				WorkingDirectory[FILESYSTEM_NATIVE].replace('\\', '/');
-			#endif
+			GetCurrentDirectory(_MAX_PATH, tmp);
+			WorkingDirectory[FILESYSTEM_NATIVE] = tmp;
+			WorkingDirectory[FILESYSTEM_NATIVE].replace(TEXT('\\'), TEXT('/'));
 		#endif
 
 		#if (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_) || defined(_IRR_IOS_PLATFORM_) || defined(_IRR_ANDROID_PLATFORM_))
@@ -592,12 +582,8 @@ bool CFileSystem::changeWorkingDirectoryTo(const io::path& newDirectory)
 	{
 		WorkingDirectory[FILESYSTEM_NATIVE] = newDirectory;
 
-#if defined(_MSC_VER)
-	#if defined(_IRR_WCHAR_FILESYSTEM)
-		success = (_wchdir(newDirectory.c_str()) == 0);
-	#else
-		success = (_chdir(newDirectory.c_str()) == 0);
-	#endif
+#if defined(_IRR_WINDOWS_API_)
+		success = SetCurrentDirectory(newDirectory.c_str());
 #else
 	#if defined(_IRR_WCHAR_FILESYSTEM)
 		success = (_wchdir(newDirectory.c_str()) == 0);
@@ -616,17 +602,10 @@ io::path CFileSystem::getAbsolutePath(const io::path& filename) const
 	if ( filename.empty() )
 		return filename;
 #if defined(_IRR_WINDOWS_API_)
-	fschar_t *p=0;
 	fschar_t fpath[_MAX_PATH];
-	#if defined(_IRR_WCHAR_FILESYSTEM )
-		p = _wfullpath(fpath, filename.c_str(), _MAX_PATH);
-		core::stringw tmp(p);
-		tmp.replace(L'\\', L'/');
-	#else
-		p = _fullpath(fpath, filename.c_str(), _MAX_PATH);
-		core::stringc tmp(p);
-		tmp.replace('\\', '/');
-	#endif
+	DWORD len = GetFullPathName(filename.c_str(), _MAX_PATH, fpath, NULL);
+	io::path tmp(fpath, len);
+	tmp.replace(TEXT('\\'), TEXT('/'));
 	return tmp;
 #elif (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_))
 	c8* p=0;
@@ -845,22 +824,17 @@ IFileList* CFileSystem::createFileList()
 		r = new CFileList(Path, false, false);
 
 		// TODO: Should be unified once mingw adapts the proper types
-#if defined(__GNUC__)
-		long hFile; //mingw return type declaration
-#else
-		intptr_t hFile;
-#endif
+		HANDLE hFile;
 
-		struct _tfinddata_t c_file;
-		if( (hFile = _tfindfirst( _T("*"), &c_file )) != -1L )
+		WIN32_FIND_DATA c_file;
+		if( (hFile = FindFirstFile(TEXT("*"), &c_file)) != INVALID_HANDLE_VALUE)
 		{
 			do
 			{
-				r->addItem(Path + c_file.name, 0, c_file.size, (_A_SUBDIR & c_file.attrib) != 0, 0);
+				r->addItem(Path + c_file.cFileName, 0, c_file.nFileSizeLow, (FILE_ATTRIBUTE_DIRECTORY & c_file.dwFileAttributes) != 0, 0);
 			}
-			while( _tfindnext( hFile, &c_file ) == 0 );
-
-			_findclose( hFile );
+			while(FindNextFile( hFile, &c_file ));
+			FindClose( hFile );
 		}
 		#endif
 
@@ -963,12 +937,9 @@ bool CFileSystem::existFile(const io::path& filename) const
 		if (FileArchives[i]->getFileList()->findFile(filename)!=-1)
 			return true;
 
-#if defined(_MSC_VER)
-	#if defined(_IRR_WCHAR_FILESYSTEM)
-		return (_waccess(filename.c_str(), 0) != -1);
-	#else
-		return (_access(filename.c_str(), 0) != -1);
-	#endif
+#if defined(_IRR_WINDOWS_API_)
+	DWORD dwAttrib = GetFileAttributes(filename.c_str());
+	return (dwAttrib != 0xFFFFFFFF);
 #elif defined(F_OK)
 	#if defined(_IRR_WCHAR_FILESYSTEM)
 		return (_waccess(filename.c_str(), F_OK) != -1);
