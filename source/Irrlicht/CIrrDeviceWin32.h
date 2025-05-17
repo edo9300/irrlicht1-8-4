@@ -15,6 +15,7 @@
 #define WIN32_LEAN_AND_MEAN
 #if !defined(_IRR_XBOX_PLATFORM_)
 	#include <windows.h>
+	#include <imm.h>
 	#include <mmsystem.h> // For JOYCAPS
 	#include <windowsx.h>
 #endif

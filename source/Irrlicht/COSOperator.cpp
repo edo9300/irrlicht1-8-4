@@ -358,23 +358,47 @@ bool COSOperator::getProcessorSpeedMHz(u32* MHz) const
 #endif
 }
 
+#if defined(_IRR_WINDOWS_API_) && !defined (_IRR_XBOX_PLATFORM_)
+struct memstatusex {
+	DWORD     dwLength;
+	DWORD     dwMemoryLoad;
+	DWORDLONG ullTotalPhys;
+	DWORDLONG ullAvailPhys;
+	DWORDLONG ullTotalPageFile;
+	DWORDLONG ullAvailPageFile;
+	DWORDLONG ullTotalVirtual;
+	DWORDLONG ullAvailVirtual;
+	DWORDLONG ullAvailExtendedVirtual;
+};
+using GlobalMemoryStatusExPtr = BOOL(__stdcall*)(memstatusex* lpBuffer);
+
+template<typename T, typename T2>
+inline T function_cast(T2 ptr) {
+	using generic_function_ptr = void (*)(void);
+	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
+}
+
+#endif
+
 bool COSOperator::getSystemMemory(u32* Total, u32* Avail) const
 {
 #if defined(_IRR_WINDOWS_API_) && !defined (_IRR_XBOX_PLATFORM_)
+	HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
+	GlobalMemoryStatusExPtr globalMemoryStatusExPtr = function_cast<GlobalMemoryStatusExPtr>(GetProcAddress(kernel32, "GlobalMemoryStatusEx"));
+	if(globalMemoryStatusExPtr)
+	{
+		memstatusex MemoryStatusEx;
+		MemoryStatusEx.dwLength = sizeof(MEMORYSTATUSEX);
 
-    #if (_WIN32_WINNT >= 0x0500)
-	MEMORYSTATUSEX MemoryStatusEx;
- 	MemoryStatusEx.dwLength = sizeof(MEMORYSTATUSEX);
+		// cannot fail
+		globalMemoryStatusExPtr(&MemoryStatusEx);
 
-	// cannot fail
-	GlobalMemoryStatusEx(&MemoryStatusEx);
-
-	if (Total)
-		*Total = (u32)(MemoryStatusEx.ullTotalPhys>>10);
-	if (Avail)
-		*Avail = (u32)(MemoryStatusEx.ullAvailPhys>>10);
-	return true;
-	#else
+		if (Total)
+			*Total = (u32)(MemoryStatusEx.ullTotalPhys>>10);
+		if (Avail)
+			*Avail = (u32)(MemoryStatusEx.ullAvailPhys>>10);
+		return true;
+	}
 	MEMORYSTATUS MemoryStatus;
 	MemoryStatus.dwLength = sizeof(MEMORYSTATUS);
 
@@ -386,13 +410,12 @@ bool COSOperator::getSystemMemory(u32* Total, u32* Avail) const
  	if (Avail)
 		*Avail = (u32)(MemoryStatus.dwAvailPhys>>10);
     return true;
-	#endif
 
 #elif defined(_IRR_POSIX_API_) && !defined(__FreeBSD__)
 #if defined(_SC_PHYS_PAGES) && defined(_SC_AVPHYS_PAGES)
-        long ps = sysconf(_SC_PAGESIZE);
-        long pp = sysconf(_SC_PHYS_PAGES);
-        long ap = sysconf(_SC_AVPHYS_PAGES);
+	long ps = sysconf(_SC_PAGESIZE);
+	long pp = sysconf(_SC_PHYS_PAGES);
+	long ap = sysconf(_SC_AVPHYS_PAGES);
 
 	if ((ps==-1)||(pp==-1)||(ap==-1))
 		return false;

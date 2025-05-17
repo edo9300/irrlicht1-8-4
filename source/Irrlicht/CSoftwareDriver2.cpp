@@ -7,7 +7,6 @@
 
 #ifdef _IRR_COMPILE_WITH_BURNINGSVIDEO_
 
-#include <float.h>
 #include "SoftwareDriver2_helper.h"
 #include "CSoftwareTexture.h"
 #include "CSoftwareTexture2.h"
@@ -239,10 +238,6 @@ void get_scale(scale_setup& s, const irr::SIrrlichtCreationParameters& params)
 void fpu_exception(int on)
 {
 	return;
-#if defined(_WIN32)
-	_clearfp();
-	_controlfp(on ? _EM_INEXACT : -1, _MCW_EM);
-#endif
 }
 
 namespace irr
