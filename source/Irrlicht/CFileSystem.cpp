@@ -31,7 +31,7 @@
 
 #if defined (_IRR_WINDOWS_API_)
 	#include <windows.h>
-#elif (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_) || defined(_IRR_IOS_PLATFORM_) || defined(_IRR_ANDROID_PLATFORM_))
+#elif (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_) || defined(_IRR_IOS_PLATFORM_) || defined(_IRR_ANDROID_PLATFORM_) || defined(__vita__))
 		#include <stdio.h>
 		#include <stdlib.h>
 		#include <string.h>

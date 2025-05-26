@@ -65,6 +65,16 @@
 #undef _IRR_COMPILE_WITH_CONSOLE_DEVICE_
 #endif
 
+#if defined(__vita__)
+#define NO_IRR_COMPILE_WITH_OPENGL_
+#define NO_IRR_COMPILE_WITH_OGLES1_
+#define NO_IRR_COMPILE_WITH_OGLES2_
+#define NO_IRR_COMPILE_WITH_WEBGL1_
+#define _IRR_COMPILE_WITH_SDL3_DEVICE_
+#define _IRR_COMPILE_WITH_SOFTWARE_
+#define _IRR_COMPILE_WITH_BURNINGSVIDEO_
+#endif
+
 //! WIN32 for Windows32
 //! WIN64 for Windows64
 // The windows platform and API support SDL and WINDOW device
@@ -151,7 +161,7 @@
 #endif
 #endif
 
-#if !defined(_IRR_WINDOWS_API_) && !defined(_IRR_OSX_PLATFORM_) && !defined(_IRR_IOS_PLATFORM_) && !defined(_IRR_ANDROID_PLATFORM_) && !defined(_IRR_EMSCRIPTEN_PLATFORM_)
+#if !defined(_IRR_WINDOWS_API_) && !defined(_IRR_OSX_PLATFORM_) && !defined(_IRR_IOS_PLATFORM_) && !defined(_IRR_ANDROID_PLATFORM_) && !defined(_IRR_EMSCRIPTEN_PLATFORM_) && !defined(__vita__)
 #ifndef _IRR_SOLARIS_PLATFORM_
 #define _IRR_LINUX_PLATFORM_
 #endif

@@ -200,12 +200,13 @@ bool CIrrDeviceSDL3::createWindow()
 	Uint32 windowFlags = 0;
 	if (CreationParams.Fullscreen)
 		windowFlags |= SDL_WINDOW_FULLSCREEN;
-
+#if defined(_IRR_COMPILE_WITH_OPENGL_) || defined(_IRR_COMPILE_WITH_OGLES1_) || defined(_IRR_COMPILE_WITH_OGLES2_)
 	if(CreationParams.DriverType == video::EDT_OPENGL || CreationParams.DriverType == video::EDT_OGLES1
 	   || CreationParams.DriverType == video::EDT_OGLES2 || CreationParams.DriverType == video::EDT_WEBGL1) {
 		windowFlags |= SDL_WINDOW_OPENGL;
 		video::CSDL3ContextManager::SetWindowOGLProperties(CreationParams);
 	}
+#endif
 
 	if(CreationParams.WindowResizable)
 		windowFlags |= SDL_WINDOW_RESIZABLE;
