@@ -571,38 +571,47 @@ bool CIrrDeviceSDL3::run()
 					}
 					return '\0';
 				}();
-				if((SDL_event.key.mod & SDL_KMOD_NUM) == 0) {
-					irrevent.KeyInput.Key = [&] {
+				if((key & (~UINT32_C(0x0F))) == 0x60) {
+					if((SDL_event.key.mod & SDL_KMOD_NUM) == 0) {
+#define MAP_NUMPAD_KEY(from,to) case from: key = to; break
 						switch(key) {
-							case KEY_NUMPAD0:
-								return KEY_INSERT;
-							case KEY_NUMPAD1:
-								return KEY_END;
-							case KEY_NUMPAD2:
-								return KEY_DOWN;
-							case KEY_NUMPAD3:
-								return KEY_NEXT;
-							case KEY_NUMPAD4:
-								return KEY_LEFT;
-							case KEY_NUMPAD5:
-								return KEY_HOME;
-							case KEY_NUMPAD6:
-								return KEY_RIGHT;
-							case KEY_NUMPAD7:
-								return KEY_HOME;
-							case KEY_NUMPAD8:
-								return KEY_UP;
-							case KEY_NUMPAD9:
-								return KEY_PRIOR;
-							case KEY_SEPARATOR:
-								return KEY_DELETE;
-							default:
-								return key;
+							MAP_NUMPAD_KEY(KEY_NUMPAD0, KEY_INSERT);
+							MAP_NUMPAD_KEY(KEY_NUMPAD1, KEY_END);
+							MAP_NUMPAD_KEY(KEY_NUMPAD2, KEY_DOWN);
+							MAP_NUMPAD_KEY(KEY_NUMPAD3, KEY_NEXT);
+							MAP_NUMPAD_KEY(KEY_NUMPAD4, KEY_LEFT);
+							MAP_NUMPAD_KEY(KEY_NUMPAD5, KEY_HOME);
+							MAP_NUMPAD_KEY(KEY_NUMPAD6, KEY_RIGHT);
+							MAP_NUMPAD_KEY(KEY_NUMPAD7, KEY_HOME);
+							MAP_NUMPAD_KEY(KEY_NUMPAD8, KEY_UP);
+							MAP_NUMPAD_KEY(KEY_NUMPAD9, KEY_PRIOR);
+							MAP_NUMPAD_KEY(KEY_SEPARATOR, KEY_DELETE);
 						}
-					}();
-				} else {
-					irrevent.KeyInput.Key = key;
+#undef MAP_NUMPAD_KEY
+					} else if(!isEditingText) {
+#define MAP_NUMPAD_CHAR(from,to) case from: irrevent.KeyInput.Char = to; break
+						switch(key) {
+							MAP_NUMPAD_CHAR(KEY_NUMPAD0, '0');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD1, '1');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD2, '2');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD3, '3');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD4, '4');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD5, '5');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD6, '6');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD7, '7');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD8, '8');
+							MAP_NUMPAD_CHAR(KEY_NUMPAD9, '9');
+							MAP_NUMPAD_CHAR(KEY_MULTIPLY, '*');
+							MAP_NUMPAD_CHAR(KEY_ADD, '+');
+							MAP_NUMPAD_CHAR(KEY_SEPARATOR, ',');
+							MAP_NUMPAD_CHAR(KEY_SUBTRACT, '-');
+							MAP_NUMPAD_CHAR(KEY_DECIMAL, '.');
+							MAP_NUMPAD_CHAR(KEY_DIVIDE, '/');
+						}
+#undef MAP_NUMPAD_CHAR
+					}
 				}
+				irrevent.KeyInput.Key = key;
 				irrevent.KeyInput.PressedDown = (SDL_event.type == SDL_EVENT_KEY_DOWN);
 				irrevent.KeyInput.Shift = (SDL_event.key.mod & SDL_KMOD_SHIFT) != 0;
 				irrevent.KeyInput.Control = (SDL_event.key.mod & SDL_KMOD_CTRL ) != 0;
