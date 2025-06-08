@@ -87,7 +87,7 @@ void CWriteFile::openFile(bool append)
 	}
 
 #ifdef _IRR_WINDOWS_API_
-	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, append ? CREATE_NEW : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, append ? CREATE_NEW : CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(file == INVALID_HANDLE_VALUE)
 	{
 		return;

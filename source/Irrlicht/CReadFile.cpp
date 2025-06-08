@@ -79,7 +79,7 @@ void CReadFile::openFile()
 	}
 
 #ifdef _IRR_WINDOWS_API_
-	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE file = CreateFile(Filename.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(file == INVALID_HANDLE_VALUE)
 	{
 		return;
