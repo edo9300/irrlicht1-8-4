@@ -516,9 +516,11 @@ const io::path& CFileSystem::getWorkingDirectory()
 	else
 	{
 		#if defined(_IRR_WINDOWS_API_)
-			fschar_t tmp[_MAX_PATH];
-			GetCurrentDirectory(_MAX_PATH, tmp);
-			WorkingDirectory[FILESYSTEM_NATIVE] = tmp;
+			DWORD len = GetCurrentDirectory(0, NULL);
+			fschar_t* tmparr = new fschar_t[len];
+			len = GetCurrentDirectory(len, tmparr);
+			WorkingDirectory[FILESYSTEM_NATIVE] = io::path(tmparr, len);
+			delete[] tmparr;
 			WorkingDirectory[FILESYSTEM_NATIVE].replace(TEXT('\\'), TEXT('/'));
 		#endif
 
@@ -602,9 +604,14 @@ io::path CFileSystem::getAbsolutePath(const io::path& filename) const
 	if ( filename.empty() )
 		return filename;
 #if defined(_IRR_WINDOWS_API_)
-	fschar_t fpath[_MAX_PATH];
-	DWORD len = GetFullPathName(filename.c_str(), _MAX_PATH, fpath, NULL);
-	io::path tmp(fpath, len);
+	fschar_t ch;
+	// If the lpBuffer buffer is too small to contain the path, the return value is the size, in TCHARs, of the buffer that is required to hold the path and the terminating null character
+	DWORD len = GetFullPathName(filename.c_str(), 1, &ch, NULL);
+	fschar_t* tmparr = new fschar_t[len];
+	// If the function succeeds, the return value is the length, in TCHARs, of the string copied to lpBuffer, not including the terminating null character.
+	len = GetFullPathName(filename.c_str(), len, tmparr, NULL);
+	io::path tmp(tmparr, len);
+	delete[] tmparr;
 	tmp.replace(TEXT('\\'), TEXT('/'));
 	return tmp;
 #elif (defined(_IRR_POSIX_API_) || defined(_IRR_OSX_PLATFORM_))
