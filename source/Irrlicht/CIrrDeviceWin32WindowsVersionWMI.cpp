@@ -204,6 +204,9 @@ void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 								case 20348:
 									realVersionOut.append("2022 ");
 									break;
+								case 26100:
+									realVersionOut.append("2025 ");
+									break;
 								default:
 									break;
 								}
