@@ -71,6 +71,8 @@ void CSDL3ContextManager::SetWindowOGLProperties(const SIrrlichtCreationParamete
 		SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, CreationParams.WithAlphaChannel ? 8 : 0);
 	}
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, CreationParams.ZBufferBits);
+	SDL_SetHint(SDL_HINT_OPENGL_FORCE_SRGB_FRAMEBUFFER, CreationParams.HandleSRGB ? "1" : "0");
+	SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, CreationParams.HandleSRGB);
 	if(CreationParams.Doublebuffer)
 		SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	if(CreationParams.Stereobuffer)
