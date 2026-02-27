@@ -117,6 +117,19 @@ bool COGLES1Driver::genericDriverInit(const core::dimension2d<u32>& screenSize, 
 
 	pglPixelStorei(GL_PACK_ALIGNMENT, 1);
 
+#if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_) || defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
+#ifndef GL_FRAMEBUFFER_SRGB
+#define GL_FRAMEBUFFER_SRGB               0x8DB9
+#endif
+	if(FeatureAvailable[IRR_GL_EXT_sRGB_write_control]) {
+		if(Params.HandleSRGB) {
+			pglEnable(GL_FRAMEBUFFER_SRGB);
+		} else {
+			pglDisable(GL_FRAMEBUFFER_SRGB);
+		}
+	}
+#endif
+
 	UserClipPlane.reallocate(MaxUserClipPlanes);
 	UserClipPlaneEnabled.reallocate(MaxUserClipPlanes);
 
