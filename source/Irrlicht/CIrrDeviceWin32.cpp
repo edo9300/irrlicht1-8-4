@@ -52,7 +52,6 @@
 #include "CWGLManager.h"
 #endif
 #include "CDriverCreationPrototypes.h"
-#include "IrrFunctionCast.h"
 
 namespace irr
 {

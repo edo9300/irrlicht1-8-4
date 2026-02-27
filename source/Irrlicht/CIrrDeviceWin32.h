@@ -11,6 +11,7 @@
 #include "CIrrDeviceStub.h"
 #include "IrrlichtDevice.h"
 #include "IImagePresenter.h"
+#include "IrrFunctionCast.h"
 
 #define WIN32_LEAN_AND_MEAN
 #if !defined(_IRR_XBOX_PLATFORM_)
@@ -139,12 +140,23 @@ namespace irr
 			//! Changes the visible state of the mouse cursor.
 			virtual void setVisible(bool visible) _IRR_OVERRIDE_
 			{
+				static const auto pGetCursorInfo = [] {
+					using GetCursorInfo_t = BOOL(WINAPI*)(PCURSORINFO);
+					return function_cast<GetCursorInfo_t>(GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "GetCursorInfo"));
+				}();
+				if(!pGetCursorInfo) {
+					if(IsVisible != visible) {
+						IsVisible = visible;
+						ShowCursor(visible);
+					}
+					return;
+				}
 #ifndef CURSOR_SUPPRESSED
 				const DWORD CURSOR_SUPPRESSED = 0x00000002;
 #endif
 				CURSORINFO info;
 				info.cbSize = sizeof(CURSORINFO);
-				BOOL gotCursorInfo = GetCursorInfo(&info);
+				BOOL gotCursorInfo = pGetCursorInfo(&info);
 				while ( gotCursorInfo )
 				{
 					// Since Windows 8 the cursor can be suppressed by a touch interface
@@ -168,7 +180,7 @@ namespace irr
 						break;
 					// yes, it really must be set each time
 					info.cbSize = sizeof(CURSORINFO);
-					gotCursorInfo = GetCursorInfo(&info);
+					gotCursorInfo = pGetCursorInfo(&info);
 
 					// Not sure if a cursor which we tried to hide still can be suppressed.
 					// I have no touch-display for testing this and MSDN doesn't describe it.
