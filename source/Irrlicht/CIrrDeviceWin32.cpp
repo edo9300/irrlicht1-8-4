@@ -52,12 +52,7 @@
 #include "CWGLManager.h"
 #endif
 #include "CDriverCreationPrototypes.h"
-
-template<typename T, typename T2>
-inline T function_cast(T2 ptr) {
-	using generic_function_ptr = void (*)(void);
-	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
-}
+#include "IrrFunctionCast.h"
 
 namespace irr
 {
@@ -1834,7 +1829,7 @@ static BOOL CALLBACK callback(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM
 void CIrrDeviceWin32::toggleFullscreen(bool fullscreen)
 {
 	static constexpr LONG_PTR fullscreenStyle = WS_POPUP | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	static const auto monitors = [&] {
+	static const auto monitors = [] {
 		using EnumDisplayMonitors_t = BOOL(WINAPI*)(HDC, LPCRECT, MONITORENUMPROC, LPARAM);
 		auto pEnumDisplayMonitors = function_cast<EnumDisplayMonitors_t>(GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "EnumDisplayMonitors"));
 		core::array<RECT> ret;

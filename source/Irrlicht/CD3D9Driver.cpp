@@ -17,12 +17,7 @@
 #include "CD3D9ParallaxMapRenderer.h"
 #include "CD3D9HLSLMaterialRenderer.h"
 #include "SIrrCreationParameters.h"
-
-template<typename T, typename T2>
-inline T function_cast(T2 ptr) {
-	using generic_function_ptr = void (*)(void);
-	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
-}
+#include "IrrFunctionCast.h"
 
 namespace irr
 {
