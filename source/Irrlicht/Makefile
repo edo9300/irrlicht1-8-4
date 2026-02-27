@@ -128,7 +128,7 @@ sharedlib_osx: LDFLAGS += -L/usr/X11R6/lib$(LIBSELECT) -lGL -lXxf86vm
 #Windows specific options
 IRRLICHT_DLL := ../../bin/Win32-gcc/Irrlicht.dll
 sharedlib_win32 staticlib_win32: SYSTEM = Win32-gcc
-sharedlib_win32: LDFLAGS += -lgdi32 -lopengl32 -ld3dx9d -lwinmm -limm32 -lole32 -luuid -Wl,--add-stdcall-alias
+sharedlib_win32: LDFLAGS += -lgdi32 -lopengl32 -ld3dx9d -lwinmm -limm32 -lole32 -luuid -loleaut32 -lwbemuuid -Wl,--add-stdcall-alias
 #sharedlib_win32: LDFLAGS += -lSDL
 #choose either -DIRR_COMPILE_WITH_DX9_DEV_PACK or -DNO_IRR_COMPILE_WITH_DIRECT3D_9_ depending if you need dx9
 #sharedlib_win32 staticlib_win32: CPPFLAGS += -DIRR_COMPILE_WITH_DX9_DEV_PACK

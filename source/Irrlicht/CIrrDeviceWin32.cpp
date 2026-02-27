@@ -53,6 +53,12 @@
 #endif
 #include "CDriverCreationPrototypes.h"
 
+template<typename T, typename T2>
+inline T function_cast(T2 ptr) {
+	using generic_function_ptr = void (*)(void);
+	return reinterpret_cast<T>(reinterpret_cast<generic_function_ptr>(ptr));
+}
+
 namespace irr
 {
     struct SJoystickWin32Control
@@ -1828,22 +1834,34 @@ static BOOL CALLBACK callback(HMONITOR hMon, HDC hdc, LPRECT lprcMonitor, LPARAM
 void CIrrDeviceWin32::toggleFullscreen(bool fullscreen)
 {
 	static constexpr LONG_PTR fullscreenStyle = WS_POPUP | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	static const auto monitors = [] {
+	static const auto monitors = [&] {
+		using EnumDisplayMonitors_t = BOOL(WINAPI*)(HDC, LPCRECT, MONITORENUMPROC, LPARAM);
+		auto pEnumDisplayMonitors = function_cast<EnumDisplayMonitors_t>(GetProcAddress(GetModuleHandle(TEXT("user32.dll")), "EnumDisplayMonitors"));
 		core::array<RECT> ret;
-		EnumDisplayMonitors(0, 0, callback, reinterpret_cast<LPARAM>(&ret));
+		if(pEnumDisplayMonitors) {
+			pEnumDisplayMonitors(0, 0, callback, reinterpret_cast<LPARAM>(&ret));
+		} else {
+			const s32 monitorLeft = GetSystemMetrics(SM_CXSCREEN);
+			const s32 monitorTop = GetSystemMetrics(SM_CYSCREEN);
+			ret.push_back(RECT{ 0, 0, monitorLeft, monitorTop });
+		}
 		return ret;
 	}();
 	if(fullscreen) {
 		GetWindowPlacement(HWnd, &nonFullscreenSize);
 		nonFullscreenStyle = GetWindowLongPtr(HWnd, GWL_STYLE);
 		RECT curSize{};
-		GetWindowRect(HWnd, &curSize);
-		const POINT windowCenter = { (curSize.left + (curSize.right - curSize.left) / 2), (curSize.top + (curSize.bottom - curSize.top) / 2) };
-		for (u32 i = 0; i < monitors.size(); i++) {
-			const auto& rect = monitors[i];
-			if(PtInRect(&rect, windowCenter)) {
-				curSize = rect;
-				break;
+		if(monitors.size() == 1) {
+			curSize = monitors[0];
+		} else {
+			GetWindowRect(HWnd, &curSize);
+			const POINT windowCenter = { (curSize.left + (curSize.right - curSize.left) / 2), (curSize.top + (curSize.bottom - curSize.top) / 2) };
+			for(u32 i = 0; i < monitors.size(); i++) {
+				const auto& rect = monitors[i];
+				if(PtInRect(&rect, windowCenter)) {
+					curSize = rect;
+					break;
+				}
 			}
 		}
 		if(!SetWindowLongPtr(HWnd, GWL_STYLE, fullscreenStyle))
