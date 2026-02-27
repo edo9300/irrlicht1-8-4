@@ -139,18 +139,19 @@ namespace irr
 			//! Changes the visible state of the mouse cursor.
 			virtual void setVisible(bool visible) _IRR_OVERRIDE_
 			{
+#ifndef CURSOR_SUPPRESSED
+				const DWORD CURSOR_SUPPRESSED = 0x00000002;
+#endif
 				CURSORINFO info;
 				info.cbSize = sizeof(CURSORINFO);
 				BOOL gotCursorInfo = GetCursorInfo(&info);
 				while ( gotCursorInfo )
 				{
-#ifdef CURSOR_SUPPRESSED
 					// Since Windows 8 the cursor can be suppressed by a touch interface
 					if (visible && info.flags == CURSOR_SUPPRESSED)
 					{
 						break;
 					}
-#endif
 					if ( (visible && info.flags == CURSOR_SHOWING) || // visible
 						(!visible && info.flags == 0 ) ) // hidden
 					{
@@ -169,7 +170,6 @@ namespace irr
 					info.cbSize = sizeof(CURSORINFO);
 					gotCursorInfo = GetCursorInfo(&info);
 
-#ifdef CURSOR_SUPPRESSED
 					// Not sure if a cursor which we tried to hide still can be suppressed.
 					// I have no touch-display for testing this and MSDN doesn't describe it.
 					// But adding this check shouldn't hurt and might prevent an endless loop.
@@ -177,7 +177,6 @@ namespace irr
 					{
 						break;
 					}
-#endif
 				}
 				IsVisible = visible;
 			}
