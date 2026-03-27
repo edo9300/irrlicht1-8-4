@@ -345,8 +345,6 @@ static void getJoystickDeviceInfo (io_object_t hidDevice, CFMutableDictionaryRef
 
 #endif // _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 
-// only OSX 10.5 seems to not need these defines...
-#if !defined(__MAC_10_5) || !defined(MAC_OS_X_VERSION_10_5)
 // Contents from Events.h from Carbon/HIToolbox but we need it with Cocoa too
 // and for some reason no Cocoa equivalent of these constants seems provided.
 // So I'm doing like everyone else and using copy-and-paste.
@@ -366,7 +364,7 @@ static void getJoystickDeviceInfo (io_object_t hidDevice, CFMutableDictionaryRef
  *	in this case, pressing 'A' will generate a different virtual
  *	keycode.
  */
-enum {
+enum CarbonKeys {
 	kVK_ANSI_A		= 0x00,
 	kVK_ANSI_S		= 0x01,
 	kVK_ANSI_D		= 0x02,
@@ -431,11 +429,9 @@ enum {
 	kVK_ANSI_Keypad6	= 0x58,
 	kVK_ANSI_Keypad7	= 0x59,
 	kVK_ANSI_Keypad8	= 0x5B,
-	kVK_ANSI_Keypad9	= 0x5C
-};
+	kVK_ANSI_Keypad9	= 0x5C,
 
 /* keycodes for keys that are independent of keyboard layout*/
-enum {
 	kVK_Return		= 0x24,
 	kVK_Tab			= 0x30,
 	kVK_Space		= 0x31,
@@ -484,7 +480,6 @@ enum {
 	kVK_DownArrow		= 0x7D,
 	kVK_UpArrow		= 0x7E
 };
-#endif
 
 //------------------------------------------------------------------------------------------
 Boolean GetDictionaryBoolean(CFDictionaryRef theDict, const void* key)
@@ -1704,119 +1699,119 @@ void CIrrDeviceMacOSX::setWindow(NSWindow* window)
 
 void CIrrDeviceMacOSX::initKeycodes()
 {
-	KeyCodes[kVK_UpArrow] = irr::KEY_UP;
-	KeyCodes[kVK_DownArrow] = irr::KEY_DOWN;
-	KeyCodes[kVK_LeftArrow] = irr::KEY_LEFT;
-	KeyCodes[kVK_RightArrow] = irr::KEY_RIGHT;
-	KeyCodes[kVK_F1]	= irr::KEY_F1;
-	KeyCodes[kVK_F2]	= irr::KEY_F2;
-	KeyCodes[kVK_F3]	= irr::KEY_F3;
-	KeyCodes[kVK_F4]	= irr::KEY_F4;
-	KeyCodes[kVK_F5]	= irr::KEY_F5;
-	KeyCodes[kVK_F6]	= irr::KEY_F6;
-	KeyCodes[kVK_F7]	= irr::KEY_F7;
-	KeyCodes[kVK_F8]	= irr::KEY_F8;
-	KeyCodes[kVK_F9]	= irr::KEY_F9;
-	KeyCodes[kVK_F10]	= irr::KEY_F10;
-	KeyCodes[kVK_F11]	= irr::KEY_F11;
-	KeyCodes[kVK_F12]	= irr::KEY_F12;
-	KeyCodes[kVK_F13]	= irr::KEY_F13;
-	KeyCodes[kVK_F14]	= irr::KEY_F14;
-	KeyCodes[kVK_F15]	= irr::KEY_F15;
-	KeyCodes[kVK_F16]	= irr::KEY_F16;
-	KeyCodes[kVK_F17]	= irr::KEY_F17;
-	KeyCodes[kVK_F18]	= irr::KEY_F18;
-	KeyCodes[kVK_F19]	= irr::KEY_F19;
-	KeyCodes[kVK_F20]	= irr::KEY_F20;
-	KeyCodes[kVK_Home]	= irr::KEY_HOME;
-	KeyCodes[kVK_End]	= irr::KEY_END;
+	KeyCodes[CarbonKeys::kVK_UpArrow] = irr::KEY_UP;
+	KeyCodes[CarbonKeys::kVK_DownArrow] = irr::KEY_DOWN;
+	KeyCodes[CarbonKeys::kVK_LeftArrow] = irr::KEY_LEFT;
+	KeyCodes[CarbonKeys::kVK_RightArrow] = irr::KEY_RIGHT;
+	KeyCodes[CarbonKeys::kVK_F1]	= irr::KEY_F1;
+	KeyCodes[CarbonKeys::kVK_F2]	= irr::KEY_F2;
+	KeyCodes[CarbonKeys::kVK_F3]	= irr::KEY_F3;
+	KeyCodes[CarbonKeys::kVK_F4]	= irr::KEY_F4;
+	KeyCodes[CarbonKeys::kVK_F5]	= irr::KEY_F5;
+	KeyCodes[CarbonKeys::kVK_F6]	= irr::KEY_F6;
+	KeyCodes[CarbonKeys::kVK_F7]	= irr::KEY_F7;
+	KeyCodes[CarbonKeys::kVK_F8]	= irr::KEY_F8;
+	KeyCodes[CarbonKeys::kVK_F9]	= irr::KEY_F9;
+	KeyCodes[CarbonKeys::kVK_F10]	= irr::KEY_F10;
+	KeyCodes[CarbonKeys::kVK_F11]	= irr::KEY_F11;
+	KeyCodes[CarbonKeys::kVK_F12]	= irr::KEY_F12;
+	KeyCodes[CarbonKeys::kVK_F13]	= irr::KEY_F13;
+	KeyCodes[CarbonKeys::kVK_F14]	= irr::KEY_F14;
+	KeyCodes[CarbonKeys::kVK_F15]	= irr::KEY_F15;
+	KeyCodes[CarbonKeys::kVK_F16]	= irr::KEY_F16;
+	KeyCodes[CarbonKeys::kVK_F17]	= irr::KEY_F17;
+	KeyCodes[CarbonKeys::kVK_F18]	= irr::KEY_F18;
+	KeyCodes[CarbonKeys::kVK_F19]	= irr::KEY_F19;
+	KeyCodes[CarbonKeys::kVK_F20]	= irr::KEY_F20;
+	KeyCodes[CarbonKeys::kVK_Home]	= irr::KEY_HOME;
+	KeyCodes[CarbonKeys::kVK_End]	= irr::KEY_END;
 	KeyCodes[NSInsertFunctionKey] = irr::KEY_INSERT;
-	KeyCodes[kVK_ForwardDelete] = irr::KEY_DELETE;
-	KeyCodes[kVK_Help] = irr::KEY_HELP;
+	KeyCodes[CarbonKeys::kVK_ForwardDelete] = irr::KEY_DELETE;
+	KeyCodes[CarbonKeys::kVK_Help] = irr::KEY_HELP;
 	KeyCodes[NSSelectFunctionKey] = irr::KEY_SELECT;
 	KeyCodes[NSPrintFunctionKey] = irr::KEY_PRINT;
 	KeyCodes[NSExecuteFunctionKey] = irr::KEY_EXECUT;
 	KeyCodes[NSPrintScreenFunctionKey] = irr::KEY_SNAPSHOT;
 	KeyCodes[NSPauseFunctionKey] = irr::KEY_PAUSE;
 	KeyCodes[NSScrollLockFunctionKey] = irr::KEY_SCROLL;
-	KeyCodes[kVK_Delete] = irr::KEY_BACK;
-	KeyCodes[kVK_Tab] = irr::KEY_TAB;
-	KeyCodes[kVK_Return] = irr::KEY_RETURN;
-	KeyCodes[kVK_Escape] = irr::KEY_ESCAPE;
-	KeyCodes[kVK_Control] = irr::KEY_CONTROL;
-	KeyCodes[kVK_RightControl] = irr::KEY_RCONTROL;
-	KeyCodes[kVK_Command] = irr::KEY_MENU;
-	KeyCodes[kVK_Shift] = irr::KEY_SHIFT;
-	KeyCodes[kVK_RightShift] = irr::KEY_RSHIFT;
-	KeyCodes[kVK_Space] = irr::KEY_SPACE;
+	KeyCodes[CarbonKeys::kVK_Delete] = irr::KEY_BACK;
+	KeyCodes[CarbonKeys::kVK_Tab] = irr::KEY_TAB;
+	KeyCodes[CarbonKeys::kVK_Return] = irr::KEY_RETURN;
+	KeyCodes[CarbonKeys::kVK_Escape] = irr::KEY_ESCAPE;
+	KeyCodes[CarbonKeys::kVK_Control] = irr::KEY_CONTROL;
+	KeyCodes[CarbonKeys::kVK_RightControl] = irr::KEY_RCONTROL;
+	KeyCodes[CarbonKeys::kVK_Command] = irr::KEY_MENU;
+	KeyCodes[CarbonKeys::kVK_Shift] = irr::KEY_SHIFT;
+	KeyCodes[CarbonKeys::kVK_RightShift] = irr::KEY_RSHIFT;
+	KeyCodes[CarbonKeys::kVK_Space] = irr::KEY_SPACE;
 
-	KeyCodes[kVK_ANSI_A] = irr::KEY_KEY_A;
-	KeyCodes[kVK_ANSI_B] = irr::KEY_KEY_B;
-	KeyCodes[kVK_ANSI_C] = irr::KEY_KEY_C;
-	KeyCodes[kVK_ANSI_D] = irr::KEY_KEY_D;
-	KeyCodes[kVK_ANSI_E] = irr::KEY_KEY_E;
-	KeyCodes[kVK_ANSI_F] = irr::KEY_KEY_F;
-	KeyCodes[kVK_ANSI_G] = irr::KEY_KEY_G;
-	KeyCodes[kVK_ANSI_H] = irr::KEY_KEY_H;
-	KeyCodes[kVK_ANSI_I] = irr::KEY_KEY_I;
-	KeyCodes[kVK_ANSI_J] = irr::KEY_KEY_J;
-	KeyCodes[kVK_ANSI_K] = irr::KEY_KEY_K;
-	KeyCodes[kVK_ANSI_L] = irr::KEY_KEY_L;
-	KeyCodes[kVK_ANSI_M] = irr::KEY_KEY_M;
-	KeyCodes[kVK_ANSI_N] = irr::KEY_KEY_N;
-	KeyCodes[kVK_ANSI_O] = irr::KEY_KEY_O;
-	KeyCodes[kVK_ANSI_P] = irr::KEY_KEY_P;
-	KeyCodes[kVK_ANSI_Q] = irr::KEY_KEY_Q;
-	KeyCodes[kVK_ANSI_R] = irr::KEY_KEY_R;
-	KeyCodes[kVK_ANSI_S] = irr::KEY_KEY_S;
-	KeyCodes[kVK_ANSI_T] = irr::KEY_KEY_T;
-	KeyCodes[kVK_ANSI_U] = irr::KEY_KEY_U;
-	KeyCodes[kVK_ANSI_V] = irr::KEY_KEY_V;
-	KeyCodes[kVK_ANSI_W] = irr::KEY_KEY_W;
-	KeyCodes[kVK_ANSI_X] = irr::KEY_KEY_X;
-	KeyCodes[kVK_ANSI_X] = irr::KEY_KEY_X;
-	KeyCodes[kVK_ANSI_Y] = irr::KEY_KEY_Y;
-	KeyCodes[kVK_ANSI_Z] = irr::KEY_KEY_Z;
+	KeyCodes[CarbonKeys::kVK_ANSI_A] = irr::KEY_KEY_A;
+	KeyCodes[CarbonKeys::kVK_ANSI_B] = irr::KEY_KEY_B;
+	KeyCodes[CarbonKeys::kVK_ANSI_C] = irr::KEY_KEY_C;
+	KeyCodes[CarbonKeys::kVK_ANSI_D] = irr::KEY_KEY_D;
+	KeyCodes[CarbonKeys::kVK_ANSI_E] = irr::KEY_KEY_E;
+	KeyCodes[CarbonKeys::kVK_ANSI_F] = irr::KEY_KEY_F;
+	KeyCodes[CarbonKeys::kVK_ANSI_G] = irr::KEY_KEY_G;
+	KeyCodes[CarbonKeys::kVK_ANSI_H] = irr::KEY_KEY_H;
+	KeyCodes[CarbonKeys::kVK_ANSI_I] = irr::KEY_KEY_I;
+	KeyCodes[CarbonKeys::kVK_ANSI_J] = irr::KEY_KEY_J;
+	KeyCodes[CarbonKeys::kVK_ANSI_K] = irr::KEY_KEY_K;
+	KeyCodes[CarbonKeys::kVK_ANSI_L] = irr::KEY_KEY_L;
+	KeyCodes[CarbonKeys::kVK_ANSI_M] = irr::KEY_KEY_M;
+	KeyCodes[CarbonKeys::kVK_ANSI_N] = irr::KEY_KEY_N;
+	KeyCodes[CarbonKeys::kVK_ANSI_O] = irr::KEY_KEY_O;
+	KeyCodes[CarbonKeys::kVK_ANSI_P] = irr::KEY_KEY_P;
+	KeyCodes[CarbonKeys::kVK_ANSI_Q] = irr::KEY_KEY_Q;
+	KeyCodes[CarbonKeys::kVK_ANSI_R] = irr::KEY_KEY_R;
+	KeyCodes[CarbonKeys::kVK_ANSI_S] = irr::KEY_KEY_S;
+	KeyCodes[CarbonKeys::kVK_ANSI_T] = irr::KEY_KEY_T;
+	KeyCodes[CarbonKeys::kVK_ANSI_U] = irr::KEY_KEY_U;
+	KeyCodes[CarbonKeys::kVK_ANSI_V] = irr::KEY_KEY_V;
+	KeyCodes[CarbonKeys::kVK_ANSI_W] = irr::KEY_KEY_W;
+	KeyCodes[CarbonKeys::kVK_ANSI_X] = irr::KEY_KEY_X;
+	KeyCodes[CarbonKeys::kVK_ANSI_X] = irr::KEY_KEY_X;
+	KeyCodes[CarbonKeys::kVK_ANSI_Y] = irr::KEY_KEY_Y;
+	KeyCodes[CarbonKeys::kVK_ANSI_Z] = irr::KEY_KEY_Z;
 
-	KeyCodes[kVK_ANSI_0] = irr::KEY_KEY_0;
-	KeyCodes[kVK_ANSI_1] = irr::KEY_KEY_1;
-	KeyCodes[kVK_ANSI_2] = irr::KEY_KEY_2;
-	KeyCodes[kVK_ANSI_3] = irr::KEY_KEY_3;
-	KeyCodes[kVK_ANSI_4] = irr::KEY_KEY_4;
-	KeyCodes[kVK_ANSI_5] = irr::KEY_KEY_5;
-	KeyCodes[kVK_ANSI_6] = irr::KEY_KEY_6;
-	KeyCodes[kVK_ANSI_7] = irr::KEY_KEY_7;
-	KeyCodes[kVK_ANSI_8] = irr::KEY_KEY_8;
-	KeyCodes[kVK_ANSI_9] = irr::KEY_KEY_9;
+	KeyCodes[CarbonKeys::kVK_ANSI_0] = irr::KEY_KEY_0;
+	KeyCodes[CarbonKeys::kVK_ANSI_1] = irr::KEY_KEY_1;
+	KeyCodes[CarbonKeys::kVK_ANSI_2] = irr::KEY_KEY_2;
+	KeyCodes[CarbonKeys::kVK_ANSI_3] = irr::KEY_KEY_3;
+	KeyCodes[CarbonKeys::kVK_ANSI_4] = irr::KEY_KEY_4;
+	KeyCodes[CarbonKeys::kVK_ANSI_5] = irr::KEY_KEY_5;
+	KeyCodes[CarbonKeys::kVK_ANSI_6] = irr::KEY_KEY_6;
+	KeyCodes[CarbonKeys::kVK_ANSI_7] = irr::KEY_KEY_7;
+	KeyCodes[CarbonKeys::kVK_ANSI_8] = irr::KEY_KEY_8;
+	KeyCodes[CarbonKeys::kVK_ANSI_9] = irr::KEY_KEY_9;
 
-	KeyCodes[kVK_ANSI_Slash] = irr::KEY_DIVIDE;
-	KeyCodes[kVK_ANSI_Comma] = irr::KEY_COMMA;
-	KeyCodes[kVK_ANSI_Period] = irr::KEY_PERIOD;
-	KeyCodes[kVK_PageUp] = irr::KEY_PRIOR;
-	KeyCodes[kVK_PageDown] = irr::KEY_NEXT;
+	KeyCodes[CarbonKeys::kVK_ANSI_Slash] = irr::KEY_DIVIDE;
+	KeyCodes[CarbonKeys::kVK_ANSI_Comma] = irr::KEY_COMMA;
+	KeyCodes[CarbonKeys::kVK_ANSI_Period] = irr::KEY_PERIOD;
+	KeyCodes[CarbonKeys::kVK_PageUp] = irr::KEY_PRIOR;
+	KeyCodes[CarbonKeys::kVK_PageDown] = irr::KEY_NEXT;
 
-	KeyCodes[kVK_ANSI_Keypad0] = irr::KEY_NUMPAD0;
-	KeyCodes[kVK_ANSI_Keypad1] = irr::KEY_NUMPAD1;
-	KeyCodes[kVK_ANSI_Keypad2] = irr::KEY_NUMPAD2;
-	KeyCodes[kVK_ANSI_Keypad3] = irr::KEY_NUMPAD3;
-	KeyCodes[kVK_ANSI_Keypad4] = irr::KEY_NUMPAD4;
-	KeyCodes[kVK_ANSI_Keypad5] = irr::KEY_NUMPAD5;
-	KeyCodes[kVK_ANSI_Keypad6] = irr::KEY_NUMPAD6;
-	KeyCodes[kVK_ANSI_Keypad7] = irr::KEY_NUMPAD7;
-	KeyCodes[kVK_ANSI_Keypad8] = irr::KEY_NUMPAD8;
-	KeyCodes[kVK_ANSI_Keypad9] = irr::KEY_NUMPAD9;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad0] = irr::KEY_NUMPAD0;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad1] = irr::KEY_NUMPAD1;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad2] = irr::KEY_NUMPAD2;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad3] = irr::KEY_NUMPAD3;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad4] = irr::KEY_NUMPAD4;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad5] = irr::KEY_NUMPAD5;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad6] = irr::KEY_NUMPAD6;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad7] = irr::KEY_NUMPAD7;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad8] = irr::KEY_NUMPAD8;
+	KeyCodes[CarbonKeys::kVK_ANSI_Keypad9] = irr::KEY_NUMPAD9;
 
-	KeyCodes[kVK_ANSI_KeypadDecimal] = irr::KEY_DECIMAL;
-	KeyCodes[kVK_ANSI_KeypadMultiply] = irr::KEY_MULTIPLY;
-	KeyCodes[kVK_ANSI_KeypadPlus] = irr::KEY_PLUS;
-	KeyCodes[kVK_ANSI_KeypadClear] = irr::KEY_OEM_CLEAR;
-	KeyCodes[kVK_ANSI_KeypadDivide] = irr::KEY_DIVIDE;
-	KeyCodes[kVK_ANSI_KeypadEnter] = irr::KEY_RETURN;
-	KeyCodes[kVK_ANSI_KeypadMinus] = irr::KEY_SUBTRACT;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadDecimal] = irr::KEY_DECIMAL;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadMultiply] = irr::KEY_MULTIPLY;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadPlus] = irr::KEY_PLUS;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadClear] = irr::KEY_OEM_CLEAR;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadDivide] = irr::KEY_DIVIDE;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadEnter] = irr::KEY_RETURN;
+	KeyCodes[CarbonKeys::kVK_ANSI_KeypadMinus] = irr::KEY_SUBTRACT;
 
-	KeyCodes[kVK_ANSI_LeftBracket] = irr::KEY_OEM_4;
-	KeyCodes[kVK_ANSI_Backslash] = irr::KEY_OEM_5;
-	KeyCodes[kVK_ANSI_RightBracket] = irr::KEY_OEM_6;
+	KeyCodes[CarbonKeys::kVK_ANSI_LeftBracket] = irr::KEY_OEM_4;
+	KeyCodes[CarbonKeys::kVK_ANSI_Backslash] = irr::KEY_OEM_5;
+	KeyCodes[CarbonKeys::kVK_ANSI_RightBracket] = irr::KEY_OEM_6;
 }
 
 
