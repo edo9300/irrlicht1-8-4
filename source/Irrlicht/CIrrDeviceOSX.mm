@@ -505,10 +505,15 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
 }
 
 @interface ContentView : NSView
+#if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
     irr::CIrrDeviceMacOSX* device;
+#endif
 @end
 
 @implementation ContentView {
+#if !(!defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6)
+    irr::CIrrDeviceMacOSX* device;
+#endif
 }
 
 - (instancetype)initWithDevice:(irr::CIrrDeviceMacOSX*)_device {
