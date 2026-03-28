@@ -103,14 +103,88 @@ void GetWindowsVersion(core::stringc& out, core::stringc& compatModeVersion) {
 		return ret == ERROR_SUCCESS && (dwRetFlag & flag) != 0;
 	};
 
+	auto GetWindowsVersionNotCompatMode = [](LPOSVERSIONINFO lpVersionInfo){
+		auto fromWide = [lpVersionInfo](POSVERSIONINFOEXW versionInfoW) {
+#ifdef UNICODE
+			memcpy(lpVersionInfo, versionInfoW, versionInfoW->dwOSVersionInfoSize);
+#else
+			lpVersionInfo->dwOSVersionInfoSize = versionInfoW->dwOSVersionInfoSize;
+			lpVersionInfo->dwMajorVersion = versionInfoW->dwMajorVersion;
+			lpVersionInfo->dwMinorVersion = versionInfoW->dwMinorVersion;
+			lpVersionInfo->dwBuildNumber = versionInfoW->dwBuildNumber;
+			lpVersionInfo->dwPlatformId = versionInfoW->dwPlatformId;
+			for(int i = 0; i < sizeof(lpVersionInfo->szCSDVersion) / sizeof(*lpVersionInfo->szCSDVersion); ++i) {
+				lpVersionInfo->szCSDVersion[i] = versionInfoW->szCSDVersion[i];
+			}
+			if(versionInfoW->dwOSVersionInfoSize == sizeof(OSVERSIONINFOEXW)) {
+				auto* lpVersionInfoEx = reinterpret_cast<POSVERSIONINFOEX>(lpVersionInfo);
+				lpVersionInfoEx->wServicePackMajor = versionInfoW->wServicePackMajor;
+				lpVersionInfoEx->wServicePackMinor = versionInfoW->wServicePackMinor;
+				lpVersionInfoEx->wSuiteMask = versionInfoW->wSuiteMask;
+				lpVersionInfoEx->wProductType = versionInfoW->wProductType;
+				lpVersionInfoEx->wReserved = versionInfoW->wReserved;
+			}
+#endif
+		};
+		OSVERSIONINFOEXW ret;
+		ret.dwOSVersionInfoSize = (lpVersionInfo->dwOSVersionInfoSize == sizeof(OSVERSIONINFO)) ? sizeof(OSVERSIONINFOW) : sizeof(OSVERSIONINFOEXW);
+		using RtlGetVersionPtr = NTSTATUS(WINAPI*)(PRTL_OSVERSIONINFOW);
+		const auto func = function_cast<RtlGetVersionPtr>(GetProcAddress(GetModuleHandle(TEXT("ntdll.dll")), "RtlGetVersion"));
+		if(func && func(reinterpret_cast<PRTL_OSVERSIONINFOW>(&ret)) == 0x00000000) {
+			if(ret.dwMajorVersion != 5 || ret.dwMinorVersion != 0) {
+				fromWide(&ret);
+				return true;
+			}
+		}
+		auto* GetVersionExWp = function_cast<decltype(&GetVersionExW)>(GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "GetVersionExW"));
+		if(GetVersionExWp && GetVersionExWp(lpVersionInfo)) {
+			fromWide(&ret);
+			return true;
+		}
+		return false;
+	};
+
+	auto GetWin9xProductInfo = [](LPOSVERSIONINFO lpVersionInfo){
+		TCHAR data[160];
+		HKEY hKey;
+		auto GetRegEntry = [&data, &hKey](const TCHAR* name) {
+			DWORD dwRetFlag, dwBufLen{ sizeof(data) };
+			return (RegQueryValueEx(hKey, name, nullptr, &dwRetFlag, (LPBYTE)data, &dwBufLen) == ERROR_SUCCESS)
+				&& (dwRetFlag & REG_SZ) != 0;
+		};
+		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("SOFTWARE\\Microsoft\\Windows\\CurrentVersion"), 0, KEY_QUERY_VALUE, &hKey) != ERROR_SUCCESS)
+			return false;
+		if(GetRegEntry(TEXT("VersionNumber")) && data[0] == L'4') {
+			lpVersionInfo->dwPlatformId = VER_PLATFORM_WIN32_WINDOWS;
+			lpVersionInfo->dwMajorVersion = 4;
+			if(data[2] == L'9') {
+				lpVersionInfo->dwMinorVersion = 90;
+			} else {
+				lpVersionInfo->dwMinorVersion = data[2] == L'0' ? 0 : 10;
+				if(GetRegEntry(TEXT("SubVersionNumber")))
+					lpVersionInfo->szCSDVersion[1] = data[1];
+			}
+			RegCloseKey(hKey);
+			return true;
+		}
+		RegCloseKey(hKey);
+		return false;
+	};
+
 	if(GetWineVersion())
 		return;
 
 	OSVERSIONINFOEX osvi{ sizeof(OSVERSIONINFOEX) };
 
-	if(!GetVersionEx((OSVERSIONINFO*)&osvi) &&
-	   (osvi = { sizeof(OSVERSIONINFO) }, !GetVersionEx((OSVERSIONINFO*)&osvi)))
-		return;
+	const auto isUnderKernelex = GetModuleHandle(TEXT("ntdll.dll")) == nullptr;
+	if(isUnderKernelex) {
+		osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+		GetWin9xProductInfo((OSVERSIONINFO*)&osvi);
+	} else {
+		if(!GetWindowsVersionNotCompatMode((OSVERSIONINFO*)&osvi) &&
+		   (osvi = { sizeof(OSVERSIONINFO) }, !GetWindowsVersionNotCompatMode((OSVERSIONINFO*)&osvi)))
+			return;
+	}
 
 	bool compatMode = false;
 
