@@ -210,6 +210,8 @@ namespace irr
 	ev.TouchInput.Event = irr::ETIE_PRESSED_DOWN;
 	ev.TouchInput.touchedCount = 2;
 	Device->postEventFromUser(ev);
+    ev.TouchInput.Event = irr::ETIE_LEFT_UP;
+    Device->postEventFromUser(ev);
 }
 
 - (IBAction)threeFingerTapGestureTriggered:(UITapGestureRecognizer*)sender {
@@ -218,6 +220,8 @@ namespace irr
 	ev.TouchInput.Event = irr::ETIE_PRESSED_DOWN;
 	ev.TouchInput.touchedCount = 3;
 	Device->postEventFromUser(ev);
+    ev.TouchInput.Event = irr::ETIE_LEFT_UP;
+    Device->postEventFromUser(ev);
 }
 
 @end
