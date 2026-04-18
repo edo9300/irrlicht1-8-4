@@ -82,8 +82,7 @@ namespace video
 		//! queries the features of the driver, returns true if feature is available
 		virtual bool queryFeature(E_VIDEO_DRIVER_FEATURE feature) const _IRR_OVERRIDE_
 		{
-//			return FeatureEnabled[feature] && COGLES1ExtensionHandler::queryFeature(feature);
-			return COGLES1ExtensionHandler::queryFeature(feature);
+			return FeatureEnabled[feature] && COGLES1ExtensionHandler::queryFeature(feature);
 		}
 
 		//! Sets a material.
