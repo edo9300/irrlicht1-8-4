@@ -244,10 +244,10 @@ namespace irr
 - (id)initWithFrame:(CGRect)frame forDevice:(irr::CIrrDeviceiOS*)device scale:(CGFloat)scale;
 {
     self = [super initWithFrame:frame];
-    
+
     if (self)
     {
-        //self.contentScaleFactor = scale;
+        self.contentScaleFactor = scale;
         Device = device;
         Scale = ([self respondsToSelector:@selector(setContentScaleFactor:)]) ? [[UIScreen mainScreen] scale] : 1.f;
     }
@@ -276,8 +276,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x;
-        ev.TouchInput.Y = touchPoint.y;
+        ev.TouchInput.X = touchPoint.x * Scale;
+        ev.TouchInput.Y = touchPoint.y * Scale;
 
         Device->postEventFromUser(ev);
 	}
@@ -296,8 +296,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x;
-        ev.TouchInput.Y = touchPoint.y;
+        ev.TouchInput.X = touchPoint.x * Scale;
+        ev.TouchInput.Y = touchPoint.y * Scale;
         
         Device->postEventFromUser(ev);
 	}
@@ -316,8 +316,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x;
-        ev.TouchInput.Y = touchPoint.y;
+        ev.TouchInput.X = touchPoint.x * Scale;
+        ev.TouchInput.Y = touchPoint.y * Scale;
         
         Device->postEventFromUser(ev);
 	}
@@ -336,8 +336,8 @@ namespace irr
 
 		CGPoint touchPoint = [touch locationInView:self];
         
-        ev.TouchInput.X = touchPoint.x*Scale;
-        ev.TouchInput.Y = touchPoint.y*Scale;
+        ev.TouchInput.X = touchPoint.x * Scale;
+        ev.TouchInput.Y = touchPoint.y * Scale;
         
         Device->postEventFromUser(ev);
 	}
@@ -823,7 +823,7 @@ namespace irr
 #ifdef _IRR_COMPILE_WITH_OGLES1_
                 {
 					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this scale:scale];
-					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width, view.frame.size.height);
+					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width * view.contentScaleFactor, view.frame.size.height * view.contentScaleFactor);
 					
 					dataStorage->View = view;
 					data.OpenGLiOS.View = (__bridge void*)view;
@@ -845,7 +845,7 @@ namespace irr
 #ifdef _IRR_COMPILE_WITH_OGLES2_
 				{
 					CIrrViewEAGLiOS* view = [[CIrrViewEAGLiOS alloc] initWithFrame:resolution forDevice:this scale:scale];
-					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width, view.frame.size.height);
+					CreationParams.WindowSize = core::dimension2d<u32>(view.frame.size.width * view.contentScaleFactor, view.frame.size.height * view.contentScaleFactor);
 				
 					dataStorage->View = view;
 					data.OpenGLiOS.View = (__bridge void*)view;
