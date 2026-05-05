@@ -392,6 +392,7 @@ namespace irr
 #ifdef _IRR_COMPILE_WITH_IOS_BUILTIN_MAIN_
 		CIrrDelegateiOS* delegate = [UIApplication sharedApplication].delegate;
 		[delegate setDevice:this];
+		[[UIApplication sharedApplication] setIdleTimerDisabled:YES];
 #endif
         
         DataStorage = new SIrrDeviceiOSDataStorage();
