@@ -298,16 +298,27 @@ public:
     static void pointer_enter(void* data, wl_pointer* pointer, uint32_t serial,
                               wl_surface* surface, wl_fixed_t sx, wl_fixed_t sy)
     {
+        if (!surface) {
+            return;
+        }
+
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
 
         device->m_enter_serial = serial;
-        device->updateCursor();
+        device->m_mouse_focusing_window = surface == device->m_surface;
+        if(device->m_mouse_focusing_window){
+            device->updateCursor();
+        }
     }
 
     static void pointer_motion(void* data, wl_pointer* pointer, uint32_t time,
                                wl_fixed_t sx, wl_fixed_t sy)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+
+        if (!device->m_mouse_focusing_window) {
+            return;
+        }
 
         device->getCursorControl()->setPosition(wl_fixed_to_int(sx),
                                                 wl_fixed_to_int(sy));
@@ -329,6 +340,10 @@ public:
                                uint32_t state)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+
+        if (!device->m_mouse_focusing_window) {
+            return;
+        }
 
         if (!device->m_decoration && !device->CreationParams.Fullscreen &&
             state == WL_POINTER_BUTTON_STATE_PRESSED &&
@@ -422,6 +437,10 @@ public:
                              uint32_t axis, wl_fixed_t value)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
+
+        if (!device->m_mouse_focusing_window) {
+            return;
+        }
 
         if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL)
         {

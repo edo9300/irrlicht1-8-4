@@ -342,6 +342,7 @@ namespace irr
         wl_surface* m_surface;
         wl_data_device_manager* m_data_device_manager;
         uint32_t m_enter_serial;
+        bool m_mouse_focusing_window;
         
         wl_shell* m_shell;
         wl_shell_surface* m_shell_surface;
