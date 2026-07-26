@@ -151,7 +151,15 @@
 #endif
 #endif
 
-#if !defined(_IRR_WINDOWS_API_) && !defined(_IRR_OSX_PLATFORM_) && !defined(_IRR_IOS_PLATFORM_) && !defined(_IRR_ANDROID_PLATFORM_) && !defined(_IRR_EMSCRIPTEN_PLATFORM_)
+#if defined(__HAIKU__)
+#define _IRR_HAIKU_PLATFORM_
+#define _IRR_COMPILE_WITH_SDL3_DEVICE_
+#define _IRR_DYNAMIC_OPENGL_
+#define NO_IRR_COMPILE_WITH_OGLES1_
+#define NO_IRR_COMPILE_WITH_OGLES2_
+#endif
+
+#if !defined(_IRR_WINDOWS_API_) && !defined(_IRR_OSX_PLATFORM_) && !defined(_IRR_IOS_PLATFORM_) && !defined(_IRR_ANDROID_PLATFORM_) && !defined(_IRR_EMSCRIPTEN_PLATFORM_) && !defined(_IRR_HAIKU_PLATFORM_)
 #ifndef _IRR_SOLARIS_PLATFORM_
 #define _IRR_LINUX_PLATFORM_
 #endif
@@ -288,7 +296,7 @@ define out. */
 		#define _IRR_COMPILE_WITH_NSOGL_MANAGER_
 	#elif defined(_IRR_SOLARIS_PLATFORM_)
 		#define _IRR_COMPILE_WITH_GLX_MANAGER_
-	#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_)
+	#elif defined(_IRR_COMPILE_WITH_SDL_DEVICE_) || defined(_IRR_COMPILE_WITH_SDL2_DEVICE_) || defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
 		#define _IRR_OPENGL_USE_EXTPOINTER_
 	#endif
 #endif

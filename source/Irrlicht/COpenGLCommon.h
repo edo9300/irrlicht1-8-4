@@ -54,6 +54,18 @@
 	#include <SDL2/SDL_video.h>
 	#include <SDL2/SDL_opengl.h>
 	#include "glext.h"
+#elif defined(_IRR_COMPILE_WITH_SDL3_DEVICE_) && !defined(_IRR_COMPILE_WITH_X11_DEVICE_)
+	#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
+		#define GL_GLEXT_LEGACY 1
+		#define GLX_GLXEXT_LEGACY 1
+	#else
+		#define GL_GLEXT_PROTOTYPES 1
+		#define GLX_GLXEXT_PROTOTYPES 1
+	#endif
+	#define NO_SDL_GLEXT
+	#include <SDL3/SDL_video.h>
+	#include <SDL3/SDL_opengl.h>
+	#include "glext.h"
 #else
 	#if defined(_IRR_OPENGL_USE_EXTPOINTER_)
 		#define GL_GLEXT_LEGACY 1
