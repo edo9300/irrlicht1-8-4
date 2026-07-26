@@ -875,19 +875,19 @@ IFileList* CFileSystem::createFileList()
 				{
 					continue;
 				}
-				struct stat buf;
-				if (stat(dirEntry->d_name, &buf)==0)
-				{
-					size = buf.st_size;
-					isDirectory = S_ISDIR(buf.st_mode);
-				}
-				#if !defined(_IRR_SOLARIS_PLATFORM_) && !defined(__CYGWIN__)
-				// only available on some systems
-				else
-				{
+#ifdef _DIRENT_HAVE_D_TYPE // only available on some systems
+				if(dirEntry->d_type != DT_LNK && dirEntry->d_type != DT_UNKNOWN) {
 					isDirectory = dirEntry->d_type == DT_DIR;
 				}
-				#endif
+				if(!isDirectory)
+#endif
+				{
+					struct stat buf;
+					if(stat(dirEntry->d_name, &buf) == 0) {
+						size = buf.st_size;
+						isDirectory = S_ISDIR(buf.st_mode);
+					}
+				}
 
 				r->addItem(Path + dirEntry->d_name, 0, size, isDirectory, 0);
 			}
