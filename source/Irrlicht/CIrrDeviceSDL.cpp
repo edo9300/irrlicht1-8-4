@@ -189,11 +189,14 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 		}
 
 #if defined(_IRR_WINDOWS_)
-		SDL_putenv("SDL_VIDEODRIVER=directx");
+		core::stringc str = "SDL_VIDEODRIVER=directx";
+		SDL_putenv(&str[0]);
 #elif defined(_IRR_OSX_PLATFORM_)
-		SDL_putenv("SDL_VIDEODRIVER=Quartz");
-#elif !defined(_IRR_EMSCRIPTEN_PLATFORM_)
-		SDL_putenv("SDL_VIDEODRIVER=x11");
+		core::stringc str = "SDL_VIDEODRIVER=Quartz";
+		SDL_putenv(&str[0]);
+#elif !defined(_IRR_EMSCRIPTEN_PLATFORM_) && !defined(_IRR_HAIKU_PLATFORM_)
+		core::stringc str = "SDL_VIDEODRIVER=x11";
+		SDL_putenv(&str[0]);
 #endif
 	}
 
@@ -250,7 +253,7 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 			wmClass += name;
 			delete[] name;
 #endif
-			SDL_putenv(wmClass.data());
+			SDL_putenv(&wmClass[0]);
 		}
 		// create the window, only if we do not use the null device
 		createWindow();
