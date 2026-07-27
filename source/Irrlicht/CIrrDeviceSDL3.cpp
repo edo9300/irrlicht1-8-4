@@ -26,6 +26,26 @@
 #include "CSDL3ContextManager.h"
 #include "CDriverCreationPrototypes.h"
 
+#ifdef _IRR_HAIKU_PLATFORM_
+// workaround bugged SDL not querying the global keyboard state
+// modifiers is a system Haiku function, we query it from the
+// current address space to not have to link explicitly to the system library
+using modifiers_t = unsigned(*)();
+static modifiers_t modifiers;
+static void fixModifiers() {
+	if(modifiers) {
+		unsigned mod = modifiers();
+		SDL_Keymod sdl_state = SDL_GetModState() & ~(SDL_KMOD_CAPS | SDL_KMOD_NUM | SDL_KMOD_SCROLL);
+		if (mod & 0x8)
+			sdl_state |= SDL_KMOD_CAPS;
+		if (mod & 0x20)
+			sdl_state |= SDL_KMOD_NUM;
+		if (mod & 0x10)
+			sdl_state |= SDL_KMOD_SCROLL;
+		SDL_SetModState(sdl_state);
+	}
+}
+#endif
 
 namespace irr
 {
@@ -119,6 +139,11 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 		VideoDriver->endScene();
 		createGUIAndScene();
 	}
+#ifdef _IRR_HAIKU_PLATFORM_
+	SDL_SharedObject* obj = SDL_LoadObject(nullptr);
+	modifiers = (modifiers_t)SDL_LoadFunction(obj, "_Z9modifiersv");
+	fixModifiers();
+#endif
 }
 
 
@@ -687,6 +712,9 @@ bool CIrrDeviceSDL3::run()
 		case SDL_EVENT_WINDOW_MOUSE_ENTER:
 		case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			WindowHasFocus = true;
+#ifdef _IRR_HAIKU_PLATFORM_
+			fixModifiers();
+#endif
 			break;
 
 		case SDL_EVENT_WINDOW_MOUSE_LEAVE:
