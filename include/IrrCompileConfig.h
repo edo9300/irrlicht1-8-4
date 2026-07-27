@@ -153,7 +153,9 @@
 
 #if defined(__HAIKU__)
 #define _IRR_HAIKU_PLATFORM_
+#if !defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && !defined(_IRR_COMPILE_WITH_SDL2_DEVICE_) && !defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
 #define _IRR_COMPILE_WITH_SDL3_DEVICE_
+#endif
 #define _IRR_DYNAMIC_OPENGL_
 #define _IRR_POSIX_API_
 #define NO_IRR_COMPILE_WITH_OGLES1_
