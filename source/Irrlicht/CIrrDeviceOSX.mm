@@ -742,10 +742,8 @@ static bool firstLaunch = true;
 			irrevent.DropEvent.Text = nullptr;
 			irrevent.DropEvent.DropType = irr::DROP_END;
 			device->postEventFromUser(irrevent);
-			AUTORELEASEPOOL_RELEASE(pool);
 			return NO;
 		}
-		AUTORELEASEPOOL_RELEASE(pool);
 		return YES;
 	};
 
@@ -828,7 +826,6 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 
 		if (!CreationParams.WindowId)
 		{
-			AUTORELEASEPOOL_START_BLOCK(Pool);
 			[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 			[NSApp setDelegate:[[[[CIrrDelegateOSX alloc] initWithDevice:this] initWithFrame:NSZeroRect] autorelease]];
             
@@ -848,7 +845,6 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
             [NSApp setMainMenu:mainMenu];
 
             [NSApp finishLaunching];
-			AUTORELEASEPOOL_END_BLOCK(Pool)
 		}
 
 		/*path = [[NSBundle mainBundle] bundlePath];
