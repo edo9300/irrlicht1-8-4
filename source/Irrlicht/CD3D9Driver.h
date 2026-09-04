@@ -21,7 +21,7 @@
 #include "irrMath.h"    // needed by borland for sqrtf define
 #endif
 #include <d3d9.h>
-#include <d3dx9core.h>
+#include "d3dx9/d3dx9custom.h"
 
 namespace irr
 {
