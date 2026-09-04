@@ -29,6 +29,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
 #include <unistd.h>
@@ -43,7 +44,6 @@
 #endif
 
 #if defined _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
-#include <fcntl.h>
 #include <sys/ioctl.h>
 #ifdef __FreeBSD__
 #include <sys/joystick.h>

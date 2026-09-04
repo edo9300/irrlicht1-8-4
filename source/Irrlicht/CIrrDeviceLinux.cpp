@@ -2,10 +2,14 @@
 // This file is part of the "Irrlicht Engine".
 // For conditions of distribution and use, see copyright notice in irrlicht.h
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
+#endif
 #include "CIrrDeviceLinux.h"
 
 #ifdef _IRR_COMPILE_WITH_X11_DEVICE_
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32
@@ -54,7 +58,6 @@
 
 #if defined _IRR_COMPILE_WITH_JOYSTICK_EVENTS_
 #include <fcntl.h>
-#include <unistd.h>
 
 #ifdef __FreeBSD__
 #include <sys/joystick.h>
