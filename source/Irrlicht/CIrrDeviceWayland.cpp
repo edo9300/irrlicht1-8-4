@@ -708,7 +708,9 @@ public:
         event.TouchInput.ID = id;
         event.TouchInput.X = wl_fixed_to_int(x);
         event.TouchInput.Y = wl_fixed_to_int(y);
-        
+        // we send the event accounting for the new touch input
+        event.TouchInput.touchedCount = device->m_touches_count + 1;
+
         device->signalEvent(event);
              
         if (device->m_touches_count == 0)
@@ -732,7 +734,9 @@ public:
         event.TouchInput.ID = id;
         event.TouchInput.X = 0;
         event.TouchInput.Y = 0;
-        
+        // we send the event by keeping the previous touch input in the count
+        event.TouchInput.touchedCount = device->m_touches_count;
+
         device->signalEvent(event);
         
         if (device->m_touches_count == 1)
@@ -755,7 +759,8 @@ public:
         event.TouchInput.ID = id;
         event.TouchInput.X = wl_fixed_to_int(x);
         event.TouchInput.Y = wl_fixed_to_int(y);
-        
+        event.TouchInput.touchedCount = device->m_touches_count;
+
         device->signalEvent(event);
         
         if (device->m_touches_count == 1)
