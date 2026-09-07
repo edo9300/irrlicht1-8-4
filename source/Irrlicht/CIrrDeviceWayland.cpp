@@ -3367,6 +3367,9 @@ void CIrrDeviceWayland::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
     if(!buffer)
         return;
 
+    if(!m_device->m_pointer)
+        return;
+
     wl_pointer_set_cursor(m_device->m_pointer, m_device->m_enter_serial, m_device->m_cursor_surface,
                           image->hotspot_x, image->hotspot_y);
     wl_surface_attach(m_device->m_cursor_surface, buffer, 0, 0);
