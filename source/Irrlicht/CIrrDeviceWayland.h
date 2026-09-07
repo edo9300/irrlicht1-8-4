@@ -1,7 +1,7 @@
 // Copyright (c) 2021-2022 Edoardo Lolletti <edoardo762@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Refer to the COPYING file included.
-// 
+//
 //  Original license
 //
 //  SuperTuxKart - a fun racing game with go-kart
@@ -116,10 +116,10 @@ namespace irr
 
         //! Restores the window size.
         virtual void restoreWindow();
-		
+
 		//! Toggle the windowed/borderless fullscreen status of the window.
 		virtual void toggleFullscreen(bool fullscreen=true) _IRR_OVERRIDE_;
-        
+
         //! Move window to requested position
         virtual bool moveWindow(int x, int y);
 
@@ -128,10 +128,10 @@ namespace irr
 
         //! Activate any joysticks, and generate events for them.
         virtual bool activateJoysticks(core::array<SJoystickInfo>& joystickInfo);
-        
+
         //! Returns true if system has touch device
         virtual bool supportsTouchDevice() const { return m_has_touch_device; }
-        
+
         //! Returns true if system has hardware keyboard
         virtual bool hasHardwareKeyboard() const { return m_has_hardware_keyboard; }
 
@@ -164,11 +164,11 @@ namespace irr
         static bool isWaylandDeviceWorking();
 
         void checkPendingResizes();
-		
+
         void updateCursor();
         unsigned int getWidth() {return m_width;}
         unsigned int getHeight() {return m_height;}
-        
+
 
         //! Implementation of the linux cursor control
         class CCursorControl : public gui::ICursorControl
@@ -343,7 +343,7 @@ namespace irr
         wl_data_device_manager* m_data_device_manager;
         uint32_t m_enter_serial;
         bool m_mouse_focusing_window;
-        
+
         wl_shell* m_shell;
         wl_shell_surface* m_shell_surface;
         bool m_has_wl_shell;
@@ -363,17 +363,17 @@ namespace irr
 
         wp_cursor_shape_manager_v1* m_cursor_shape_manager;
         wp_cursor_shape_device_v1* m_cursor_shape;
-		
+
 #ifdef IRR_USE_LIBDECOR
 		libdecor* m_libdecor;
 		libdecor_frame* m_libdecor_surface;
 #endif
 
         bool m_surface_configured;
-        
+
         zxdg_decoration_manager_v1* m_decoration_manager;
         zxdg_toplevel_decoration_v1* m_decoration;
-        
+
         org_kde_kwin_server_decoration_manager* m_kwin_server_decoration_manager;
         org_kde_kwin_server_decoration* m_kwin_server_decoration;
 
@@ -398,7 +398,7 @@ namespace irr
         bool m_xkb_alt_pressed;
         bool m_xkb_ctrl_pressed;
         bool m_xkb_shift_pressed;
-        
+
         bool m_repeat_enabled;
         SEvent m_repeat_event;
         uint32_t m_repeat_time;

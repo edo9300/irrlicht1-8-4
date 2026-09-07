@@ -1,7 +1,7 @@
 // Copyright (c) 2021-2022 Edoardo Lolletti <edoardo762@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Refer to the COPYING file included.
-// 
+//
 //  Original license
 //
 //  SuperTuxKart - a fun racing game with go-kart
@@ -368,10 +368,10 @@ public:
             {
                 wl_shell_surface_move(device->m_shell_surface, device->m_seat, serial);
             }
-            
+
             return;
         }
-        
+
         SEvent irrevent;
         irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
         irrevent.MouseInput.X = device->getCursorControl()->getPosition().X;
@@ -545,7 +545,7 @@ public:
                                uint32_t serial, wl_surface* surface)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-		
+
 		device->m_repeat_enabled = false;
     }
 
@@ -556,7 +556,7 @@ public:
 
         if (!device->m_xkb_state)
             return;
-		
+
         wchar_t key_char = 0;
 
         if (state == WL_KEYBOARD_KEY_STATE_PRESSED)
@@ -695,7 +695,7 @@ public:
         device->m_repeat_rate = rate == 0 ? 0 : 1000 / rate;
         device->m_repeat_delay = delay;
     }
-    
+
     static void touch_handle_down(void* data, wl_touch* touch, uint32_t serial,
                                   uint32_t time, wl_surface *surface,
                                   int32_t id, wl_fixed_t x, wl_fixed_t y)
@@ -712,22 +712,22 @@ public:
         event.TouchInput.touchedCount = device->m_touches_count + 1;
 
         device->signalEvent(event);
-             
+
         if (device->m_touches_count == 0)
         {
             pointer_motion(data, nullptr, 0, x, y);
-            pointer_button(data, nullptr, 0, 0, BTN_LEFT, 
+            pointer_button(data, nullptr, 0, 0, BTN_LEFT,
                            WL_POINTER_BUTTON_STATE_PRESSED);
         }
 
         device->m_touches_count++;
     }
-    
+
     static void touch_handle_up(void* data, wl_touch* touch, uint32_t serial,
                                 uint32_t time, int32_t id)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
+
         SEvent event;
         event.EventType = EET_TOUCH_INPUT_EVENT;
         event.TouchInput.Event = ETIE_LEFT_UP;
@@ -738,21 +738,21 @@ public:
         event.TouchInput.touchedCount = device->m_touches_count;
 
         device->signalEvent(event);
-        
+
         if (device->m_touches_count == 1)
         {
-            pointer_button(data, nullptr, 0, 0, BTN_LEFT, 
+            pointer_button(data, nullptr, 0, 0, BTN_LEFT,
                            WL_POINTER_BUTTON_STATE_RELEASED);
         }
 
         device->m_touches_count--;
     }
-    
+
     static void touch_handle_motion(void* data, wl_touch* touch, uint32_t time,
                                   int32_t id, wl_fixed_t x, wl_fixed_t y)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
+
         SEvent event;
         event.EventType = EET_TOUCH_INPUT_EVENT;
         event.TouchInput.Event = ETIE_MOVED;
@@ -762,17 +762,17 @@ public:
         event.TouchInput.touchedCount = device->m_touches_count;
 
         device->signalEvent(event);
-        
+
         if (device->m_touches_count == 1)
         {
             pointer_motion(data, nullptr, 0, x, y);
         }
     }
-    
+
     static void touch_handle_cancel(void* data, wl_touch* touch)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
+
         device->m_touches_count = 0;
     }
 
@@ -812,7 +812,7 @@ public:
             wl_keyboard_destroy(device->m_keyboard);
             device->m_keyboard = nullptr;
         }
-        
+
         if ((caps & WL_SEAT_CAPABILITY_TOUCH) && !device->m_touch)
         {
             device->m_has_touch_device = true;
@@ -865,19 +865,19 @@ public:
         device->m_resizing_state.height = height;
         device->m_resizing_state.pending = true;
     }
-    
-    static void xdg_wm_base_ping(void* data, xdg_wm_base* shell, 
+
+    static void xdg_wm_base_ping(void* data, xdg_wm_base* shell,
                                  uint32_t serial)
     {
         xdg_wm_base_pong(shell, serial);
     }
-    
-    static void zxdg_wm_shell_ping(void* data, zxdg_shell_v6* shell, 
+
+    static void zxdg_wm_shell_ping(void* data, zxdg_shell_v6* shell,
                                  uint32_t serial)
     {
         zxdg_shell_v6_pong(shell, serial);
     }
-    
+
     static void xdg_surface_configure(void* data, xdg_surface* surface,
                                       uint32_t serial)
     {
@@ -903,7 +903,7 @@ public:
             device->m_resizing_state.serial = serial;
         }
     }
-    
+
     static void xdg_toplevel_configure(void* data, xdg_toplevel* toplevel,
                                        int32_t width, int32_t height,
                                        wl_array* states)
@@ -937,14 +937,14 @@ public:
         device->m_resizing_state.width = width;
         device->m_resizing_state.height = height;
     }
-    
+
     static void xdg_toplevel_close(void* data, xdg_toplevel* xdg_toplevel)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
+
         device->closeDevice();
     }
-    
+
     static void zxdg_surface_configure(void* data, zxdg_surface_v6* surface,
                                       uint32_t serial)
     {
@@ -970,7 +970,7 @@ public:
             device->m_resizing_state.serial = serial;
         }
     }
-    
+
     static void zxdg_toplevel_configure(void* data, zxdg_toplevel_v6* toplevel,
                                        int32_t width, int32_t height,
                                        wl_array* states)
@@ -1028,11 +1028,11 @@ public:
             delete[] ws;
         }
     }
-    
+
     static void zxdg_toplevel_close(void* data, zxdg_toplevel_v6* zxdg_toplevel_v6)
     {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
+
         device->closeDevice();
     }
 
@@ -1060,7 +1060,7 @@ public:
             device->m_seat = static_cast<wl_seat*>(wl_registry_bind(registry,
                                                    name, &wl_seat_interface,
                                                    version < 4 ? version : 4));
-                                                   
+
             wl_seat_add_listener(device->m_seat, &seat_listener, device);
             if(!device->m_data_device && device->m_data_device_manager) {
                 device->m_data_device = wl_data_device_manager_get_data_device(device->m_data_device_manager, device->m_seat);
@@ -1085,7 +1085,7 @@ public:
         }
         else if (strcmp(interface, wl_shm_interface.name) == 0)
         {
-            device->m_shm = static_cast<wl_shm*>(wl_registry_bind(registry, 
+            device->m_shm = static_cast<wl_shm*>(wl_registry_bind(registry,
                                                    name, &wl_shm_interface, 1));
         }
         else if (strcmp(interface, wl_output_interface.name) == 0)
@@ -1093,7 +1093,7 @@ public:
             device->m_output = static_cast<wl_output*>(wl_registry_bind(
                                            registry, name, &wl_output_interface,
                                            version < 2 ? version : 2));
-                                           
+
             wl_output_add_listener(device->m_output, &output_listener, device);
         }
         else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0)
@@ -1105,23 +1105,23 @@ public:
         }
         else if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0)
         {
-            device->m_decoration_manager = 
+            device->m_decoration_manager =
                                     static_cast<zxdg_decoration_manager_v1*>(
-                                    wl_registry_bind(registry, name, 
+                                    wl_registry_bind(registry, name,
                                     &zxdg_decoration_manager_v1_interface, 1));
         }
         else if (strcmp(interface, org_kde_kwin_server_decoration_manager_interface.name) == 0)
         {
-            device->m_kwin_server_decoration_manager = 
+            device->m_kwin_server_decoration_manager =
                                     static_cast<org_kde_kwin_server_decoration_manager*>(
-                                    wl_registry_bind(registry, name, 
+                                    wl_registry_bind(registry, name,
                                     &org_kde_kwin_server_decoration_manager_interface, 1));
         }
         else if (strcmp(interface, zwp_text_input_manager_v3_interface.name) == 0)
         {
             device->m_input_manager_v3 =
                                     static_cast<zwp_text_input_manager_v3*>(
-                                    wl_registry_bind(registry, name, 
+                                    wl_registry_bind(registry, name,
                                     &zwp_text_input_manager_v3_interface, 1));
             if(!device->m_input_v3 && device->m_seat) {
                 device->m_input_v3 = zwp_text_input_manager_v3_get_text_input(device->m_input_manager_v3, device->m_seat);
@@ -1300,7 +1300,7 @@ public:
 					break;
 				read_text.append(buf, n);
 			}
-			
+
 			close(pipefd[0]);
         }
 
@@ -1372,7 +1372,7 @@ public:
            strcmp(mime_type, "text/plain;charset=UTF-8") == 0) {
 				auto& clipboard = device->m_clipboard;
 				write(fd, clipboard.data(), clipboard.size());
-        }	
+        }
         close(fd);
     }
 
@@ -1445,8 +1445,8 @@ public:
 	}
     static void libdecor_frame_close(libdecor_frame* frame, void* data) {
         CIrrDeviceWayland* device = static_cast<CIrrDeviceWayland*>(data);
-        
-        device->closeDevice();		
+
+        device->closeDevice();
 	}
     static void libdecor_frame_commit(libdecor_frame* frame, void* data) {
 		(void)frame;
@@ -1511,33 +1511,33 @@ const wl_registry_listener WaylandCallbacks::registry_listener =
     MAKENOOP(wl_registry_listener::global_remove)
 };
 
-const xdg_wm_base_listener WaylandCallbacks::wm_base_listener = 
+const xdg_wm_base_listener WaylandCallbacks::wm_base_listener =
 {
     WaylandCallbacks::xdg_wm_base_ping
 };
 
-const xdg_surface_listener WaylandCallbacks::surface_listener = 
+const xdg_surface_listener WaylandCallbacks::surface_listener =
 {
     WaylandCallbacks::xdg_surface_configure
 };
 
-const zxdg_shell_v6_listener WaylandCallbacks::zxdg_shell_listener = 
+const zxdg_shell_v6_listener WaylandCallbacks::zxdg_shell_listener =
 {
     WaylandCallbacks::zxdg_wm_shell_ping
 };
 
-const xdg_toplevel_listener WaylandCallbacks::toplevel_listener = 
+const xdg_toplevel_listener WaylandCallbacks::toplevel_listener =
 {
     WaylandCallbacks::xdg_toplevel_configure,
     WaylandCallbacks::xdg_toplevel_close
 };
 
-const zxdg_surface_v6_listener WaylandCallbacks::zxdg_surface_listener = 
+const zxdg_surface_v6_listener WaylandCallbacks::zxdg_surface_listener =
 {
     WaylandCallbacks::zxdg_surface_configure
 };
 
-const zxdg_toplevel_v6_listener WaylandCallbacks::zxdg_toplevel_listener = 
+const zxdg_toplevel_v6_listener WaylandCallbacks::zxdg_toplevel_listener =
 {
     WaylandCallbacks::zxdg_toplevel_configure,
     WaylandCallbacks::zxdg_toplevel_close
@@ -1637,13 +1637,13 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     m_shell_surface = nullptr;
     m_has_wl_shell = false;
     m_wl_shell_name = 0;
-    
+
     m_xdg_wm_base = nullptr;
     m_xdg_surface = nullptr;
     m_xdg_toplevel = nullptr;
     m_has_xdg_wm_base = false;
     m_xdg_wm_base_name = 0;
-    
+
     m_zxdg_shell = nullptr;
     m_zxdg_surface = nullptr;
     m_zxdg_toplevel = nullptr;
@@ -1652,17 +1652,17 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
 
     m_cursor_shape_manager = nullptr;
     m_cursor_shape = nullptr;
-	
+
 #ifdef IRR_USE_LIBDECOR
 	m_libdecor = nullptr;
 	m_libdecor_surface = nullptr;
 #endif
-	
+
     m_surface_configured = false;
-    
+
     m_decoration_manager = nullptr;
     m_decoration = nullptr;
-    
+
     m_kwin_server_decoration_manager = nullptr;
     m_kwin_server_decoration = nullptr;
 
@@ -1720,7 +1720,7 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
 
     m_resizing_state.configure = false;
     m_resizing_state.pending = false;
-    
+
     #ifdef _DEBUG
     setDebugName("CIrrDeviceWayland");
     #endif
@@ -1742,7 +1742,7 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
 
     createKeyMap();
-    
+
     bool success = initWayland();
 
     if(!success)
@@ -1761,13 +1761,13 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
 }
 
 CIrrDeviceWayland::~CIrrDeviceWayland()
-{    
+{
     if (m_decoration)
         zxdg_toplevel_decoration_v1_destroy(m_decoration);
-        
+
     if (m_decoration_manager)
         zxdg_decoration_manager_v1_destroy(m_decoration_manager);
-	
+
     if (m_kwin_server_decoration)
         org_kde_kwin_server_decoration_release(m_kwin_server_decoration);
 
@@ -1776,10 +1776,10 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
     if(m_input_manager_v3)
         zwp_text_input_manager_v3_destroy(m_input_manager_v3);
-        
+
     if (m_kwin_server_decoration_manager)
         org_kde_kwin_server_decoration_manager_destroy(m_kwin_server_decoration_manager);
-    
+
     if (m_keyboard)
         wl_keyboard_destroy(m_keyboard);
 
@@ -1791,22 +1791,22 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
     if (m_cursor_theme)
         pwl_cursor_theme_destroy(m_cursor_theme);
-        
+
     if (m_xdg_toplevel)
         xdg_toplevel_destroy(m_xdg_toplevel);
 
     if (m_xdg_surface)
         xdg_surface_destroy(m_xdg_surface);
-        
+
     if (m_xdg_wm_base)
         xdg_wm_base_destroy(m_xdg_wm_base);
-        
+
     if (m_zxdg_toplevel)
         zxdg_toplevel_v6_destroy(m_zxdg_toplevel);
 
     if (m_zxdg_surface)
         zxdg_surface_v6_destroy(m_zxdg_surface);
-        
+
     if (m_zxdg_shell)
         zxdg_shell_v6_destroy(m_zxdg_shell);
 
@@ -1818,11 +1818,11 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
     if (m_shell_surface)
         wl_shell_surface_destroy(m_shell_surface);
-        
+
     if (m_shell)
         wl_shell_destroy(m_shell);
 
-#ifdef IRR_USE_LIBDECOR	
+#ifdef IRR_USE_LIBDECOR
 	if (m_libdecor) {
 		LibdecorLoader::libdecor_unref(m_libdecor);
 		LibdecorLoader::Unload();
@@ -1831,22 +1831,22 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
     if (m_egl_window)
         pwl_egl_window_destroy(m_egl_window);
-    
+
     if (m_surface)
         wl_surface_destroy(m_surface);
-    
+
     if (m_data_device_manager)
         wl_data_device_manager_destroy(m_data_device_manager);
-    
+
     if (m_clipboard_data_offer)
         wl_data_offer_destroy(m_clipboard_data_offer);
-    
+
     if (m_drag_data_offer)
         wl_data_offer_destroy(m_drag_data_offer);
-        
+
     if (m_shm)
         wl_shm_destroy(m_shm);
-        
+
     if (m_compositor)
         wl_compositor_destroy(m_compositor);
 
@@ -1864,13 +1864,13 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 
     if (m_xkb_state)
         pxkb_state_unref(m_xkb_state);
-        
+
     if (m_xkb_keymap)
         pxkb_keymap_unref(m_xkb_keymap);
-        
+
     if (m_xkb_compose_state)
         pxkb_compose_state_unref(m_xkb_compose_state);
-        
+
     if (m_xkb_compose_table)
         pxkb_compose_table_unref(m_xkb_compose_table);
 
@@ -1977,34 +1977,34 @@ bool CIrrDeviceWayland::initWayland()
 #endif
 
     m_display = pwl_display_connect(nullptr);
-    
+
     if (m_display == nullptr)
     {
         os::Printer::log("Couldn't open display.", ELL_ERROR);
         return false;
     }
-    
+
     m_xkb_context = CIrrDeviceWayland::pxkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    
+
     if (m_xkb_context == nullptr)
     {
         os::Printer::log("Couldn't create xkb context.", ELL_ERROR);
         return false;
     }
-    
+
     m_registry = wl_display_get_registry(m_display);
-    wl_registry_add_listener(m_registry, &WaylandCallbacks::registry_listener, 
+    wl_registry_add_listener(m_registry, &WaylandCallbacks::registry_listener,
                              this);
-    
+
     pwl_display_dispatch(m_display);
     pwl_display_roundtrip(m_display);
-    
+
     if (m_compositor == nullptr || m_seat == nullptr || m_output == nullptr)
     {
         os::Printer::log("Important protocols are not available.", ELL_ERROR);
         return false;
     }
-    
+
     if (!m_has_wl_shell && !m_has_xdg_wm_base && !m_has_zxdg_shell)
     {
         os::Printer::log("Shell protocol is not available.", ELL_ERROR);
@@ -2034,26 +2034,26 @@ bool CIrrDeviceWayland::initWayland()
         {
             m_xdg_wm_base = static_cast<xdg_wm_base*>(wl_registry_bind(
                     m_registry, m_xdg_wm_base_name, &xdg_wm_base_interface, 1));
-                                                 
-            xdg_wm_base_add_listener(m_xdg_wm_base, 
+
+            xdg_wm_base_add_listener(m_xdg_wm_base,
                                      &WaylandCallbacks::wm_base_listener, this);
         }
         else if (m_has_zxdg_shell)
         {
             m_zxdg_shell = static_cast<zxdg_shell_v6*>(wl_registry_bind(
                     m_registry, m_zxdg_shell_name, &zxdg_shell_v6_interface, 1));
-                                                 
-            zxdg_shell_v6_add_listener(m_zxdg_shell, 
+
+            zxdg_shell_v6_add_listener(m_zxdg_shell,
                                      &WaylandCallbacks::zxdg_shell_listener, this);
         }
         else if (m_has_wl_shell)
         {
-            m_shell = static_cast<wl_shell*>(wl_registry_bind(m_registry, 
+            m_shell = static_cast<wl_shell*>(wl_registry_bind(m_registry,
                                       m_wl_shell_name, &wl_shell_interface, 1));
         }
-        
+
         bool success = createWindow();
-        
+
         if (!success)
         {
             os::Printer::log("Couldn't create window.", ELL_ERROR);
@@ -2068,7 +2068,7 @@ bool CIrrDeviceWayland::initWayland()
             delete[] title;
         }
     }
-    
+
     return true;
 }
 
@@ -2189,10 +2189,10 @@ bool CIrrDeviceWayland::createWindow()
     if (m_xdg_wm_base != nullptr)
     {
         m_xdg_surface = xdg_wm_base_get_xdg_surface(m_xdg_wm_base, m_surface);
-        
-        xdg_surface_add_listener(m_xdg_surface, 
+
+        xdg_surface_add_listener(m_xdg_surface,
                                  &WaylandCallbacks::surface_listener, this);
-                                     
+
         m_xdg_toplevel = xdg_surface_get_toplevel(m_xdg_surface);
 
         if(class_name)
@@ -2202,14 +2202,14 @@ bool CIrrDeviceWayland::createWindow()
 
         wl_surface_commit(m_surface);
         pwl_display_flush(m_display);
-                                    
+
         if (CreationParams.Fullscreen)
         {
             xdg_toplevel_set_fullscreen(m_xdg_toplevel, nullptr);
         }
-        
+
         xdg_surface_set_window_geometry(m_xdg_surface, 0, 0, m_width, m_height);
-                                    
+
         while (!m_surface_configured)
         {
             pwl_display_flush(m_display);
@@ -2219,10 +2219,10 @@ bool CIrrDeviceWayland::createWindow()
     } else if (m_zxdg_shell != nullptr)
     {
         m_zxdg_surface = zxdg_shell_v6_get_xdg_surface(m_zxdg_shell, m_surface);
-        
-        zxdg_surface_v6_add_listener(m_zxdg_surface, 
+
+        zxdg_surface_v6_add_listener(m_zxdg_surface,
                                  &WaylandCallbacks::zxdg_surface_listener, this);
-                                     
+
         m_zxdg_toplevel = zxdg_surface_v6_get_toplevel(m_zxdg_surface);
 
         if(class_name)
@@ -2232,14 +2232,14 @@ bool CIrrDeviceWayland::createWindow()
 
         wl_surface_commit(m_surface);
         pwl_display_flush(m_display);
-                                    
+
         if (CreationParams.Fullscreen)
         {
             zxdg_toplevel_v6_set_fullscreen(m_zxdg_toplevel, nullptr);
         }
-        
+
         zxdg_surface_v6_set_window_geometry(m_zxdg_surface, 0, 0, m_width, m_height);
-                                    
+
         while (!m_surface_configured)
         {
             pwl_display_flush(m_display);
@@ -2252,7 +2252,7 @@ bool CIrrDeviceWayland::createWindow()
         m_shell_surface = wl_shell_get_shell_surface(m_shell, m_surface);
 
         wl_shell_surface_add_listener(m_shell_surface,
-                                      &WaylandCallbacks::shell_surface_listener, 
+                                      &WaylandCallbacks::shell_surface_listener,
                                       this);
 
         if (CreationParams.Fullscreen)
@@ -2279,7 +2279,7 @@ bool CIrrDeviceWayland::createWindow()
 				LibdecorLoader::libdecor_frame_set_app_id(m_libdecor_surface, class_name);
             LibdecorLoader::libdecor_frame_map(m_libdecor_surface);
         }
-		                       
+
         while (!m_surface_configured)
         {
             pwl_display_flush(m_display);
@@ -2293,16 +2293,16 @@ bool CIrrDeviceWayland::createWindow()
         os::Printer::log("Cannot create shell surface.", ELL_ERROR);
         return false;
     }
-        
+
     if (m_decoration_manager != nullptr)
     {
         m_decoration = zxdg_decoration_manager_v1_get_toplevel_decoration(
                                     m_decoration_manager, m_xdg_toplevel);
     }
-                                                       
+
     if (m_decoration != nullptr)
     {
-        zxdg_toplevel_decoration_v1_set_mode(m_decoration, 
+        zxdg_toplevel_decoration_v1_set_mode(m_decoration,
                             ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
     } else {
 		if (m_kwin_server_decoration_manager != nullptr)
@@ -2310,8 +2310,8 @@ bool CIrrDeviceWayland::createWindow()
 			m_kwin_server_decoration = org_kde_kwin_server_decoration_manager_create(
 										m_kwin_server_decoration_manager, m_surface);
 		}
-			
-														   
+
+
 		if (m_kwin_server_decoration != nullptr)
 		{
 			org_kde_kwin_server_decoration_request_mode(m_kwin_server_decoration, ORG_KDE_KWIN_SERVER_DECORATION_MANAGER_MODE_SERVER);
@@ -2613,7 +2613,7 @@ void CIrrDeviceWayland::setResizable(bool resize)
     int width = resize ? 0 : m_width;
     int height = resize ? 0 : m_height;
     if (m_xdg_toplevel)
-    {        
+    {
         xdg_toplevel_set_min_size(m_xdg_toplevel, width, height);
         xdg_toplevel_set_max_size(m_xdg_toplevel, width, height);
     } else if(m_zxdg_shell) {
@@ -2774,7 +2774,7 @@ const c8* CIrrDeviceWayland::getTextFromClipboard() const
         m_readclipboard.append(buf, n);
 	}
     m_readclipboard.append("", 0);
-	
+
     close(pipefd[0]);
     m_clipboard_changed = false;
     return m_readclipboard.c_str();
@@ -2846,7 +2846,7 @@ void CIrrDeviceWayland::createKeyMap()
     m_key_map[KEY_ENTER] = (EKEY_CODE)IRR_KEY_RETURN;
     m_key_map[KEY_LEFTCTRL] = (EKEY_CODE)IRR_KEY_LCONTROL;
     m_key_map[KEY_A] = (EKEY_CODE)IRR_KEY_A;
-    m_key_map[KEY_S] = (EKEY_CODE)IRR_KEY_S; 
+    m_key_map[KEY_S] = (EKEY_CODE)IRR_KEY_S;
     m_key_map[KEY_D] = (EKEY_CODE)IRR_KEY_D;
     m_key_map[KEY_F] = (EKEY_CODE)IRR_KEY_F;
     m_key_map[KEY_G] = (EKEY_CODE)IRR_KEY_G;
@@ -2868,7 +2868,7 @@ void CIrrDeviceWayland::createKeyMap()
     m_key_map[KEY_M] = (EKEY_CODE)IRR_KEY_M;
     m_key_map[KEY_COMMA] = (EKEY_CODE)IRR_KEY_COMMA;
     m_key_map[KEY_DOT] = (EKEY_CODE)IRR_KEY_PERIOD;
-    m_key_map[KEY_SLASH] = (EKEY_CODE)IRR_KEY_OEM_2; 
+    m_key_map[KEY_SLASH] = (EKEY_CODE)IRR_KEY_OEM_2;
     m_key_map[KEY_RIGHTSHIFT] = (EKEY_CODE)IRR_KEY_RSHIFT;
     m_key_map[KEY_KPASTERISK] = (EKEY_CODE)IRR_KEY_MULTIPLY;
     m_key_map[KEY_LEFTALT] = (EKEY_CODE)IRR_KEY_LMENU;
