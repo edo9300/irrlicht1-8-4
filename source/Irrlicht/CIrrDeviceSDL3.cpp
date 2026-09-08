@@ -427,19 +427,19 @@ void CIrrDeviceSDL3::createDriver()
 }
 
 void CIrrDeviceSDL3::checkAndUpdateIMEState() {
-    auto* env = getGUIEnvironment();
-    if(!env) {
-        lastFocusedElement = nullptr;
-        if(isEditingText) {
-            isEditingText = false;
+	auto* env = getGUIEnvironment();
+	if(!env) {
+		lastFocusedElement = nullptr;
+		if(isEditingText) {
+			isEditingText = false;
 			SDL_StopTextInput(window);
-        }
-        return;
-    }
+		}
+		return;
+	}
 
-    auto updateRectPosition = [&] {
-        lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
-        auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+	auto updateRectPosition = [&] {
+		lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
 		
 		SDL_Rect rect;
 		rect.x = pos.X;
@@ -447,28 +447,28 @@ void CIrrDeviceSDL3::checkAndUpdateIMEState() {
 		rect.w = lastFocusedElementPosition.getWidth();
 		rect.h = lastFocusedElementPosition.getHeight();
 		SDL_SetTextInputArea(window, &rect, 0);
-    };
+	};
 
-    irr::gui::IGUIElement* ele = env->getFocus();
-    if(lastFocusedElement == ele) {
-        if(!ele || !isEditingText)
-            return;
-        auto abs_pos = lastFocusedElement->getAbsolutePosition();
-        if(abs_pos == lastFocusedElementPosition)
-            return;
-        updateRectPosition();
-        return;
-    }
-    isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
-    lastFocusedElement = ele;
+	irr::gui::IGUIElement* ele = env->getFocus();
+	if(lastFocusedElement == ele) {
+		if(!ele || !isEditingText)
+			return;
+		auto abs_pos = lastFocusedElement->getAbsolutePosition();
+		if(abs_pos == lastFocusedElementPosition)
+			return;
+		updateRectPosition();
+		return;
+	}
+	isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+	lastFocusedElement = ele;
 
-    SDL_StopTextInput(window);
+	SDL_StopTextInput(window);
 
-    if(!isEditingText)
-        return;
+	if(!isEditingText)
+		return;
 	
-    updateRectPosition();
-    SDL_StartTextInput(window);
+	updateRectPosition();
+	SDL_StartTextInput(window);
 }
 
 
