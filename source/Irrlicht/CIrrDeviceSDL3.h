@@ -147,7 +147,7 @@ namespace irr
 			//! Sets the new position of the cursor.
 			virtual void setPosition(f32 x, f32 y) override
 			{
-				setPosition((s32)(x*Device->Width), (s32)(y*Device->Height));
+				setPosition((s32)(x*Device->WindowSize.Width), (s32)(y*Device->WindowSize.Height));
 			}
 
 			//! Sets the new position of the cursor.
@@ -175,8 +175,8 @@ namespace irr
 			{
 				if(updateCursor)
 					updateCursorPos();
-				return core::position2d<f32>(CursorPos.X / (f32)Device->Width,
-					CursorPos.Y / (f32)Device->Height);
+				return core::position2d<f32>(CursorPos.X / (f32)Device->WindowSize.Width,
+					CursorPos.Y / (f32)Device->WindowSize.Height);
 			}
 
 			virtual void setReferenceRect(core::rect<s32>* rect=0) override
@@ -215,12 +215,12 @@ namespace irr
 
 				if (CursorPos.X < 0)
 					CursorPos.X = 0;
-				if (CursorPos.X > (s32)Device->Width)
-					CursorPos.X = Device->Width;
+				if (CursorPos.X > (s32)Device->WindowSize.Width)
+					CursorPos.X = Device->WindowSize.Width;
 				if (CursorPos.Y < 0)
 					CursorPos.Y = 0;
-				if (CursorPos.Y > (s32)Device->Height)
-					CursorPos.Y = Device->Height;
+				if (CursorPos.Y > (s32)Device->WindowSize.Height)
+					CursorPos.Y = Device->WindowSize.Height;
 #endif
 			}
 
@@ -260,7 +260,8 @@ namespace irr
 		s32 MouseXRel, MouseYRel;
 		u32 MouseButtonStates;
 
-		u32 Width, Height;
+		core::dimension2d<u32> WindowSize;
+		float WindowScale;
 
 		bool Resizable;
 		bool WindowHasFocus;

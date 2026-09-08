@@ -55,7 +55,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
 	window((decltype(window))param.WindowId),
 	MouseX(0), MouseY(0), MouseXRel(0), MouseYRel(0), MouseButtonStates(0),
-	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
+	WindowSize(param.WindowSize), WindowScale(1),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false),
 	lastFocusedElement(nullptr), isEditingText(false),
 	renderer(nullptr), screen_texture(nullptr), is_ctrl_pressed(false), is_shift_pressed(false)
@@ -263,7 +263,7 @@ bool CIrrDeviceSDL3::createWindow()
 		title.data(),
 		CreationParams.WindowSize.Width,
 		CreationParams.WindowSize.Height,
-		windowFlags | SDL_WINDOW_HIDDEN
+		windowFlags | SDL_WINDOW_HIDDEN | SDL_WINDOW_HIGH_PIXEL_DENSITY
 	);
 
 	if(window == nullptr) {
@@ -489,8 +489,8 @@ bool CIrrDeviceSDL3::run()
 		case SDL_EVENT_MOUSE_MOTION:
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 			irrevent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
-			MouseX = irrevent.MouseInput.X = static_cast<s32>(SDL_event.motion.x);
-			MouseY = irrevent.MouseInput.Y = static_cast<s32>(SDL_event.motion.y);
+			MouseX = irrevent.MouseInput.X = static_cast<s32>(SDL_event.motion.x * WindowScale);
+			MouseY = irrevent.MouseInput.Y = static_cast<s32>(SDL_event.motion.y * WindowScale);
 			MouseXRel = static_cast<s32>(SDL_event.motion.xrel);
 			MouseYRel = static_cast<s32>(SDL_event.motion.yrel);
 			irrevent.MouseInput.ButtonStates = MouseButtonStates;
@@ -502,8 +502,8 @@ bool CIrrDeviceSDL3::run()
 		case SDL_EVENT_MOUSE_BUTTON_UP:
 
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
-			irrevent.MouseInput.X = static_cast<s32>(SDL_event.button.x);
-			irrevent.MouseInput.Y = static_cast<s32>(SDL_event.button.y);
+			irrevent.MouseInput.X = static_cast<s32>(SDL_event.button.x * WindowScale);
+			irrevent.MouseInput.Y = static_cast<s32>(SDL_event.button.y * WindowScale);
 			irrevent.MouseInput.Shift = is_shift_pressed;
 			irrevent.MouseInput.Control = is_ctrl_pressed;
 
@@ -722,15 +722,23 @@ bool CIrrDeviceSDL3::run()
 			WindowHasFocus = false;
 			break;
 
+
 		case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+			WindowScale = SDL_GetWindowPixelDensity(window);
+			WindowSize = core::dimension2d<u32>(SDL_event.window.data1, SDL_event.window.data2);
+			if(VideoDriver)
+				VideoDriver->OnResize(WindowSize);
+			break;
 		case SDL_EVENT_WINDOW_RESIZED:
-			if((SDL_event.window.data1 != (int)Width) || (SDL_event.window.data2 != (int)Height)) {
-				Width = SDL_event.window.data1;
-				Height = SDL_event.window.data2;
+		{
+			auto newSize = core::dimension2d<u32>(SDL_event.window.data1, SDL_event.window.data2) * WindowScale;
+			if(newSize != WindowSize) {
+				WindowSize = newSize;
 				if(VideoDriver)
-					VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
+					VideoDriver->OnResize(WindowSize);
 			}
 			break;
+		}
 
 		case SDL_EVENT_WINDOW_RESTORED:
 		case SDL_EVENT_WINDOW_MAXIMIZED:
