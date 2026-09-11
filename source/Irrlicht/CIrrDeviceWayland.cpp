@@ -1829,6 +1829,13 @@ CIrrDeviceWayland::~CIrrDeviceWayland()
 	}
 #endif
 
+    // we need the context to be cleared before destroyign the window
+    if(ContextManager) {
+        ContextManager->destroyContext();
+        ContextManager->destroySurface();
+        ContextManager->terminate();
+    }
+
     if (m_egl_window)
         pwl_egl_window_destroy(m_egl_window);
 
