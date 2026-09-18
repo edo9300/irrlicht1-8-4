@@ -41,7 +41,7 @@ typedef char GLchar;
 #endif
 
 #ifndef GL_BGRA
-#define GL_BGRA 0x80E1;
+#define GL_BGRA 0x80E1
 #endif
 
 // FBO definitions.
