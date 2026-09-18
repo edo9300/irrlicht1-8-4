@@ -53,7 +53,7 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	: CIrrDeviceStub(param),
 	window((decltype(window))param.WindowId),
 	MouseX(0), MouseY(0), MouseXRel(0), MouseYRel(0), MouseButtonStates(0),
-	Width(param.WindowSize.Width), Height(param.WindowSize.Height),
+	Width(param.WindowSize.Width), Height(param.WindowSize.Height), NativeScaleX(1), NativeScaleY(1),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false),
 	lastFocusedElement(nullptr), isEditingText(false),
 	renderer(nullptr), screen_texture(nullptr), is_ctrl_pressed(false), is_shift_pressed(false)
@@ -115,6 +115,11 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 		// create the window, only if we do not use the null device
 		if(!createWindow())
 			return;
+		updateNativeScale();
+		Width = (u32)((f32)Width * NativeScaleX);
+		Height = (u32)((f32)Height * NativeScaleY);
+		CreationParams.WindowSize.Width = Width;
+		CreationParams.WindowSize.Height = Height;
 	}
 
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
@@ -274,7 +279,7 @@ bool CIrrDeviceSDL2::createWindow()
 		SDL_WINDOWPOS_UNDEFINED,
 		CreationParams.WindowSize.Width,
 		CreationParams.WindowSize.Height,
-		windowFlags | SDL_WINDOW_HIDDEN
+		windowFlags | SDL_WINDOW_HIDDEN | SDL_WINDOW_ALLOW_HIGHDPI
 	);
 
 	if(window == nullptr) {
@@ -488,6 +493,21 @@ void CIrrDeviceSDL2::checkAndUpdateIMEState() {
     SDL_StartTextInput();
 }
 
+void CIrrDeviceSDL2::updateNativeScale()
+{
+	int width, height = 0;
+	SDL_GetWindowSize(window, &width, &height);
+	int real_width = width;
+	int real_height = height;
+	if (CreationParams.DriverType == video::EDT_OPENGL ||
+		CreationParams.DriverType == video::EDT_OGLES1 ||
+		CreationParams.DriverType == video::EDT_OGLES2)
+	{
+		SDL_GL_GetDrawableSize(window, &real_width, &real_height);
+	}
+	NativeScaleX = (f32)real_width / (f32)width;
+	NativeScaleY = (f32)real_height / (f32)height;
+}
 
 //! runs the device. Returns false if device wants to be deleted
 bool CIrrDeviceSDL2::run()
@@ -506,8 +526,8 @@ bool CIrrDeviceSDL2::run()
 		case SDL_MOUSEMOTION:
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
 			irrevent.MouseInput.Event = irr::EMIE_MOUSE_MOVED;
-			MouseX = irrevent.MouseInput.X = SDL_event.motion.x;
-			MouseY = irrevent.MouseInput.Y = SDL_event.motion.y;
+			MouseX = irrevent.MouseInput.X = SDL_event.motion.x * NativeScaleX;
+			MouseY = irrevent.MouseInput.Y = SDL_event.motion.y * NativeScaleY;
 			MouseXRel = SDL_event.motion.xrel;
 			MouseYRel = SDL_event.motion.yrel;
 			irrevent.MouseInput.ButtonStates = MouseButtonStates;
@@ -519,8 +539,8 @@ bool CIrrDeviceSDL2::run()
 		case SDL_MOUSEBUTTONUP:
 
 			irrevent.EventType = irr::EET_MOUSE_INPUT_EVENT;
-			irrevent.MouseInput.X = SDL_event.button.x;
-			irrevent.MouseInput.Y = SDL_event.button.y;
+			irrevent.MouseInput.X = SDL_event.button.x * NativeScaleX;
+			irrevent.MouseInput.Y = SDL_event.button.y * NativeScaleY;
 			irrevent.MouseInput.Shift = is_shift_pressed;
 			irrevent.MouseInput.Control = is_ctrl_pressed;
 
@@ -745,14 +765,18 @@ bool CIrrDeviceSDL2::run()
 				case SDL_WINDOWEVENT_FOCUS_LOST:
 					WindowHasFocus = false;
 					break;
-				case SDL_WINDOWEVENT_SIZE_CHANGED:
-					if((SDL_event.window.data1 != (int)Width) || (SDL_event.window.data2 != (int)Height)) {
-						Width = SDL_event.window.data1;
-						Height = SDL_event.window.data2;
+				case SDL_WINDOWEVENT_SIZE_CHANGED: {
+					updateNativeScale();
+					u32 new_width = SDL_event.window.data1 * NativeScaleX;
+					u32 new_height = SDL_event.window.data2 * NativeScaleY;
+					if(new_width != Width || new_height != Height) {
+						Width = new_width;
+						Height = new_height;
 						if(VideoDriver)
 							VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
 					}
 					break;
+				}
 				case SDL_WINDOWEVENT_RESTORED:
 				case SDL_WINDOWEVENT_MAXIMIZED:
 				case SDL_WINDOWEVENT_SHOWN:

@@ -250,6 +250,8 @@ namespace irr
 		void updateScreenTexture(core::dimension2d<u32> size);
 
 		void checkAndUpdateIMEState();
+		
+		void updateNativeScale();
 
 		SDL_Window* window;
 		int SDL_Flags;
@@ -262,6 +264,8 @@ namespace irr
 		u32 MouseButtonStates;
 
 		u32 Width, Height;
+		float NativeScaleX;
+		float NativeScaleY;
 
 		bool Resizable;
 		bool WindowHasFocus;
