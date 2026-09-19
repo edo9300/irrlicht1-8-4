@@ -270,6 +270,7 @@ namespace irr
 		irr::gui::IGUIElement* lastFocusedElement;
 		core::rect<s32> lastFocusedElementPosition;
 		bool isEditingText;
+		int touchesCount;
 
 		struct SKeyMap
 		{

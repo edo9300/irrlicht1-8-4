@@ -57,7 +57,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 	MouseX(0), MouseY(0), MouseXRel(0), MouseYRel(0), MouseButtonStates(0),
 	WindowSize(param.WindowSize), WindowScale(1),
 	Resizable(false), WindowHasFocus(false), WindowMinimized(false),
-	lastFocusedElement(nullptr), isEditingText(false),
+	lastFocusedElement(nullptr), isEditingText(false), touchesCount(0),
 	renderer(nullptr), screen_texture(nullptr), is_ctrl_pressed(false), is_shift_pressed(false)
 {
 	#ifdef _DEBUG
@@ -87,6 +87,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 
 	SDL_SetMainReady();
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
+	SDL_SetHintWithPriority(SDL_HINT_TOUCH_MOUSE_EVENTS, "0", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_IME_IMPLEMENTED_UI, "1", SDL_HINT_OVERRIDE);
 	SDL_SetHintWithPriority(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, "1", SDL_HINT_OVERRIDE);
 	// Initialize SDL... Timer for sleep, video for the obvious, and
@@ -664,6 +665,44 @@ bool CIrrDeviceSDL3::run()
 				}
 				delete[] ws;
 			}
+			break;
+		}
+
+		case SDL_EVENT_FINGER_DOWN: {
+			irr::SEvent ev;
+			ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
+			ev.TouchInput.Event = irr::ETIE_PRESSED_DOWN;
+			ev.TouchInput.touchedCount = touchesCount + 1;
+			ev.TouchInput.ID = SDL_event.tfinger.touchID;
+			ev.TouchInput.X = SDL_event.tfinger.x * WindowSize.Width;
+			ev.TouchInput.Y = SDL_event.tfinger.y * WindowSize.Height;
+			postEventFromUser(ev);
+			++touchesCount;
+			break;
+		}
+
+		case SDL_EVENT_FINGER_MOTION: {
+			irr::SEvent ev;
+			ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
+			ev.TouchInput.Event = irr::ETIE_MOVED;
+			ev.TouchInput.touchedCount = touchesCount;
+			ev.TouchInput.ID = SDL_event.tfinger.touchID;
+			ev.TouchInput.X = SDL_event.tfinger.x * WindowSize.Width;
+			ev.TouchInput.Y = SDL_event.tfinger.y * WindowSize.Height;
+			postEventFromUser(ev);
+			break;
+		}
+
+		case SDL_EVENT_FINGER_UP: {
+			irr::SEvent ev;
+			ev.EventType = irr::EET_TOUCH_INPUT_EVENT;
+			ev.TouchInput.Event = irr::ETIE_LEFT_UP;
+			ev.TouchInput.touchedCount = touchesCount;
+			ev.TouchInput.ID = SDL_event.tfinger.touchID;
+			ev.TouchInput.X = SDL_event.tfinger.x * WindowSize.Width;
+			ev.TouchInput.Y = SDL_event.tfinger.y * WindowSize.Height;
+			postEventFromUser(ev);
+			--touchesCount;
 			break;
 		}
 
