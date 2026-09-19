@@ -458,48 +458,48 @@ void CIrrDeviceSDL2::createDriver()
 }
 
 void CIrrDeviceSDL2::checkAndUpdateIMEState() {
-    auto* env = getGUIEnvironment();
-    if(!env) {
-        lastFocusedElement = nullptr;
-        if(isEditingText) {
-            isEditingText = false;
+	auto* env = getGUIEnvironment();
+	if(!env) {
+		lastFocusedElement = nullptr;
+		if(isEditingText) {
+			isEditingText = false;
 			SDL_StopTextInput();
-        }
-        return;
-    }
+		}
+		return;
+	}
 
-    auto updateRectPosition = [&] {
-        lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
-        auto& pos = lastFocusedElementPosition.UpperLeftCorner;
+	auto updateRectPosition = [&] {
+		lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
+		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
 
 		SDL_Rect rect;
-		rect.x = pos.X;
-		rect.y = pos.Y;
-		rect.w = lastFocusedElementPosition.getWidth();
-		rect.h = lastFocusedElementPosition.getHeight();
+		rect.x = pos.X / NativeScaleX;
+		rect.y = pos.Y / NativeScaleY;
+		rect.w = lastFocusedElementPosition.getWidth() / NativeScaleX;
+		rect.h = lastFocusedElementPosition.getHeight() / NativeScaleY;
 		SDL_SetTextInputRect(&rect);
-    };
+	};
 
-    irr::gui::IGUIElement* ele = env->getFocus();
-    if(lastFocusedElement == ele) {
-        if(!ele || !isEditingText)
-            return;
-        auto abs_pos = lastFocusedElement->getAbsolutePosition();
-        if(abs_pos == lastFocusedElementPosition)
-            return;
-        updateRectPosition();
-        return;
-    }
-    isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
-    lastFocusedElement = ele;
+	irr::gui::IGUIElement* ele = env->getFocus();
+	if(lastFocusedElement == ele) {
+		if(!ele || !isEditingText)
+			return;
+		auto abs_pos = lastFocusedElement->getAbsolutePosition();
+		if(abs_pos == lastFocusedElementPosition)
+			return;
+		updateRectPosition();
+		return;
+	}
+	isEditingText = (ele && (ele->getType() == irr::gui::EGUIET_EDIT_BOX) && ele->isEnabled());
+	lastFocusedElement = ele;
 
-    SDL_StopTextInput();
+	SDL_StopTextInput();
 
-    if(!isEditingText)
-        return;
+	if(!isEditingText)
+		return;
 
-    updateRectPosition();
-    SDL_StartTextInput();
+	updateRectPosition();
+	SDL_StartTextInput();
 }
 
 int CIrrDeviceSDL2::appEventFilter(SDL_Event *event)

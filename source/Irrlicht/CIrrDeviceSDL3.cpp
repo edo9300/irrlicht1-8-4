@@ -446,10 +446,10 @@ void CIrrDeviceSDL3::checkAndUpdateIMEState() {
 		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
 
 		SDL_Rect rect;
-		rect.y = pos.Y;
-		rect.w = lastFocusedElementPosition.getWidth();
-		rect.h = lastFocusedElementPosition.getHeight();
 		rect.x = pos.X / WindowScale;
+		rect.y = pos.Y / WindowScale;
+		rect.w = lastFocusedElementPosition.getWidth() / WindowScale;
+		rect.h = lastFocusedElementPosition.getHeight() / WindowScale;
 		SDL_SetTextInputArea(window, &rect, 0);
 	};
 
