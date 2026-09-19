@@ -446,10 +446,10 @@ void CIrrDeviceSDL3::checkAndUpdateIMEState() {
 		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
 
 		SDL_Rect rect;
-		rect.x = pos.X;
 		rect.y = pos.Y;
 		rect.w = lastFocusedElementPosition.getWidth();
 		rect.h = lastFocusedElementPosition.getHeight();
+		rect.x = pos.X / WindowScale;
 		SDL_SetTextInputArea(window, &rect, 0);
 	};
 
@@ -488,15 +488,19 @@ bool CIrrDeviceSDL3::appEventFilter(SDL_Event *event)
 		ev.ApplicationEvent.EventType = irr::EAET_MEMORY_WARNING;
 		break;
 	case SDL_EVENT_WILL_ENTER_BACKGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_WILL_PAUSE;
 		break;
 	case SDL_EVENT_DID_ENTER_BACKGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_DID_PAUSE;
 		break;
 	case SDL_EVENT_WILL_ENTER_FOREGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_WILL_RESUME;
 		break;
 	case SDL_EVENT_DID_ENTER_FOREGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_DID_RESUME;
 		break;
 	default:

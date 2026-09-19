@@ -510,15 +510,19 @@ int CIrrDeviceSDL2::appEventFilter(SDL_Event *event)
 		ev.ApplicationEvent.EventType = irr::EAET_MEMORY_WARNING;
 		break;
 	case SDL_APP_WILLENTERBACKGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_WILL_PAUSE;
 		break;
 	case SDL_APP_DIDENTERBACKGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_DID_PAUSE;
 		break;
 	case SDL_APP_WILLENTERFOREGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_WILL_RESUME;
 		break;
 	case SDL_APP_DIDENTERFOREGROUND:
+		touchesCount = 0;
 		ev.ApplicationEvent.EventType = irr::EAET_DID_RESUME;
 		break;
 	default:
