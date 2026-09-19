@@ -324,6 +324,14 @@ void CIrrDeviceSDL2::createDriver()
 		SDL_GetWindowWMInfo(window, &wmInfo);
 		HWnd = wmInfo.info.win.window;
 	}
+#elif defined(_IRR_IOS_PLATFORM_)
+	void* HWnd{ nullptr };
+	{
+		SDL_SysWMinfo wmInfo;
+		SDL_VERSION(&wmInfo.version);
+		SDL_GetWindowWMInfo(window, &wmInfo);
+		HWnd = wmInfo.info.uikit.window;
+	}
 #else
 	void* HWnd{ nullptr };
 #endif

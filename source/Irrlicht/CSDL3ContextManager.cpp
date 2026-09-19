@@ -22,6 +22,7 @@ CSDL3ContextManager::CSDL3ContextManager(const SExposedVideoData& videodata) : P
 	GLLibraryLoaded = SDL_GL_LoadLibrary(nullptr);
 	CurrentContext.OGLSDL2.Window = GetWindow(PrimaryContext);
 	CurrentContext.OGLSDL2.Context = nullptr;
+	CurrentContext.OGLSDL2.HWnd = PrimaryContext.OGLSDL2.HWnd;
 }
 
 CSDL3ContextManager::~CSDL3ContextManager()

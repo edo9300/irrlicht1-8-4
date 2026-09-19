@@ -298,6 +298,8 @@ void CIrrDeviceSDL3::createDriver()
 	void* HWnd{ nullptr };
 #ifdef _WIN32
 	HWnd = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+#elif defined(_IRR_IOS_PLATFORM_)
+	HWnd = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_UIKIT_WINDOW_POINTER, NULL);
 #endif
 	switch(CreationParams.DriverType)
 	{
