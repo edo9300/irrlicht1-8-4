@@ -154,6 +154,9 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 		VideoDriver->endScene();
 		createGUIAndScene();
 	}
+	SDL_SetEventFilter([](void *userdata, SDL_Event *event) -> int {
+		return static_cast<CIrrDeviceSDL2*>(userdata)->appEventFilter(event);
+	}, this);
 #ifdef _IRR_HAIKU_PLATFORM_
 	void* obj = SDL_LoadObject(nullptr);
 	modifiers = (modifiers_t)SDL_LoadFunction(obj, "_Z9modifiersv");
@@ -492,6 +495,37 @@ void CIrrDeviceSDL2::checkAndUpdateIMEState() {
 
     updateRectPosition();
     SDL_StartTextInput();
+}
+
+int CIrrDeviceSDL2::appEventFilter(SDL_Event *event)
+{
+	irr::SEvent ev;
+	ev.EventType = irr::EET_APPLICATION_EVENT;
+	switch (event->type)
+	{
+	case SDL_APP_TERMINATING:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_TERMINATE;
+		break;
+	case SDL_APP_LOWMEMORY:
+		ev.ApplicationEvent.EventType = irr::EAET_MEMORY_WARNING;
+		break;
+	case SDL_APP_WILLENTERBACKGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_PAUSE;
+		break;
+	case SDL_APP_DIDENTERBACKGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_DID_PAUSE;
+		break;
+	case SDL_APP_WILLENTERFOREGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_RESUME;
+		break;
+	case SDL_APP_DIDENTERFOREGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_DID_RESUME;
+		break;
+	default:
+		return 1;
+	}
+	postEventFromUser(ev);
+	return 0;
 }
 
 void CIrrDeviceSDL2::updateNativeScale()

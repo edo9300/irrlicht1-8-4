@@ -140,6 +140,9 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 		VideoDriver->endScene();
 		createGUIAndScene();
 	}
+	SDL_SetEventFilter([](void *userdata, SDL_Event *event) -> bool {
+		return static_cast<CIrrDeviceSDL3*>(userdata)->appEventFilter(event);
+	}, this);
 #ifdef _IRR_HAIKU_PLATFORM_
 	SDL_SharedObject* obj = SDL_LoadObject(nullptr);
 	modifiers = (modifiers_t)SDL_LoadFunction(obj, "_Z9modifiersv");
@@ -441,7 +444,7 @@ void CIrrDeviceSDL3::checkAndUpdateIMEState() {
 	auto updateRectPosition = [&] {
 		lastFocusedElementPosition = lastFocusedElement->getAbsolutePosition();
 		auto& pos = lastFocusedElementPosition.UpperLeftCorner;
-		
+
 		SDL_Rect rect;
 		rect.x = pos.X;
 		rect.y = pos.Y;
@@ -467,11 +470,41 @@ void CIrrDeviceSDL3::checkAndUpdateIMEState() {
 
 	if(!isEditingText)
 		return;
-	
+
 	updateRectPosition();
 	SDL_StartTextInput(window);
 }
 
+bool CIrrDeviceSDL3::appEventFilter(SDL_Event *event)
+{
+	irr::SEvent ev;
+	ev.EventType = irr::EET_APPLICATION_EVENT;
+	switch (event->type)
+	{
+	case SDL_EVENT_TERMINATING:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_TERMINATE;
+		break;
+	case SDL_EVENT_LOW_MEMORY:
+		ev.ApplicationEvent.EventType = irr::EAET_MEMORY_WARNING;
+		break;
+	case SDL_EVENT_WILL_ENTER_BACKGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_PAUSE;
+		break;
+	case SDL_EVENT_DID_ENTER_BACKGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_DID_PAUSE;
+		break;
+	case SDL_EVENT_WILL_ENTER_FOREGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_WILL_RESUME;
+		break;
+	case SDL_EVENT_DID_ENTER_FOREGROUND:
+		ev.ApplicationEvent.EventType = irr::EAET_DID_RESUME;
+		break;
+	default:
+		return true;
+	}
+	postEventFromUser(ev);
+	return false;
+}
 
 //! runs the device. Returns false if device wants to be deleted
 bool CIrrDeviceSDL3::run()

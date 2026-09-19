@@ -250,6 +250,8 @@ namespace irr
 
 		void checkAndUpdateIMEState();
 
+		bool appEventFilter(SDL_Event *event);
+
 		SDL_Window* window;
 		int SDL_Flags;
 #if defined(_IRR_COMPILE_WITH_JOYSTICK_EVENTS_)

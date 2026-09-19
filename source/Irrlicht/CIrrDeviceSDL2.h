@@ -251,6 +251,8 @@ namespace irr
 
 		void checkAndUpdateIMEState();
 
+		int appEventFilter(SDL_Event *event);
+
 		void updateNativeScale();
 
 		SDL_Window* window;
