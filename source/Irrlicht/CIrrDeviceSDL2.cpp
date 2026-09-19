@@ -258,6 +258,10 @@ bool CIrrDeviceSDL2::createWindow()
 	if(CreationParams.WindowResizable)
 		windowFlags |= SDL_WINDOW_RESIZABLE;
 
+#ifdef _IRR_IOS_PLATFORM_
+	windowFlags |= SDL_WINDOW_BORDERLESS;
+#endif
+
 #ifdef _IRR_EMSCRIPTEN_PLATFORM_
 	if(Width != 0 || Height != 0)
 		emscripten_set_canvas_size(Width, Height);
