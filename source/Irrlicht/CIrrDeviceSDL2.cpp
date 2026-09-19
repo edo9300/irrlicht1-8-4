@@ -115,11 +115,6 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 		// create the window, only if we do not use the null device
 		if(!createWindow())
 			return;
-		updateNativeScale();
-		Width = (u32)((f32)Width * NativeScaleX);
-		Height = (u32)((f32)Height * NativeScaleY);
-		CreationParams.WindowSize.Width = Width;
-		CreationParams.WindowSize.Height = Height;
 	}
 
 	SDL_SetHintWithPriority(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1", SDL_HINT_OVERRIDE);
@@ -146,8 +141,18 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	// create driver
 	createDriver();
 
-	if(window)
+	if(window) {
 		SDL_ShowWindow(window);
+		updateNativeScale();
+		int new_width, new_height;
+		SDL_GL_GetDrawableSize(window, &new_width, &new_height);
+		if(new_width != Width || new_height != Height) {
+			Width = new_width;
+			Height = new_height;
+			if(VideoDriver)
+				VideoDriver->OnResize(core::dimension2d<u32>(Width, Height));
+		}
+	}
 	if(VideoDriver) {
 		// a default SDL2 window will have a black background, render it white
 		VideoDriver->beginScene(true, true, { 255, 255, 255, 255 });
