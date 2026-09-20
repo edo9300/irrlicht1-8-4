@@ -2275,6 +2275,11 @@ video::IVideoModeList* CIrrDeviceMacOSX::getVideoModeList()
 	return VideoModeList;
 }
 
+
+IrrlichtDevice* createIrrDeviceMacOSX(const SIrrlichtCreationParameters& params) {
+	return new CIrrDeviceMacOSX(params);
+}
+
 } // end namespace
 
 #endif // _IRR_COMPILE_WITH_OSX_DEVICE_

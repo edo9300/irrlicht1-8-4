@@ -27,7 +27,9 @@ static const char* const copyright = "Irrlicht Engine (c) 2002-2017 Nikolaus Geb
 #endif
 
 #ifdef _IRR_COMPILE_WITH_OSX_DEVICE_
-#include "CIrrDeviceOSX.h"
+namespace irr {
+	IrrlichtDevice* createIrrDeviceMacOSX(const SIrrlichtCreationParameters& params);
+}
 #endif
 
 #ifdef _IRR_COMPILE_WITH_FB_DEVICE_
@@ -92,7 +94,7 @@ namespace irr
 
 #ifdef _IRR_COMPILE_WITH_OSX_DEVICE_
 		if (params.DeviceType == EIDT_OSX || (!dev && params.DeviceType == EIDT_BEST))
-			dev = new CIrrDeviceMacOSX(params);
+			dev = createIrrDeviceMacOSX(params);
 #endif
 
 #ifdef _IRR_COMPILE_WITH_X11_DEVICE_
@@ -104,7 +106,7 @@ namespace irr
 		if (params.DeviceType == EIDT_WAYLAND || (!dev && params.DeviceType == EIDT_BEST))
 			dev = new CIrrDeviceWayland(params);
 #endif
-        
+
 #ifdef _IRR_COMPILE_WITH_IOS_DEVICE_
 		if (params.DeviceType == EIDT_IOS || (!dev && params.DeviceType == EIDT_BEST))
 			dev = new CIrrDeviceiOS(params);
