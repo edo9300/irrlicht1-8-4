@@ -78,7 +78,7 @@ emscripten: EMSCRIPTEN=1
 CXXINCS = -I../../include -Izlib -Ijpeglib -Ilibpng
 CPPFLAGS += $(CXXINCS) -DIRRLICHT_EXPORTS=1
 CXXFLAGS += -Wall -pipe -fno-exceptions -fno-rtti -Wno-parentheses -DGL_SILENCE_DEPRECATION
-CXXFLAGS += -std=gnu++11
+CXXFLAGS += -std=gnu++1z
 ifndef NDEBUG
   CXXFLAGS += -g -D_DEBUG
 else
