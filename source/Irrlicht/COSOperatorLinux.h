@@ -5,7 +5,9 @@
 #ifndef C_OS_OPERATOR_LINUX_H_INCLUDED
 #define C_OS_OPERATOR_LINUX_H_INCLUDED
 
-#include "IrrCompileConfig.h"
+#include <IrrCompileConfig.h>
+
+#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
 
 #ifdef _IRR_WINDOWS_API_
 #include "COSOperatorWindows.h"
@@ -40,5 +42,7 @@ private:
 }
 
 #undef DEFAULT_OPERATOR
+
+#endif //_IRR_COMPILE_WITH_X11_DEVICE_
 
 #endif // C_OS_OPERATOR_LINUX_H_INCLUDED

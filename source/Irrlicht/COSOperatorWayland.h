@@ -5,6 +5,10 @@
 #ifndef C_OS_OPERATOR_WAYLAND_H_INCLUDED
 #define C_OS_OPERATOR_WAYLAND_H_INCLUDED
 
+#include <IrrCompileConfig.h>
+
+#ifdef _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+
 #include "COSOperatorPosix.h"
 
 namespace irr
@@ -31,6 +35,7 @@ private:
 
 }
 
-#undef DEFAULT_OPERATOR
+#endif // _IRR_COMPILE_WITH_WAYLAND_DEVICE_
+
 
 #endif // C_OS_OPERATOR_WAYLAND_H_INCLUDED

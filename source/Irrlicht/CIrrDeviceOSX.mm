@@ -23,7 +23,7 @@
 #include "Keycodes.h"
 #include <stdio.h>
 #include <sys/utsname.h>
-#include "COSOperator.h"
+#include "COSOperatorOSX.h"
 #include "CColorConverter.h"
 #include "irrlicht.h"
 #include <algorithm>
@@ -548,16 +548,6 @@ long GetDictionaryLong(CFDictionaryRef theDict, const void* key)
 
 @end
 
-namespace irr
-{
-	namespace video
-	{
-		IVideoDriver* createOpenGLDriver(const SIrrlichtCreationParameters& param, io::IFileSystem* io, IContextManager* contextManager);
-	}
-} // end namespace irr
-
-static bool firstLaunch = true;
-
 #if !defined(__MAC_10_6) || !defined(MAC_OS_X_VERSION_10_6) || MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_6
 @interface CIrrDelegateOSX : NSTextView
 #else
@@ -584,14 +574,14 @@ static bool firstLaunch = true;
 - (id)initWithDevice:(irr::CIrrDeviceMacOSX*)device
 {
     self = [super init];
-    
+
     if (self)
         Device = device;
 
     _dockMenu = [[[NSMenu alloc] init] autorelease];
-    
+
     Quit = false;
-    
+
     return (self);
 }
 
@@ -643,7 +633,7 @@ static bool firstLaunch = true;
 {
     NSWindow	*window;
     NSRect		frame;
-    
+
     window = [aNotification object];
     frame = [window frame];
     Device->setResize((int)frame.size.width,(int)frame.size.height);
@@ -759,10 +749,10 @@ static bool firstLaunch = true;
 	NSArray *fileArray = [pasteboard propertyListForType:NSFilenamesPboardType];
 	NSEnumerator *e = [fileArray objectEnumerator];
 	id object;
-	while (object = [e nextObject]) {		
+	while (object = [e nextObject]) {
 		NSString *path = object;
 		NSURL *fileURL = [NSURL fileURLWithPath:path];
-		
+
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
 		NSNumber *isAlias = nil;
 
@@ -803,6 +793,8 @@ static bool firstLaunch = true;
 
 @end
 
+#include "CDriverCreationPrototypes.h"
+
 namespace irr
 {
 //! constructor
@@ -828,20 +820,20 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 		{
 			[[NSApplication sharedApplication] activateIgnoringOtherApps:YES];
 			[NSApp setDelegate:[[[[CIrrDelegateOSX alloc] initWithDevice:this] initWithFrame:NSZeroRect] autorelease]];
-            
+
             // Create menu
-            
+
             NSString* bundleName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"];
             if(!bundleName)
                 bundleName = @"BundleName";
-            
+
             NSMenu* mainMenu = [[[NSMenu alloc] initWithTitle:@"MainMenu"] autorelease];
             NSMenu* menu = [[[NSMenu alloc] initWithTitle:bundleName] autorelease];
             NSMenuItem* menuItem = [mainMenu addItemWithTitle:bundleName action:nil keyEquivalent:@""];
             [mainMenu setSubmenu:menu forItem:menuItem];
             menuItem = [menu addItemWithTitle:@"Quit" action:@selector(terminate:) keyEquivalent:@"q"];
             [menuItem setKeyEquivalentModifierMask:NSEventModifierFlagCommand];
-            
+
             [NSApp setMainMenu:mainMenu];
 
             [NSApp finishLaunching];
@@ -854,7 +846,7 @@ CIrrDeviceMacOSX::CIrrDeviceMacOSX(const SIrrlichtCreationParameters& param)
 	}
 
 	uname(&name);
-	Operator = new COSOperator(name.version, EIDT_OSX);
+	Operator = new COSOperatorOSX(name.version);
 	os::Printer::log(name.version,ELL_INFORMATION);
 
 	initKeycodes();
@@ -948,67 +940,67 @@ bool CIrrDeviceMacOSX::createWindow()
     CGDisplayErr error;
     bool result = false;
     Display = CGMainDisplayID();
-    
+
     CGRect displayRect;
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     CGDisplayModeRef displaymode, olddisplaymode;
 #else
     CFDictionaryRef displaymode, olddisplaymode;
 #endif
-    
+
     ScreenWidth = (int)CGDisplayPixelsWide(Display);
     ScreenHeight = (int)CGDisplayPixelsHigh(Display);
-    
+
     const NSBackingStoreType type = (CreationParams.DriverType == video::EDT_OPENGL) ? NSBackingStoreBuffered : NSBackingStoreNonretained;
-    
+
     if (!CreationParams.Fullscreen)
     {
         if (!CreationParams.WindowId) //create another window when WindowId is null
         {
             int x = (CreationParams.WindowPosition.X > 0) ? CreationParams.WindowPosition.X : 0;
             int y = (CreationParams.WindowPosition.Y > 0) ? CreationParams.WindowPosition.Y : 0;
-            
+
             if (CreationParams.WindowPosition.Y > -1)
             {
                 int screenHeight = [[[NSScreen screens] objectAtIndex:0] frame].size.height;
                 y = screenHeight - y - CreationParams.WindowSize.Height;
             }
-            
+
             Window = [[NSWindow alloc] initWithContentRect:NSMakeRect(x, y, CreationParams.WindowSize.Width,CreationParams.WindowSize.Height) styleMask:NSWindowStyleMaskTitled+NSWindowStyleMaskClosable+NSWindowStyleMaskMiniaturizable+NSWindowStyleMaskResizable backing:type defer:FALSE];
 
             if (CreationParams.WindowPosition.X == -1 && CreationParams.WindowPosition.Y == -1)
                 [Window center];
         }
-        
+
         DeviceWidth = CreationParams.WindowSize.Width;
         DeviceHeight = CreationParams.WindowSize.Height;
-        
+
         result = true;
     }
     else
     {
         IsFullscreen = true;
-        
+
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
         displaymode = CGDisplayCopyDisplayMode(Display);
-        
+
         CFArrayRef Modes = CGDisplayCopyAllDisplayModes(Display, NULL);
-        
+
         for(int i = 0; i < CFArrayGetCount(Modes); ++i)
         {
             CGDisplayModeRef CurrentMode = (CGDisplayModeRef)CFArrayGetValueAtIndex(Modes, i);
-            
+
             u8 Depth = 0;
-            
+
             CFStringRef pixEnc = CGDisplayModeCopyPixelEncoding(CurrentMode);
-            
+
             if (CFStringCompare(pixEnc, CFSTR(IO32BitDirectPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
                 Depth = 32;
             else if(CFStringCompare(pixEnc, CFSTR(IO16BitDirectPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
                 Depth = 16;
             else if(CFStringCompare(pixEnc, CFSTR(IO8BitIndexedPixels), kCFCompareCaseInsensitive) == kCFCompareEqualTo)
                 Depth = 8;
-            
+
             if(Depth == CreationParams.Bits)
                 if((CGDisplayModeGetWidth(CurrentMode) == CreationParams.WindowSize.Width) && (CGDisplayModeGetHeight(CurrentMode) == CreationParams.WindowSize.Height))
                 {
@@ -1019,7 +1011,7 @@ bool CIrrDeviceMacOSX::createWindow()
 #else
         displaymode = CGDisplayBestModeForParameters(Display,CreationParams.Bits,CreationParams.WindowSize.Width,CreationParams.WindowSize.Height,NULL);
 #endif
-        
+
         if (displaymode != NULL)
         {
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
@@ -1027,7 +1019,7 @@ bool CIrrDeviceMacOSX::createWindow()
 #else
             olddisplaymode = CGDisplayCurrentMode(Display);
 #endif
-            
+
             error = CGCaptureAllDisplays();
             if (error == CGDisplayNoErr)
             {
@@ -1036,28 +1028,28 @@ bool CIrrDeviceMacOSX::createWindow()
 #else
                 error = CGDisplaySwitchToMode(Display, displaymode);
 #endif
-                
+
                 if (error == CGDisplayNoErr)
                 {
                     Window = [[NSWindow alloc] initWithContentRect:[[NSScreen mainScreen] frame] styleMask:NSWindowStyleMaskBorderless backing:type defer:FALSE screen:[NSScreen mainScreen]];
-                    
+
                     [Window setLevel: CGShieldingWindowLevel()];
                     [Window setBackgroundColor:[NSColor blackColor]];
-                    
+
                     displayRect = CGDisplayBounds(Display);
                     ScreenWidth = DeviceWidth = (int)displayRect.size.width;
                     ScreenHeight = DeviceHeight = (int)displayRect.size.height;
                     CreationParams.WindowSize.set(ScreenWidth, ScreenHeight);
-                    
+
                     result = true;
                 }
-                
+
                 if (!result)
                     CGReleaseAllDisplays();
             }
         }
     }
-    
+
     if (result)
     {
         if (Window)
@@ -1085,7 +1077,7 @@ bool CIrrDeviceMacOSX::createWindow()
             [Window setIsVisible:TRUE];
             [Window makeKeyAndOrderFront:nil];
         }
-        
+
         if (IsFullscreen) //hide menus in fullscreen mode only
         {
 #if defined(__MAC_10_6) && defined(MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
@@ -1097,7 +1089,7 @@ bool CIrrDeviceMacOSX::createWindow()
 
 		[[Window contentView] addSubview:(CIrrDelegateOSX*)[NSApp delegate]];
     }
-    
+
     return result;
 }
 
@@ -1112,7 +1104,7 @@ void CIrrDeviceMacOSX::setResize(int width, int height)
 	if (CreationParams.DriverType == video::EDT_OPENGL)
     {
         NSOpenGLContext* Context = (NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context;
-        
+
         if (Context)
             [Context update];
     }
@@ -1165,24 +1157,24 @@ void CIrrDeviceMacOSX::createDriver()
                 {
                     os::Printer::log("Could not create OpenGL driver.", ELL_ERROR);
                 }
-                
-				if (Window) 
+
+				if (Window)
 				{
 #if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
 					@try {
 						[[Window contentView] setWantsBestResolutionOpenGLSurface:NO];
-					} 
+					}
 					@catch(NSException* exception){
 					}
 #endif
 					[(NSOpenGLContext*)ContextManager->getContext().OpenGLOSX.Context setView:[Window contentView]];
 				}
-				else 
+				else
 				{
 #if defined(MAC_OS_X_VERSION_10_7) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7
 					@try {
 						[(NSView*)CreationParams.WindowId setWantsBestResolutionOpenGLSurface:NO];
-					} 
+					}
 					@catch(NSException* exception){
 					}
 #endif
@@ -1575,7 +1567,7 @@ void CIrrDeviceMacOSX::postMouseEvent(void *event,irr::SEvent &ievent)
 	{
 		ievent.MouseInput.Shift = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagShift) != 0;
 		ievent.MouseInput.Control = ([(NSEvent *)event modifierFlags] & NSEventModifierFlagControl) != 0;
-		
+
 		postEventFromUser(ievent);
 		if(transformToMultiClickEvent(ievent))
 			postEventFromUser(ievent);
@@ -1690,8 +1682,8 @@ void CIrrDeviceMacOSX::setCursorVisible(bool visible)
 	else
 		CGDisplayHideCursor(CGMainDisplayID());
 }
-    
-    
+
+
 void CIrrDeviceMacOSX::setWindow(NSWindow* window)
 {
     Window = window;
@@ -1854,7 +1846,7 @@ void CIrrDeviceMacOSX::restoreWindow()
 {
 	[Window deminiaturize:[NSApp self]];
 }
-    
+
 //! Get the position of this window on screen
 core::position2di CIrrDeviceMacOSX::getWindowPosition()
 {

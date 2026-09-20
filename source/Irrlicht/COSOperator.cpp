@@ -14,15 +14,9 @@
 #include <unistd.h>
 #ifndef _IRR_ANDROID_PLATFORM_
 #include <sys/types.h>
-#ifdef _IRR_OSX_PLATFORM_
-#include <sys/sysctl.h>
-#endif
 #endif
 #endif
 
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-#import <Cocoa/Cocoa.h>
-#endif
 #if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
 #include <SDL2/SDL_clipboard.h>
 #endif
@@ -32,12 +26,6 @@
 
 #include "fast_atof.h"
 
-#ifdef _IRR_OSX_PLATFORM_
-#include <AvailabilityMacros.h>
-#if !defined(MAC_OS_X_VERSION_10_14) || MAC_OS_X_VERSION_MIN_ALLOWED < MAC_OS_X_VERSION_10_14
-#define NSPasteboardTypeString NSStringPboardType
-#endif
-#endif
 
 namespace irr
 {
@@ -87,17 +75,6 @@ static void copyClipboardWindows(const wchar_t* wtext, size_t wlen) {
 }
 #endif
 
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-static void copyClipboardOSX(const char* ctext) {
-	NSString* str;
-	NSPasteboard* board;
-	str = [NSString stringWithUTF8String : ctext];
-	board = [NSPasteboard generalPasteboard];
-	[board declareTypes : [NSArray arrayWithObject : NSPasteboardTypeString] owner : NSApp] ;
-	[board setString : str forType : NSPasteboardTypeString] ;
-}
-#endif
-
 //! copies text to the clipboard
 void COSOperator::copyToClipboard(const wchar_t* wtext) const
 {
@@ -119,12 +96,6 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 	core::wcharToUtf8(wtext, ctext, lenOld);
 
 	switch(DeviceType) {
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_OSX_PLATFORM_))
-	case EIDT_SDL:
-	case EIDT_OSX:
-		copyClipboardOSX(ctext);
-		break;
-#endif
 #if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
 	case EIDT_SDL2:
 		SDL_SetClipboardText(ctext);
@@ -175,18 +146,6 @@ static void closeClipboardWindows(void* hData) {
 }
 #endif
 
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-static const char* getClipboardOSX(NSString*& str) {
-	NSPasteboard* board = nil;
-	board = [NSPasteboard generalPasteboard];
-	str = [board stringForType : NSPasteboardTypeString];
-	if(str != nil)
-		return (char*)[str UTF8String];
-	return nullptr;
-}
-#endif
-
-
 
 //! gets text from the clipboard
 //! \return Returns 0 if no string is in there.
@@ -197,20 +156,11 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	void* hData = nullptr;
 	(void)wbuffer;
 	(void)hData;
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
-	NSString* str = nil;
-#endif
 	switch(DeviceType) {
 #if defined(_IRR_COMPILE_WITH_WINDOWS_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_WINDOWS_API_))
 	case EIDT_SDL:
 	case EIDT_WIN32:
 		hData = getClipboardWindows(cbuffer, wbuffer);
-		break;
-#endif
-#if defined(_IRR_COMPILE_WITH_OSX_DEVICE_) || (defined(_IRR_COMPILE_WITH_SDL_DEVICE_) && defined(_IRR_OSX_PLATFORM_))
-	case EIDT_SDL:
-	case EIDT_OSX:
-		cbuffer = getClipboardOSX(str);
 		break;
 #endif
 #if defined(_IRR_COMPILE_WITH_SDL2_DEVICE_)
@@ -278,15 +228,6 @@ bool COSOperator::getProcessorSpeedMHz(u32* MHz) const
 		*MHz = Speed;
 	return true;
 
-#elif defined(_IRR_OSX_PLATFORM_)
-	struct clockinfo CpuClock;
-	size_t Size = sizeof(clockinfo);
-
-	if (!sysctlbyname("kern.clockrate", &CpuClock, &Size, NULL, 0))
-		return false;
-	else if (MHz)
-		*MHz = CpuClock.hz;
-	return true;
 #else
 	// read from "/proc/cpuinfo"
 	FILE* file = fopen("/proc/cpuinfo", "r");
@@ -378,17 +319,6 @@ bool COSOperator::getSystemMemory(u32* Total, u32* Avail) const
 	// TODO: implement for non-availability of symbols/features
 	return false;
 #endif
-#elif defined(_IRR_OSX_PLATFORM_)
-	int mib[2];
-	int64_t physical_memory;
-	size_t length;
-
-	// Get the Physical memory size
-	mib[0] = CTL_HW;
-	mib[1] = HW_MEMSIZE;
-	length = sizeof(int64_t);
-	sysctl(mib, 2, &physical_memory, &length, NULL, 0);
-	return true;
 #else
 	// TODO: implement for others
 	return false;
