@@ -17,7 +17,6 @@ class COSOperator : public IOSOperator
 public:
 
 	// constructor
-	COSOperator(const core::stringc& osversion, E_DEVICE_TYPE deviceType);
 	COSOperator(const core::stringc& osversion);
 
 	//! returns the current operation system version as string.
@@ -47,9 +46,6 @@ protected:
 private:
 
 	core::stringc OperatingSystem;
-
-	E_DEVICE_TYPE DeviceType;
-
 };
 
 } // end namespace

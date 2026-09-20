@@ -15,7 +15,7 @@
 
 #include "CTimer.h"
 #include "irrString.h"
-#include "COSOperator.h"
+#include "COSOperatorWindows.h"
 #include "dimension2d.h"
 #include "IGUISpriteBank.h"
 #include "IGUIEnvironment.h"
@@ -1066,7 +1066,7 @@ CIrrDeviceWin32::CIrrDeviceWin32(const SIrrlichtCreationParameters& params)
 		os::Printer::log("Running in compatibility mode for", compatWinversion.data(), ELL_INFORMATION);
 		winversion.append(" (Compat mode: ").append(compatWinversion).append(")");
 	}
-	Operator = new COSOperator(winversion, EIDT_WIN32);
+	Operator = new COSOperatorWindows(winversion);
 
 	// get handle to exe file
 	HINSTANCE hInstance = GetModuleHandle(0);
