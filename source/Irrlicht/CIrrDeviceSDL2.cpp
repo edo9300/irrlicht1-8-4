@@ -1418,6 +1418,10 @@ void CIrrDeviceSDL2::CCursorControl::setActiveIcon(gui::ECURSOR_ICON iconId)
 	SDL_SetCursor(cursors[iconId]);
 }
 
+IrrlichtDevice* createIrrDeviceSDL2(const SIrrlichtCreationParameters& params) {
+	return new CIrrDeviceSDL2(params);
+}
+
 } // end namespace irr
 
 #endif // _IRR_COMPILE_WITH_SDL_DEVICE_

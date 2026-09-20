@@ -1339,6 +1339,10 @@ void CIrrDeviceSDL::createKeyMap()
 	KeyMap.sort();
 }
 
+IrrlichtDevice* createIrrDeviceSDL(const SIrrlichtCreationParameters& params) {
+	return new CIrrDeviceSDL(params);
+}
+
 } // end namespace irr
 
 #endif // _IRR_COMPILE_WITH_SDL_DEVICE_

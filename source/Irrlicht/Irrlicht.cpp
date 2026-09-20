@@ -37,15 +37,21 @@ namespace irr {
 #endif
 
 #ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
-#include "CIrrDeviceSDL.h"
+namespace irr {
+IrrlichtDevice* createIrrDeviceSDL(const SIrrlichtCreationParameters& params);
+}
 #endif
 
 #ifdef _IRR_COMPILE_WITH_SDL2_DEVICE_
-#include "CIrrDeviceSDL2.h"
+namespace irr {
+IrrlichtDevice* createIrrDeviceSDL2(const SIrrlichtCreationParameters& params);
+}
 #endif
 
 #ifdef _IRR_COMPILE_WITH_SDL3_DEVICE_
-#include "CIrrDeviceSDL3.h"
+namespace irr {
+IrrlichtDevice* createIrrDeviceSDL3(const SIrrlichtCreationParameters& params);
+}
 #endif
 
 #ifdef _IRR_COMPILE_WITH_CONSOLE_DEVICE_
@@ -119,17 +125,17 @@ namespace irr
 
 #ifdef _IRR_COMPILE_WITH_SDL_DEVICE_
 		if (params.DeviceType == EIDT_SDL || (!dev && params.DeviceType == EIDT_BEST))
-			dev = new CIrrDeviceSDL(params);
+			dev = createIrrDeviceSDL(params);
 #endif
 
 #ifdef _IRR_COMPILE_WITH_SDL2_DEVICE_
 		if (params.DeviceType == EIDT_SDL2 || (!dev && params.DeviceType == EIDT_BEST))
-			dev = new CIrrDeviceSDL2(params);
+			dev = createIrrDeviceSDL2(params);
 #endif
 
 #ifdef _IRR_COMPILE_WITH_SDL3_DEVICE_
 		if(params.DeviceType == EIDT_SDL3 || (!dev && params.DeviceType == EIDT_BEST))
-			dev = new CIrrDeviceSDL3(params);
+			dev = createIrrDeviceSDL3(params);
 #endif
 
 #ifdef _IRR_COMPILE_WITH_FB_DEVICE_
