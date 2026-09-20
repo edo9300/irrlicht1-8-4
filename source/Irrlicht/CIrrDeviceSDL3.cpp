@@ -15,7 +15,7 @@
 #include "CTimer.h"
 #include "irrString.h"
 #include "Keycodes.h"
-#include "COSOperator.h"
+#include "COSOperatorSDL3.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "SIrrCreationParameters.h"
@@ -121,7 +121,7 @@ CIrrDeviceSDL3::CIrrDeviceSDL3(const SIrrlichtCreationParameters& param)
 			return;
 	}
 
-	Operator = new COSOperator(sdlversion, EIDT_SDL3);
+	Operator = new COSOperatorSDL3(sdlversion);
 
 	// create keymap
 	createKeyMap();

@@ -30,7 +30,6 @@ public:
 
 private:
 	CIrrDeviceWayland* IrrDeviceWayland;
-	mutable core::stringw ClipboardString;
 };
 
 }

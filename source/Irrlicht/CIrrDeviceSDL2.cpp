@@ -13,7 +13,7 @@
 #include "CTimer.h"
 #include "irrString.h"
 #include "Keycodes.h"
-#include "COSOperator.h"
+#include "COSOperatorSDL2.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "SIrrCreationParameters.h"
@@ -130,7 +130,7 @@ CIrrDeviceSDL2::CIrrDeviceSDL2(const SIrrlichtCreationParameters& param)
 	SDL_SetHintWithPriority(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, "1", SDL_HINT_OVERRIDE);
 	SDL_GetWindowWMInfo(window, &Info);
 
-	Operator = new COSOperator(sdlversion, EIDT_SDL2);
+	Operator = new COSOperatorSDL2(sdlversion);
 
 	// create keymap
 	createKeyMap();

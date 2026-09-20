@@ -7,27 +7,28 @@
 
 #include <IrrCompileConfig.h>
 
-#ifdef _IRR_COMPILE_WITH_X11_DEVICE_
+#ifdef _IRR_COMPILE_WITH_SDL2_DEVICE_
 
 #ifdef _IRR_WINDOWS_API_
 #include "COSOperatorWindows.h"
 #define DEFAULT_OPERATOR COSOperatorWindows
-#else
+#elif defined(_IRR_POSIX_API_)
 #include "COSOperatorPosix.h"
 #define DEFAULT_OPERATOR COSOperatorPosix
+#else
+#include "COSOperator.h"
+#define DEFAULT_OPERATOR COSOperator
 #endif
 
 namespace irr
 {
 
-class CIrrDeviceLinux;
-
-class COSOperatorLinux : public DEFAULT_OPERATOR {
+class COSOperatorSDL2 : public DEFAULT_OPERATOR {
 
 	using base = DEFAULT_OPERATOR;
 
 public:
-	COSOperatorLinux(const core::stringc& osversion, CIrrDeviceLinux* device);
+	COSOperatorSDL2(const core::stringc& osversion);
 
 	//! copies text to the clipboard
 	virtual void copyToClipboard(const wchar_t* text) const _IRR_OVERRIDE_;
@@ -35,9 +36,6 @@ public:
 	//! gets text from the clipboard
 	//! \return Returns 0 if no string is in there.
 	virtual const wchar_t* getTextFromClipboard() const _IRR_OVERRIDE_;
-
-private:
-	CIrrDeviceLinux* IrrDeviceLinux;
 };
 
 }

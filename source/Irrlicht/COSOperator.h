@@ -41,6 +41,9 @@ public:
 	//! \return Returns true if successful, false if not
 	virtual bool getSystemMemory(u32* Total, u32* Avail) const _IRR_OVERRIDE_;
 
+protected:
+	mutable core::stringw ClipboardString;
+
 private:
 
 	core::stringc OperatingSystem;

@@ -12,7 +12,7 @@ namespace irr
 {
 
 COSOperatorLinux::COSOperatorLinux(const core::stringc& osversion, CIrrDeviceLinux* device) :
-	COSOperatorPosix(osversion), IrrDeviceLinux(device) {
+	base(osversion), IrrDeviceLinux(device) {
 #ifdef _DEBUG
 	setDebugName("COSOperatorLinux");
 #endif
