@@ -55,7 +55,7 @@ IRRSWRENDEROBJ = CSoftwareDriver.o CSoftwareTexture.o CTRFlat.o CTRFlatWire.o CT
 	CTRTextureLightMap2_Add.o CTRTextureLightMapGouraud2_M4.o IBurningShader.o CTRTextureBlend.o CTRTextureGouraudAlpha.o \
 	CTRTextureGouraudAlphaNoZ.o CDepthBuffer.o CBurningShader_Raster_Reference.o CTR_transparent_reflection_2_layer.o CTRGouraudNoZ2.o burning_shader_color.o
 IRRIOOBJ = CFileList.o CFileSystem.o CLimitReadFile.o CMemoryFile.o CReadFile.o CWriteFile.o CXMLReader.o CXMLWriter.o CWADReader.o CZipReader.o CPakReader.o CNPKReader.o CTarReader.o CMountPointReader.o irrXML.o CAttributes.o lzma/LzmaDec.o
-IRROTHEROBJ = CIrrDeviceSDL.o CIrrDeviceSDL2.o CIrrDeviceSDL3.o CIrrDeviceLinux.o CIrrDeviceConsole.o CIrrDeviceStub.o CIrrDeviceWin32.o CIrrDeviceWin32WindowsVersionWMI.o CIrrDeviceFB.o CLogger.o COSOperator.o COSOperatorLinux.o COSOperatorPosix.o COSOperatorWayland.o CWin32DropTarget.o Irrlicht.o os.o leakHunter.o 	CProfiler.o utf8.o LibX11Loader.o COpenGLBaseFunctionsHandler.o COGLESBaseFunctionsHandler.o COGLES2BaseFunctionsHandler.o CSDLContextManager.o CSDL2ContextManager.o CSDL3ContextManager.o CIrrDeviceWayland.o xdg_decoration_unstable_v1_protocol.o xdg_shell_protocol.o org_kde_kwin_server_decoration_manager_client_protocol.o zxdg_shell_unstable_v6_client_protocol.o ztext_input_unstable_v3_client_protocol.o cursor_shape_v1_protocol.o DbusLoader.o LibdecorLoader.o
+IRROTHEROBJ = CIrrDeviceSDL.o CIrrDeviceSDL2.o CIrrDeviceSDL3.o CIrrDeviceLinux.o CIrrDeviceConsole.o CIrrDeviceStub.o CIrrDeviceWin32.o CIrrDeviceWin32WindowsVersionWMI.o CIrrDeviceFB.o CLogger.o COSOperator.o COSOperatorLinux.o COSOperatorPosix.o COSOperatorWayland.o CWin32DropTarget.o Irrlicht.o os.o leakHunter.o CProfiler.o utf8.o LibX11Loader.o COpenGLBaseFunctionsHandler.o COGLESBaseFunctionsHandler.o COGLES2BaseFunctionsHandler.o CSDLContextManager.o CSDL2ContextManager.o CSDL3ContextManager.o CIrrDeviceWayland.o xdg_decoration_unstable_v1_protocol.o xdg_shell_protocol.o org_kde_kwin_server_decoration_manager_client_protocol.o zxdg_shell_unstable_v6_client_protocol.o ztext_input_unstable_v3_client_protocol.o cursor_shape_v1_protocol.o DbusLoader.o LibdecorLoader.o
 IRRGUIOBJ = CGUIButton.o CGUICheckBox.o CGUIComboBox.o CGUIContextMenu.o CGUIEditBox.o CGUIEnvironment.o CGUIFileOpenDialog.o CGUIFont.o CGUIImage.o CGUIInOutFader.o CGUIListBox.o CGUIMenu.o CGUIMeshViewer.o CGUIMessageBox.o CGUIModalScreen.o CGUIScrollBar.o CGUISpinBox.o CGUISkin.o CGUIStaticText.o CGUITabControl.o CGUITable.o CGUIToolBar.o CGUIWindow.o CGUIColorSelectDialog.o CDefaultGUIElementFactory.o CGUISpriteBank.o CGUIImageList.o CGUITreeView.o CGUIProfiler.o
 ZLIBOBJ = zlib/adler32.o zlib/compress.o zlib/crc32.o zlib/deflate.o zlib/inffast.o zlib/inflate.o zlib/inftrees.o zlib/trees.o zlib/uncompr.o zlib/zutil.o
 JPEGLIBOBJ = jpeglib/jcapimin.o jpeglib/jcapistd.o jpeglib/jccoefct.o jpeglib/jccolor.o jpeglib/jcdctmgr.o jpeglib/jchuff.o jpeglib/jcinit.o jpeglib/jcmainct.o jpeglib/jcmarker.o jpeglib/jcmaster.o jpeglib/jcomapi.o jpeglib/jcparam.o jpeglib/jcprepct.o jpeglib/jcsample.o jpeglib/jctrans.o jpeglib/jdapimin.o jpeglib/jdapistd.o jpeglib/jdatadst.o jpeglib/jdatasrc.o jpeglib/jdcoefct.o jpeglib/jdcolor.o jpeglib/jddctmgr.o jpeglib/jdhuff.o jpeglib/jdinput.o jpeglib/jdmainct.o jpeglib/jdmarker.o jpeglib/jdmaster.o jpeglib/jdmerge.o jpeglib/jdpostct.o jpeglib/jdsample.o jpeglib/jdtrans.o jpeglib/jerror.o jpeglib/jfdctflt.o jpeglib/jfdctfst.o jpeglib/jfdctint.o jpeglib/jidctflt.o jpeglib/jidctfst.o jpeglib/jidctint.o jpeglib/jmemmgr.o jpeglib/jmemnobs.o jpeglib/jquant1.o jpeglib/jquant2.o jpeglib/jutils.o jpeglib/jcarith.o jpeglib/jdarith.o jpeglib/jaricom.o
@@ -77,8 +77,8 @@ emscripten: EMSCRIPTEN=1
 
 CXXINCS = -I../../include -Izlib -Ijpeglib -Ilibpng
 CPPFLAGS += $(CXXINCS) -DIRRLICHT_EXPORTS=1
-CXXFLAGS += -Wall -pipe -fno-exceptions -fno-rtti -Wno-parentheses
-#CXXFLAGS += -std=gnu++11 -U__STRICT_ANSI__
+CXXFLAGS += -Wall -pipe -fno-exceptions -fno-rtti -Wno-parentheses -DGL_SILENCE_DEPRECATION
+CXXFLAGS += -std=gnu++11
 ifndef NDEBUG
   CXXFLAGS += -g -D_DEBUG
 else
@@ -117,18 +117,22 @@ staticlib sharedlib: CXXINCS += -I/usr/X11R6/include
 
 #OSX specific options
 staticlib_osx sharedlib_osx install_osx: SYSTEM = MacOSX
-staticlib_osx sharedlib_osx: IRROTHEROBJ += MacOSX/CIrrDeviceMacOSX.o MacOSX/OSXClipboard.o MacOSX/AppDelegate.o
-staticlib_osx sharedlib_osx: CXXINCS += -IMacOSX -I/usr/X11R6/include
+staticlib_osx sharedlib_osx: IRROTHEROBJ += CIrrDeviceOSX.o CNSOGLManager.o COSOperatorOSX.o
 sharedlib_osx install_osx: SHARED_LIB = libIrrlicht.dylib
 staticlib_osx sharedlib_osx: LDFLAGS += --no-export-all-symbols --add-stdcall-alias
-sharedlib_osx: LDFLAGS += -L/usr/X11R6/lib$(LIBSELECT) -lGL -lXxf86vm
 # for non-X11 app
-#sharedlib_osx: LDFLAGS += -framework cocoa -framework carbon -framework opengl -framework IOKit
+sharedlib_osx: LDFLAGS += -framework cocoa -framework carbon -framework opengl -framework IOKit
+
+#IOS specific options
+staticlib_ios sharedlib_ios install_ios: SYSTEM = IOS
+staticlib_ios sharedlib_ios: IRROTHEROBJ += CIrrDeviceiOS.o CEAGLManager.o
+sharedlib_ios install_ios: SHARED_LIB = libIrrlicht.dylib
+staticlib_ios sharedlib_ios: LDFLAGS += --no-export-all-symbols --add-stdcall-alias
 
 #Windows specific options
 IRRLICHT_DLL := ../../bin/Win32-gcc/Irrlicht.dll
 sharedlib_win32 staticlib_win32: SYSTEM = Win32-gcc
-sharedlib_win32: LDFLAGS += -lgdi32 -lopengl32 -ld3dx9d -lwinmm -limm32 -lole32 -luuid -loleaut32 -lwbemuuid -Wl,--add-stdcall-alias
+sharedlib_win32: LDFLAGS += -lgdi32 -lopengl32 -ld3dx9d -lwinmm -Wl,--add-stdcall-alias
 #sharedlib_win32: LDFLAGS += -lSDL
 #choose either -DIRR_COMPILE_WITH_DX9_DEV_PACK or -DNO_IRR_COMPILE_WITH_DIRECT3D_9_ depending if you need dx9
 #sharedlib_win32 staticlib_win32: CPPFLAGS += -DIRR_COMPILE_WITH_DX9_DEV_PACK
@@ -182,7 +186,7 @@ $(STATIC_LIB): $(LINKOBJ)
 	$(AR) rs $@ $^
 
 # Copies static lib into ../../lib/($SYSTEM)
-staticlib staticlib_osx staticlib_emscripten: $(STATIC_LIB)
+staticlib staticlib_osx staticlib_emscripten staticlib_ios: $(STATIC_LIB)
 	mkdir -p $(LIB_PATH)
 	cp $^ $(LIB_PATH)
 
