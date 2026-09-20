@@ -13,7 +13,6 @@
 #include "CTimer.h"
 #include "irrString.h"
 #include "Keycodes.h"
-#include "COSOperator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "SIrrCreationParameters.h"
@@ -21,6 +20,20 @@
 #include <SDL/SDL_video.h>
 #include "CSDLContextManager.h"
 #include "CDriverCreationPrototypes.h"
+
+#ifdef _IRR_OSX_PLATFORM_
+#include "COSOperatorOSX.h"
+using OSOperator = irr::COSOperatorOSX;
+#elif defined(_IRR_POSIX_API_)
+#include "COSOperatorPosix.h"
+using OSOperator = irr::COSOperatorPosix;
+#elif defined(_IRR_WINDOWS_API_)
+#include "COSOperatorWindows.h"
+using OSOperator = irr::COSOperatorWindows;
+#else
+#include "COSOperator.h"
+using OSOperator = irr::COSOperator;
+#endif
 
 #ifdef _IRR_EMSCRIPTEN_PLATFORM_
 #ifdef _IRR_COMPILE_WITH_OGLES2_
@@ -214,7 +227,7 @@ CIrrDeviceSDL::CIrrDeviceSDL(const SIrrlichtCreationParameters& param)
 	sdlversion += ".";
 	sdlversion += Info.version.patch;
 
-	Operator = new COSOperator(sdlversion, EIDT_SDL);
+	Operator = new OSOperator(sdlversion);
 	if ( SDLDeviceInstances == 1 )
 	{
 		os::Printer::log(sdlversion.c_str(), ELL_INFORMATION);

@@ -19,13 +19,6 @@ class COSOperatorPosix : public COSOperator {
 public:
 	COSOperatorPosix(const core::stringc& osversion);
 
-	//! copies text to the clipboard
-	virtual void copyToClipboard(const wchar_t* text) const _IRR_OVERRIDE_ = 0;
-
-	//! gets text from the clipboard
-	//! \return Returns 0 if no string is in there.
-	virtual const wchar_t* getTextFromClipboard() const _IRR_OVERRIDE_ = 0;
-
 	//! gets the processor speed in megahertz
 	//! \param Mhz:
 	//! \return Returns true if successful, false if not
