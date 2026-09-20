@@ -58,7 +58,7 @@
 #include "DbusLoader.h"
 
 #include "CColorConverter.h"
-#include "COSOperator.h"
+#include "COSOperatorWayland.h"
 #include "CTimer.h"
 #include "CVideoModeList.h"
 #include "IEventReceiver.h"
@@ -1738,7 +1738,7 @@ CIrrDeviceWayland::CIrrDeviceWayland(const SIrrlichtCreationParameters& params)
     linuxversion += LinuxInfo.machine;
     linuxversion += " (Wayland)";
 
-    Operator = new COSOperator(linuxversion, this);
+    Operator = new COSOperatorWayland(linuxversion, this);
     os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
 
     createKeyMap();

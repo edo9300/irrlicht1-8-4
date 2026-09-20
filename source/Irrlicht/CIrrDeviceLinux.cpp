@@ -30,7 +30,7 @@
 #include "CTimer.h"
 #include "irrString.h"
 #include "Keycodes.h"
-#include "COSOperator.h"
+#include "COSOperatorLinux.h"
 #include "CColorConverter.h"
 #include "SIrrCreationParameters.h"
 #include "SExposedVideoData.h"
@@ -162,7 +162,7 @@ CIrrDeviceLinux::CIrrDeviceLinux(const SIrrlichtCreationParameters& param)
 	}
 #endif //_IRR_X11_DYNAMIC_LOAD_
 
-	Operator = new COSOperator(linuxversion, this);
+	Operator = new COSOperatorLinux(linuxversion, this);
 	os::Printer::log(linuxversion.c_str(), ELL_INFORMATION);
 
 	// create keymap

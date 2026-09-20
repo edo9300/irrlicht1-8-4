@@ -20,12 +20,6 @@
 #endif
 #endif
 
-#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-#include "CIrrDeviceLinux.h"
-#endif
-#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-#include "CIrrDeviceWayland.h"
-#endif
 #if defined(_IRR_COMPILE_WITH_OSX_DEVICE_)
 #import <Cocoa/Cocoa.h>
 #endif
@@ -48,34 +42,18 @@
 namespace irr
 {
 
-#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-// constructor  linux
-COSOperator::COSOperator(const core::stringc& osVersion, CIrrDeviceLinux* device)
-	: OperatingSystem(osVersion), IrrDeviceLinux(device), DeviceType(EIDT_X11)
-{
-	#ifdef _DEBUG
-	setDebugName("COSOperator");
-	#endif
-}
-#endif
-
-#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-// constructor  linux
-COSOperator::COSOperator(const core::stringc& osVersion, CIrrDeviceWayland* device)
-	: OperatingSystem(osVersion), IrrDeviceWayland(device), DeviceType(EIDT_WAYLAND)
-{
-	#ifdef _DEBUG
-	setDebugName("COSOperator");
-	#endif
-}
-#endif
-
 // constructor
 COSOperator::COSOperator(const core::stringc& osVersion, E_DEVICE_TYPE deviceType) : OperatingSystem(osVersion), DeviceType(deviceType)
 {
 	#ifdef _DEBUG
 	setDebugName("COSOperator");
 	#endif
+}
+COSOperator::COSOperator(const core::stringc& osVersion) : OperatingSystem(osVersion), DeviceType(EIDT_WIN32)
+{
+#ifdef _DEBUG
+	setDebugName("COSOperator");
+#endif
 }
 
 
@@ -155,18 +133,6 @@ void COSOperator::copyToClipboard(const wchar_t* wtext) const
 #if defined(_IRR_COMPILE_WITH_SDL3_DEVICE_)
 	case EIDT_SDL3:
 		SDL_SetClipboardText(ctext);
-		break;
-#endif
-#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	case EIDT_X11:
-		if(IrrDeviceLinux)
-			IrrDeviceLinux->copyToClipboard(ctext);
-		break;
-#endif
-#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-	case EIDT_WAYLAND:
-		if(IrrDeviceWayland)
-			IrrDeviceWayland->copyToClipboard(ctext);
 		break;
 #endif
 	case EIDT_BEST: //we need at least 1 valid case to not generate compiler warnings about switch without case
@@ -257,18 +223,6 @@ const wchar_t* COSOperator::getTextFromClipboard() const {
 	case EIDT_SDL3:
 		if(SDL_HasClipboardText())
 			cbuffer = SDL_GetClipboardText();
-		break;
-#endif
-#if defined(_IRR_COMPILE_WITH_X11_DEVICE_)
-	case EIDT_X11:
-		if(IrrDeviceLinux)
-			cbuffer = IrrDeviceLinux->getTextFromClipboard();
-		break;
-#endif
-#if defined(_IRR_COMPILE_WITH_WAYLAND_DEVICE_)
-	case EIDT_WAYLAND:
-		if(IrrDeviceWayland)
-			cbuffer = IrrDeviceWayland->getTextFromClipboard();
 		break;
 #endif
 	case EIDT_BEST: //we need at least 1 valid case to not generate compiler warnings about switch without case
